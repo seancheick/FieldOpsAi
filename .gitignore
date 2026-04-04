@@ -1,0 +1,27 @@
+# Environment — never commit real keys
+.env
+.env.local
+.env*.local
+
+# Supabase
+.supabase
+infra/supabase/.branches/
+infra/supabase/.temp/
+
+# Dependencies
+node_modules
+
+# Claude local session data
+.claude/
+
+# macOS
+**/.DS_Store
+
+# Python
+execution/__pycache__/
+**/__pycache__/
+*.pyc
+
+# Docs / binaries not suited for git
+FieldOps_AI_Complete_Plan_2026_v5.docx
+OldAgentoberemoved.md

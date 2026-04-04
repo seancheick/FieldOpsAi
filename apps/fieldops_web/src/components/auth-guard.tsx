@@ -1,0 +1,120 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { getSupabase } from "@/lib/supabase";
+import { signIn } from "@/lib/auth";
+import type { Session } from "@supabase/supabase-js";
+
+export function AuthGuard({ children }: { children: React.ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [signingIn, setSigningIn] = useState(false);
+
+  useEffect(() => {
+    const supabase = getSupabase();
+
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setLoading(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+      },
+    );
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  async function handleSignIn(e: React.FormEvent) {
+    e.preventDefault();
+    setSigningIn(true);
+    setError(null);
+    try {
+      await signIn(email, password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-in failed");
+    } finally {
+      setSigningIn(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center text-slate-500">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
+        <span className="ml-3">Loading...</span>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="mx-auto mt-20 max-w-md">
+        <div className="rounded-2xl border border-stone-200 bg-white p-8 shadow-sm">
+          <h2 className="text-xl font-bold text-slate-900">
+            Supervisor Login
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Sign in to view the dashboard.
+          </p>
+
+          <form onSubmit={handleSignIn} className="mt-6 space-y-4">
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-slate-700"
+              >
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                required
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-slate-700"
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                required
+              />
+            </div>
+
+            {error && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={signingIn}
+              className="w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
+            >
+              {signingIn ? "Signing in..." : "Sign in"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}

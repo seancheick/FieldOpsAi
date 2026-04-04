@@ -1,0 +1,51 @@
+name: Backend Regression
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/backend-regression.yml"
+      - "execution/**"
+      - "infra/**"
+      - "OPENAPI.yaml"
+      - "OPENAPI_NOTES.md"
+      - "SPRINT_1.md"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/backend-regression.yml"
+      - "execution/**"
+      - "infra/**"
+      - "OPENAPI.yaml"
+      - "OPENAPI_NOTES.md"
+      - "SPRINT_1.md"
+
+permissions:
+  contents: read
+
+jobs:
+  backend-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: "execution/requirements-regression.txt"
+
+      - name: Install Python dependencies
+        run: python -m pip install -r execution/requirements-regression.txt
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.20.3
+
+      - name: Run backend regression suite
+        run: python3 execution/run_backend_regression_suite.py

@@ -1,0 +1,855 @@
+---
+title: Lessons Learned
+tags:
+  - lessons
+  - retrospective
+  - process
+aliases:
+  - Retro Notes
+related:
+  - "[[SPRINT_TRACKER]]"
+  - "[[ROADMAP]]"
+---
+
+# Lessons Learned
+
+This file captures the practical lessons from each sprint so they survive beyond chat history.
+
+> [!tip] Navigation
+> - [[SPRINT_TRACKER]] — Current sprint status
+> - [[ROADMAP]] — Where we're headed
+
+Use it to improve:
+- future prompts
+- project setup
+- definition of done
+- testing discipline
+- planning accuracy
+- CI and local developer workflows
+
+Update rule:
+- Append to this file at the end of each sprint.
+- Add only lessons that changed how we build, verify, scope, or communicate.
+- Keep lessons concrete and reusable.
+- Prefer observed fact over vague opinion.
+
+Recommended format for each sprint:
+- What we learned
+- What we fixed
+- Why it mattered
+- What to do earlier next time
+- Reusable rule for future projects
+
+---
+
+## Sprint 1 Lessons Learned
+
+### 1. A task is not done because the board says it is done
+
+What we learned:
+- Several Sprint 1 tasks in Notion were marked `Done`, but the repo did not contain the matching mobile or web implementation.
+- The backend was materially complete.
+- The full worker loop was not complete in-repo.
+
+What we fixed:
+- Re-verified the backend from the code and tests instead of trusting task status.
+- Corrected Notion statuses.
+- Moved unfinished mobile and web tasks into Sprint 2.
+- Added a repo-local tracker in [SPRINT_TRACKER.md](/Users/seancheick/FieldsOps_ai/SPRINT_TRACKER.md).
+
+Why it mattered:
+- False `Done` states distort planning.
+- They create bad handoffs, bad sprint reviews, and bad next-step decisions.
+- They hide real delivery risk.
+
+What to do earlier next time:
+- Tie every `Done` status to fresh verification evidence.
+- Separate `backend complete` from `product complete`.
+- Move unfinished work forward immediately instead of leaving it in the wrong sprint.
+
+Reusable rule:
+- Never let the board become more optimistic than the repo.
+
+### 2. Definition of done must be tied to proof, not effort
+
+What we learned:
+- “Built” is not enough.
+- The right question is whether there is one command that proves the behavior still works.
+
+What we fixed:
+- Kept Sprint 1 backend tasks closed only after fresh verification.
+- Added explicit evidence references in the tracker and in Notion notes.
+
+Why it mattered:
+- It prevents completion theater.
+- It gives the next developer a clear standard.
+
+What to do earlier next time:
+- Define the proof command during the sprint, not after the sprint.
+
+Reusable rule:
+- A task is only done when its proof path is known, runnable, and recent.
+
+### 3. Notion is useful, but it should not be the only execution tracker
+
+What we learned:
+- Notion is good for backlog planning, sprint visibility, and reprioritization.
+- It is weaker as the only execution source of truth during implementation.
+
+What we fixed:
+- Created [SPRINT_TRACKER.md](/Users/seancheick/FieldsOps_ai/SPRINT_TRACKER.md) inside the repo.
+- Mirrored the Notion field style so updates can move between both systems easily.
+
+Why it mattered:
+- The local tracker lives next to the code, tests, and docs.
+- It can be updated in the same change set as implementation work.
+- It reduces drift between project state and planning state.
+
+What to do earlier next time:
+- Start every project with both:
+  - planning board
+  - repo-local execution tracker
+
+Reusable rule:
+- Use a hybrid system:
+  - Notion for planning
+  - repo tracker for execution
+  - tests/CI for proof
+
+### 4. Local verification must be deterministic, not dependent on machine luck
+
+What we learned:
+- Local Supabase behavior was unstable when the suite depended on ambient Docker state.
+- We hit multiple environment issues:
+  - stale Supabase project instances holding ports
+  - wrong Supabase working directory
+  - flaky `supabase db reset`
+  - missing seed/auth state after rebuilds
+  - hardcoded container-name assumptions
+
+What we fixed:
+- Added [run_backend_regression_suite.py](/Users/seancheick/FieldsOps_ai/execution/run_backend_regression_suite.py).
+- Added [seed_backend_test_data.py](/Users/seancheick/FieldsOps_ai/execution/seed_backend_test_data.py).
+- Made the suite:
+  - clean up stale local stacks
+  - run Supabase from the correct `infra/` project root
+  - seed data explicitly
+  - resolve the active DB container dynamically
+  - run the Sprint 1 verifier after rebuild
+
+Why it mattered:
+- Without deterministic setup, the same code can appear broken or working depending on leftover local state.
+- That makes regressions hard to trust and hard to debug.
+
+What to do earlier next time:
+- Create an environment bootstrap script as soon as the first real end-to-end test exists.
+- Never assume the local stack is already healthy.
+- Never hardcode environment-specific runtime identifiers unless you also control them.
+
+Reusable rule:
+- If a verification path depends on local state, it is not a real gate yet.
+
+### 5. Execution scripts are better than one-off terminal rituals
+
+What we learned:
+- Repeating a sequence of manual commands is fragile.
+- If a workflow matters more than once, it should become a deterministic script.
+
+What we fixed:
+- Converted the backend proof path into explicit execution scripts instead of relying on remembered shell steps.
+
+Why it mattered:
+- The process became repeatable.
+- The suite can now be run by another dev, by CI, or by a future agent without reconstructing context.
+
+What to do earlier next time:
+- Promote repeated shell workflows into scripts immediately.
+
+Reusable rule:
+- If it can be scripted, script it.
+
+### 6. Test the orchestration layer, not only the business behavior
+
+What we learned:
+- The Sprint 1 business verifier was already good.
+- The new risk lived in the orchestration around it:
+  - command ordering
+  - cleanup
+  - seeding
+  - working directory selection
+
+What we fixed:
+- Added unit tests for the runner and seed helper:
+  - [test_run_backend_regression_suite.py](/Users/seancheick/FieldsOps_ai/execution/test_run_backend_regression_suite.py)
+  - [test_seed_backend_test_data.py](/Users/seancheick/FieldsOps_ai/execution/test_seed_backend_test_data.py)
+
+Why it mattered:
+- Many failures came from environment orchestration, not domain logic.
+- The suite runner itself needed to be trustworthy.
+
+What to do earlier next time:
+- Test the glue code as soon as you create it.
+
+Reusable rule:
+- Infrastructure glue is production logic if your team depends on it.
+
+### 7. CI should run the same proof path that local development uses
+
+What we learned:
+- A separate CI-only test path would drift quickly.
+- The strongest gate is the same one developers use locally.
+
+What we fixed:
+- Added [backend-regression.yml](/Users/seancheick/FieldsOps_ai/.github/workflows/backend-regression.yml).
+- Pointed CI at the same local suite entrypoint.
+
+Why it mattered:
+- One verification path is easier to trust and maintain than two parallel ones.
+
+What to do earlier next time:
+- Add a CI gate as soon as the first valuable regression command exists.
+
+Reusable rule:
+- CI should execute the canonical proof command, not a cousin of it.
+
+### 8. Backend completion and product completion are different milestones
+
+What we learned:
+- Sprint 1 backend was complete and verified.
+- Sprint 1 as a user-facing product loop was not complete because the mobile worker app and supervisor web UI were not present in this repo.
+
+What we fixed:
+- Kept the backend tasks done.
+- Moved the unimplemented worker/supervisor tasks into Sprint 2.
+
+Why it mattered:
+- This keeps sprint reporting honest.
+- It also clarifies what to build next without pretending the product is further along than it is.
+
+What to do earlier next time:
+- Split sprint tasks by delivery surface from the start:
+  - backend
+  - mobile
+  - web
+  - infra
+
+Reusable rule:
+- Always report progress at the same layer the user experiences the product.
+
+---
+
+## Sprint 2 Lessons Learned
+
+### 1. Respect roadmap order when multiple good ideas compete
+
+What we learned:
+- The complete plan, roadmap, and PRD all pointed to the same early mobile sequence:
+  - login
+  - home screen
+  - job list
+  - then clock, camera, timeline, and offline depth
+- That alignment mattered because several later features were tempting to jump to first.
+
+What we fixed:
+- Re-checked the long-form plan and roadmap before picking the next task.
+- Kept the team on `Mobile job list` after `Mobile login screen` instead of skipping ahead to camera or offline work.
+
+Why it mattered:
+- It prevents building impressive pieces in the wrong order.
+- It keeps the UI scaffold aligned with the actual product loop and backend contracts already in place.
+- It reduces rework because later worker actions need a stable assigned-job surface anyway.
+
+What to do earlier next time:
+- Reconcile the PRD, roadmap, and sprint board before starting a new sprint slice.
+- Treat roadmap order as a dependency map, not just a wishlist.
+
+Reusable rule:
+- When the product docs agree on sequence, follow the sequence unless there is a verified blocker.
+
+### 2. Notes inside the task are often enough when connector behavior is inconsistent
+
+What we learned:
+- The Notion workspace accepted task property updates but had quirks on certain fields and comment payloads.
+- `Assigned To` and comment creation were not as reliable as the board metadata suggested.
+
+What we fixed:
+- Stored verification proof in `Agent findings and Notes` when the connector behavior was inconsistent.
+
+Why it mattered:
+- Progress still got documented without blocking on tooling quirks.
+
+What to do earlier next time:
+- Use the most reliable writable field for proof notes if a connector is inconsistent.
+
+Reusable rule:
+- Preserve the evidence first; perfect tooling symmetry can come second.
+
+### 3. The repo tracker has to mirror the real board, not just the active slice
+
+What we learned:
+- The Notion board already contained Sprint 2 and later backlog items that were not yet mirrored in the local tracker.
+- That made the repo tracker easier to work from day to day, but less complete as a planning mirror.
+
+What we fixed:
+- Re-audited the roadmap against the Notion board.
+- Mirrored the missing backlog items into [SPRINT_TRACKER.md](/Users/seancheick/FieldsOps_ai/SPRINT_TRACKER.md).
+- Added explicit local tasks for roadmap gaps that were not yet represented cleanly on the board, including `Supervisor dashboard (minimal)` and `Server-side photo stamp pipeline`.
+
+Why it mattered:
+- A local tracker is only useful if it reflects the real queue, not only the task currently being coded.
+- This makes future handoffs and sprint reviews less lossy.
+
+What to do earlier next time:
+- Sync the local tracker from the board when it is first created.
+- Re-run a roadmap-to-board audit at the start of each sprint.
+
+Reusable rule:
+- If the repo tracker is meant to mirror the board, keep it complete enough to plan from, not just execute from.
+
+### Sprint 1 Reusable Checklist
+
+Before closing a sprint, confirm:
+- The board matches the repo.
+- `Done` items have fresh verification evidence.
+- Unfinished work has been moved to the correct sprint.
+- There is one canonical proof command.
+- That command works on a clean local rebuild.
+- CI is pointed at the same proof path.
+- A local tracker exists in the repo.
+- The sprint has a written lessons section here.
+
+### 4. One widget per file, always
+
+What we learned:
+- The initial HomeScreen had 8 widget classes in a single 420-line file.
+- LoginScreen had 3 widget classes inlined.
+- This made it hard to find, reuse, or reason about individual components.
+
+What we fixed:
+- Extracted every widget into its own file under `widgets/` subdirectories.
+- HomeScreen went from 420 lines to 110 lines.
+- Each widget is now independently importable and testable.
+
+Why it mattered:
+- Components can be reused across different screens without importing the entire parent.
+- Diffs are cleaner since changes to one widget don't touch unrelated ones.
+- New developers can find widgets by file name instead of scrolling through a monolith.
+
+What to do earlier next time:
+- Start with one widget per file from the first commit. Never accumulate.
+
+Reusable rule:
+- Every widget class gets its own file. No exceptions. The cost is a few more imports; the benefit is permanent.
+
+### 5. Strict analyzer settings from day one
+
+What we learned:
+- The default `analysis_options.yaml` was minimal — just `flutter_lints` with no strict settings.
+- This allowed implicit dynamics, unused async, and broad catch clauses to pass unnoticed.
+
+What we fixed:
+- Enabled `strict-casts`, `strict-inference`, `strict-raw-types`.
+- Added key lint rules: `avoid_print`, `unawaited_futures`, `prefer_final_locals`, `avoid_catches_without_on_clauses`, `always_use_package_imports`.
+
+Why it mattered:
+- Catches entire categories of bugs at analysis time instead of runtime.
+- Forces explicit types and proper error handling from the start.
+
+What to do earlier next time:
+- Configure strict analysis before writing the first line of feature code.
+
+Reusable rule:
+- analysis_options.yaml is a safety gate, not a default to leave alone.
+
+### 6. State classes need value equality for Riverpod
+
+What we learned:
+- `SessionState` and `ClockInState` had no `==` / `hashCode` overrides.
+- Riverpod's `Notifier` uses identity comparison by default, so every `state = ...` triggered a rebuild even when nothing changed.
+
+What we fixed:
+- Added proper `==` and `hashCode` to all state classes.
+- Used a sentinel pattern for `copyWith` on `ClockInState` so nullable fields can be explicitly set to null.
+
+Why it mattered:
+- Prevents unnecessary rebuilds.
+- The sentinel `copyWith` pattern prevents a class of bugs where you can never clear a nullable field.
+
+What to do earlier next time:
+- Define `==` / `hashCode` on every state class at creation time. Consider using `freezed` or Dart records for new state objects.
+
+Reusable rule:
+- If a class is used as Riverpod state, it must have value equality.
+
+### 7. Never hardcode credentials in app source
+
+What we learned:
+- Login screen had `TextEditingController(text: 'worker@test.com')` and `password123` baked in.
+- These ship in the compiled binary and are extractable.
+
+What we fixed:
+- Removed hardcoded credentials. Fields start empty.
+- Updated test that relied on pre-filled fields.
+
+Why it mattered:
+- Security: even test credentials in production builds are a liability.
+- Sets a bad pattern for future developers.
+
+What to do earlier next time:
+- Never pre-fill credentials even during development. Use test helpers instead.
+
+Reusable rule:
+- If it's a credential, it never appears in widget source code.
+
+### 8. Backend CORS, GPS validation, and transaction rollback need to be right before pilot
+
+What we learned:
+- CORS was `Access-Control-Allow-Origin: *` — acceptable for local dev but a security risk in production.
+- GPS coordinates were type-checked but not range-validated (lat -90..90, lng -180..180). Invalid coordinates would pass geofence checks with nonsense distances.
+- `media_finalize` had a transaction gap: if `photo_events` insert failed after `media_assets` was updated to "uploaded", the asset would be orphaned in a wrong state.
+
+What we fixed:
+- Added `ALLOWED_ORIGINS` env-driven CORS with fallback to `*` for local dev.
+- Added `isValidGpsCoordinates()` helper with range validation, used in `sync_events` and `media_presign`.
+- Added rollback of `media_assets.sync_status` back to "pending" when `photo_events` insert fails in `media_finalize`.
+
+Why it mattered:
+- These are the kind of issues that work fine in testing but cause real damage in production.
+- GPS validation prevents impossible coordinates from corrupting the geofence system.
+- Transaction rollback prevents orphaned records that break the proof chain.
+
+What to do earlier next time:
+- Run a backend security/consistency review as part of every sprint, not just at hardening time.
+
+Reusable rule:
+- If two writes must succeed together, the second failure must undo the first.
+
+### 9. Accessibility is cheaper to add at build time than to retrofit
+
+What we learned:
+- No screens had `Semantics` labels, `liveRegion` annotations, or `semanticLabel` on icons.
+- Adding them retroactively required touching every widget.
+
+What we fixed:
+- Added `Semantics` wrappers on all interactive elements (buttons, status panels, error banners).
+- Added `liveRegion: true` on error panels so screen readers announce changes.
+- Added `semanticLabel` on all icons.
+
+Why it mattered:
+- Field workers may have visual or motor impairments.
+- App store review can reject apps with poor accessibility.
+- It's 2 extra lines per widget at build time vs. a full retrofit later.
+
+What to do earlier next time:
+- Add semantics as you build the widget, not in a separate pass.
+
+Reusable rule:
+- Every interactive widget gets a `Semantics` wrapper at creation time. It costs nothing and prevents a retrofit.
+
+### 10. Clock out is part of clock in — scope the full user action, not half of it
+
+What we learned:
+- The initial clock feature only implemented `clock_in`. The roadmap says "clock in/out" but the sprint task was titled "Clock in button".
+- A worker who can clock in but not clock out has no complete flow.
+
+What we fixed:
+- Added `clockOut` to ClockRepository, shared the implementation via `_submitClockEvent()` to avoid duplication.
+- Renamed `ClockInController` to `ClockController` with typedef alias for backward compat.
+- Added "Clock out" button in ClockStatusPanel when clocked in, with spinner and post-clock-out messaging.
+
+Why it mattered:
+- Half a user action is not a shipped feature.
+- The clock out button is the only way workers end their shift in the app.
+
+What to do earlier next time:
+- When a task says "clock in", read it as "clock in/out" — scope the full user action, not just the entry point.
+
+Reusable rule:
+- Every user-facing action that has a start must also have a stop.
+
+### 11. Build the offline system before it hurts, not after
+
+What we learned:
+- The roadmap marks offline as "MUST WORK" in bold. We built it as part of Sprint 2 rather than deferring it.
+- The sync engine, local database, connectivity detection, and retry logic are all foundational — they affect how clock events, photos, and future features behave.
+
+What we fixed:
+- Built Drift/SQLite local database with `PendingEvents` table.
+- Built SyncEngine with 15s timer, connectivity check, exponential backoff (5s-80s, max 5 retries).
+- Built SyncStatusBar widget showing offline/syncing state.
+- Wired sync engine start into bootstrap.
+
+Why it mattered:
+- Field workers frequently lose connectivity. Without offline support, every API call becomes a user-visible failure.
+- Building it early means every future feature (camera, tasks, notes) can write locally first.
+
+What to do earlier next time:
+- Build the offline system as soon as the first event-producing feature exists.
+
+Reusable rule:
+- If the product is mobile-first and field-used, offline support is infrastructure, not a feature.
+
+### 12. RLS blocks unauthenticated web dashboards — auth first, queries second
+
+What we learned:
+- The web supervisor dashboard loaded correctly but showed "No active jobs found" even though the database had active jobs.
+- The Supabase anon key was used without an authenticated session, so RLS policies (which check `current_company_id()` via `auth.uid()`) correctly returned nothing.
+
+What we fixed:
+- Added an AuthGuard component that wraps all web pages.
+- Supervisor must sign in before seeing any data.
+- NavBar shows the current user email and a Sign out button.
+
+Why it mattered:
+- RLS doing its job silently is worse than a visible error — you think the feature is broken when really it's the auth boundary working correctly.
+- Every data-fetching surface needs an authenticated session if the database has RLS.
+
+What to do earlier next time:
+- When building a new frontend against an RLS-protected backend, add auth before writing the first data-fetching page.
+
+Reusable rule:
+- If RLS is on, unauthenticated queries return empty, not errors. Always add auth first.
+
+### 13. macOS entitlements block network access by default
+
+What we learned:
+- The Flutter macOS desktop app crashed on sign-in because it couldn't make outbound HTTP requests.
+- The default macOS entitlements include `network.server` but NOT `network.client`.
+- Google Fonts fetching also failed silently, contributing to the crash.
+
+What we fixed:
+- Added `com.apple.security.network.client` to both `DebugProfile.entitlements` and `Release.entitlements`.
+
+Why it mattered:
+- Any app that calls an API needs outbound network permission on macOS.
+- The error message ("Sign-in failed") didn't indicate a network permission issue — it looked like bad credentials.
+
+What to do earlier next time:
+- When scaffolding a Flutter project that talks to a backend, add `network.client` entitlement immediately.
+
+Reusable rule:
+- Flutter macOS apps need `com.apple.security.network.client` to make any HTTP requests. Add it to both Debug and Release entitlements at project creation time.
+
+### 14. Clean the .next cache when module errors cascade
+
+What we learned:
+- After editing layout.tsx while the dev server was running, Next.js entered a corrupted state with `Cannot find module './373.js'` and `__webpack_modules__[moduleId] is not a function` errors.
+- Refreshing and restarting the dev server didn't fix it — the `.next` build cache was stale.
+
+What we fixed:
+- Deleted `.next/` directory and restarted the dev server.
+
+Why it mattered:
+- Corrupted build caches waste debugging time. The fix is always the same: delete `.next` and restart.
+
+What to do earlier next time:
+- If you see `Cannot find module './NNN.js'` or `__webpack_modules__` errors in Next.js, delete `.next/` first before investigating further.
+
+Reusable rule:
+- When Next.js dev server spirals into module-not-found errors, `rm -rf .next && npm run dev` is the first fix, not the last resort.
+
+### 15. Every page needs a way back
+
+What we learned:
+- The timeline page and dashboard had no back navigation. Users landed on the timeline via "View timeline" links but had no way to return except the browser back button or the nav bar.
+
+What we fixed:
+- Added a "Back to Dashboard" link at the top of every timeline page.
+- Added a "Go to Dashboard" button on the empty timeline state (no job selected).
+
+Why it mattered:
+- Supervisors scanning multiple jobs need to move quickly between dashboard and timelines.
+- Relying on the browser back button is not a UX pattern — it's a fallback.
+
+What to do earlier next time:
+- Add contextual back navigation to every page at build time.
+
+Reusable rule:
+- Every page that is reached via a link from another page needs an explicit back link. Never rely on the browser back button as the primary navigation.
+
+### Sprint 2 Code Review Checklist
+
+Before closing Sprint 2, confirm:
+- analysis_options.yaml has strict settings enabled.
+- All state classes have == / hashCode.
+- No hardcoded credentials in any Dart source file.
+- All widgets are in separate files (one widget per file).
+- All screens have accessibility semantics.
+- Backend CORS is restricted for non-local environments.
+- GPS coordinates are range-validated before use.
+- Multi-step writes have rollback logic.
+- flutter analyze returns zero issues.
+- flutter test passes all tests.
+
+## Sprint 3 Lessons Learned
+
+### 16. Riverpod family providers changed in v3 — check the API before coding
+
+What we learned:
+- `FamilyAsyncNotifier` and `AsyncNotifierProvider.family` don't exist in flutter_riverpod 3.x the same way.
+- The first attempt used `FamilyAsyncNotifier<List<TaskItem>, String>` which compiled in 2.x docs but fails in 3.x.
+
+What we fixed:
+- Used a `Provider<String>` for the job ID with `ProviderScope` override when pushing the task screen.
+- The `AsyncNotifier` watches the job ID provider and rebuilds when it changes.
+
+Why it mattered:
+- Wasted a build cycle debugging a type error that was an API migration issue, not a logic bug.
+
+What to do earlier next time:
+- When using a Riverpod pattern for the first time in a project, verify against the exact installed version, not docs from a different version.
+
+Reusable rule:
+- Always check the actual package version's API, not generic tutorials. Riverpod 2.x and 3.x have different family notifier APIs.
+
+## Sprint 4 Lessons Learned
+
+### 17. One edge function can serve multiple actions — route by action, not by endpoint
+
+What we learned:
+- OT request and OT approval are two logically distinct operations, but they share auth, rate limiting, idempotency, and the same data domain.
+- Instead of two separate edge functions (`ot_request` and `ot_approve`), one `/ot` function with `action: "request"` and `action: "decide"` is cleaner.
+
+What we fixed:
+- Built a single `/ot` edge function that routes by POST `action` field.
+- GET lists requests (workers see own, supervisors see all).
+- POST with action=request creates, action=decide approves/denies.
+
+Why it mattered:
+- Reduced deployment surface (1 function instead of 2).
+- Shared auth/rate-limit/idempotency logic lives in one place.
+- The pattern scales: `/tasks` already uses GET/POST routing the same way.
+
+What to do earlier next time:
+- When two operations share the same domain and auth requirements, combine them in one function with action routing.
+
+Reusable rule:
+- One edge function per domain, not per operation. Route internally by action or HTTP method.
+
+### 18. Immutable decisions need explicit guard rails — not just business logic
+
+What we learned:
+- OT approval decisions must be immutable per the PRD (append-only). But without explicit guards, a second approval call on the same request could overwrite the first.
+- We needed: status check (must be pending), self-approval block, role check, and rollback on event insert failure.
+
+What we fixed:
+- Cannot approve own request (worker_id !== approver_id).
+- Only pending requests accept decisions.
+- If ot_approval_event insert fails, ot_requests.status rolls back to pending.
+- Idempotency prevents replay with different payloads.
+
+Why it mattered:
+- Payroll accuracy depends on each OT decision being final and traceable.
+- Without these guards, a race condition or retry could produce conflicting decisions.
+
+What to do earlier next time:
+- For any append-only decision (approvals, corrections), write the guard rails into the first implementation, not as a hardening pass later.
+
+Reusable rule:
+- If a decision is immutable, enforce it at every layer: status check, role check, self-check, rollback on failure, and idempotency.
+
+## Sprint 5 Lessons Learned
+
+### 19. Reports are just structured queries over existing event data — keep them simple
+
+What we learned:
+- The temptation was to build a complex PDF rendering pipeline (headless browser, Puppeteer, etc.).
+- But the Sprint 5 definition of done is about data accuracy, not visual polish.
+- A JSON report with structured data that matches source events exactly is more valuable than a pretty PDF that might round or approximate.
+
+What we fixed:
+- Built the report as a structured JSON response (job summary, worker hours, tasks, photos with verification codes, OT decisions).
+- Timesheet as CSV with proper columns and 15-minute rounding.
+- Both stored as export_artifacts for audit trail.
+- PDF rendering deferred to a future Python worker — the data contract is what matters now.
+
+Why it mattered:
+- The PRD says "send to client and get paid." The client needs accurate data. Pretty formatting is secondary.
+- Shipping accurate data now and adding PDF rendering later is better than shipping a pretty PDF with wrong numbers.
+
+What to do earlier next time:
+- Build the data assembly and accuracy first. Add rendering (PDF, charts) as a separate layer on top.
+
+Reusable rule:
+- Reports are data contracts first, documents second. Get the numbers right before making them pretty.
+
+### 20. Review tasks should not stay in Review indefinitely — close them when evidence exists
+
+What we learned:
+- By Sprint 5, we had 18 tasks sitting in "Review" status across Sprints 2-5. All had code, tests, and build verification, but none were moved to Done.
+- The board looked like nothing was finished even though 5 sprints of work were complete.
+
+What we fixed:
+- Audited every pre-Sprint-6 task in Notion.
+- Moved 18 tasks from Review to Done in one pass.
+- Added agent notes to the 2 tasks that were still Backlog with empty notes (Logging system, Server-side photo stamp).
+
+Why it mattered:
+- A board full of Review items creates the same false impression as a board full of false Done items — it distorts planning.
+- New sessions or new developers can't tell what's actually finished.
+
+What to do earlier next time:
+- Move tasks to Done immediately after verification passes, not in a batch later.
+- The pipeline should be: implement → verify → Done. Not implement → verify → Review → forget → batch-close later.
+
+Reusable rule:
+- If the code is written, analyze is clean, tests pass, and the build succeeds — it's Done, not Review. Close it the same session you verify it.
+
+### Sprint 5 Closing Checklist
+
+Before moving to Sprint 6, confirm:
+- All Sprint 1-5 tasks are Done in Notion (18 tasks closed).
+- Logging system is in Review (structured logging exists, observability tooling deferred).
+- flutter analyze returns 0 issues.
+- flutter test passes 9/9.
+- next build passes with 5 pages.
+- SPRINT_TRACKER.md matches Notion.
+- SecondBrain vault is synced.
+
+## Final Code Review Audit Lessons
+
+### 21. Creating a file is not the same as wiring it in — dead code is invisible debt
+
+What we learned:
+- We built `ForemanHomeScreen` and `WorkerHistoryScreen` as complete widget files with premium UI. But neither was reachable from any navigation path. No button, no menu item, no route pushed either screen.
+- They passed `flutter analyze` and `flutter test` — zero errors — because dead code is valid code. The analyzer doesn't know that no user can ever see it.
+- We declared them Done in Notion and the sprint tracker based on "file exists + analyze passes." That was wrong.
+
+What we fixed:
+- Added a history icon button in the HomeScreen AppBar that pushes `WorkerHistoryScreen`.
+- Foreman screen flagged for role-based routing (needs `role` field on `SessionState`).
+
+Why it mattered:
+- A feature that exists in the repo but can't be reached by a user is not a feature — it's dead code with a Done label.
+- This passed through 3 review cycles without being caught because we were checking "does the file exist" not "can a user get to it."
+
+What to do earlier next time:
+- After creating any new screen, immediately verify: "What button or navigation action reaches this screen?" If the answer is "nothing," it's not done.
+- Add a navigation wiring check to the definition of done for every UI task: "User can navigate to and from this screen."
+
+Reusable rule:
+- A screen without a navigation entry point is dead code. Always wire before marking done.
+
+### 22. i18n setup without wiring is theater — ARB files mean nothing until MaterialApp knows about them
+
+What we learned:
+- We added `flutter_localizations` to pubspec, created `l10n.yaml`, wrote ARB files for English, French, and Arabic, generated the `AppLocalizations` class, and marked i18n as Done.
+- But `MaterialApp` had no `localizationsDelegates` and no `supportedLocales`. The generated class was never imported. Every string in every widget was still a hardcoded English literal.
+- The app would have shipped with zero localization despite all the infrastructure being in place.
+
+What we fixed:
+- Added `localizationsDelegates` and `supportedLocales` to `MaterialApp`.
+- Imported `AppLocalizations` from the generated path.
+
+Why it mattered:
+- The plan explicitly says i18n is a Phase 2 REQUIREMENT, not optional. French, Arabic, and Thai for international deployments.
+- Infrastructure without wiring is worse than no infrastructure — it creates a false sense of completion.
+
+What to do earlier next time:
+- After adding any SDK or configuration, verify it works end-to-end: "Can I call `AppLocalizations.of(context)!.signIn` and see it compile?"
+- i18n is not done until at least one widget uses the generated strings instead of hardcoded text.
+
+Reusable rule:
+- Configuration without consumption is dead code. Wire it into at least one consumer before marking done.
+
+### 23. copyWith patterns must be consistent across the entire codebase — one wrong pattern creates a ticking crash
+
+What we learned:
+- `ClockState` correctly uses the sentinel pattern for `copyWith` (allowing explicit null-setting).
+- `OTRequestState` used a different pattern where `error` and `successId` always replace without sentinel checking — meaning calling `copyWith(isSubmitting: false)` silently clears `error` to null.
+- This worked only because every caller happened to pass all fields explicitly. One future caller omitting a field would lose state silently.
+
+What we fixed:
+- Applied the sentinel pattern to `OTRequestState.copyWith`, matching `ClockState`.
+
+Why it mattered:
+- Inconsistent patterns across state classes mean every new contributor has to check which pattern each class uses. That's a guaranteed future bug.
+- Silent data loss in state management is one of the hardest bugs to diagnose because the app doesn't crash — it just shows wrong information.
+
+What to do earlier next time:
+- When the codebase establishes a pattern (sentinel copyWith, value equality, etc.), apply it to EVERY new state class from the first implementation. Don't allow two patterns to coexist.
+
+Reusable rule:
+- If a pattern exists in one state class, it must exist in all state classes. Inconsistency is a bug waiting to happen.
+
+### 24. Bang operators on nullable fields are crash timebombs even when gated by parent conditionals
+
+What we learned:
+- `ClockErrorPanel` used `state.errorTitle!` and `state.errorMessage!` with the bang operator. The panel was only rendered when `clockState.hasError` was true in the parent widget.
+- But the panel widget itself never checked — it trusted the parent's conditional. Between build frames, if the state changed, the panel could receive a null value and crash.
+
+What we fixed:
+- Replaced `state.errorTitle!` with `state.errorTitle ?? ''` — null-safe regardless of caller.
+
+Why it mattered:
+- A widget that crashes when its invariant is broken by the framework's build lifecycle is fragile.
+- The fix is trivial (null-aware access), but the crash in production is not.
+
+What to do earlier next time:
+- Never use bang operators in widget build methods. Always use null-aware access or guards.
+- Treat every widget as independent — it must handle its own null safety, not trust the caller.
+
+Reusable rule:
+- Widgets must never use `!` on fields that could be null. Use `??` or early return. Trust no caller.
+
+### 25. Dark mode requires auditing every hardcoded color — Colors.white breaks dark themes silently
+
+What we learned:
+- We built a full dark theme with proper tokens (`_darkBg`, `_darkSurface`, etc.) and wired `ThemeMode.system` into `MaterialApp`.
+- But `ClockStatusPanel` and `ClockErrorPanel` used `Colors.white` directly in gradient endpoints and background colors.
+- In dark mode, these panels rendered as white rectangles on a dark background — completely breaking the visual design.
+
+What we fixed:
+- Replaced all `Colors.white` in widget files with `palette.surfaceWhite` (which resolves to `_darkSurface` in dark mode).
+
+Why it mattered:
+- A dark mode that's 90% correct but has white rectangles in the main screen looks worse than no dark mode at all.
+- Every hardcoded color is a dark mode bug.
+
+What to do earlier next time:
+- After adding dark mode, grep the entire codebase for `Colors.white`, `Colors.black`, and any hex color literals in widget files. Every one must use a palette token instead.
+
+Reusable rule:
+- If the app has dark mode, zero widget files should contain `Colors.white` or `Colors.black`. Use theme tokens everywhere.
+
+### 26. ProviderObserver is not optional — provider failures are silently swallowed without one
+
+What we learned:
+- `ProviderContainer` was created without a `ProviderObserver`. When any `AsyncNotifier` or `Notifier` throws an uncaught exception, Riverpod's internal error handling swallows it silently.
+- Combined with the global error handlers that only called `debugPrint` (stripped in release), this meant production crashes would be completely invisible.
+
+What we fixed:
+- Created `FieldOpsProviderObserver` extending `ProviderObserver` with `providerDidFail`.
+- Wired it into `ProviderContainer(observers: [...])`.
+
+Why it mattered:
+- For a field operations app where workers may be on remote sites, silent crashes are the worst possible failure mode. No one reports them, and you don't know they're happening.
+
+What to do earlier next time:
+- Add `ProviderObserver` at the same time as creating the `ProviderContainer`. Never create a container without an observer.
+
+Reusable rule:
+- `ProviderContainer` without `ProviderObserver` is a monitoring blind spot. Add the observer at creation time, not during hardening.
+
+### Final Audit Checklist (run before any sprint close)
+
+Before closing any sprint, verify:
+- [ ] Every new screen has a navigation entry point (button, menu, route)
+- [ ] Every SDK/config addition is consumed by at least one widget
+- [ ] All state classes use the same copyWith pattern (sentinel or otherwise)
+- [ ] Zero bang operators in widget build methods
+- [ ] Zero `Colors.white` or `Colors.black` in widget files (use palette tokens)
+- [ ] `ProviderContainer` has an observer
+- [ ] Global error handlers forward to a real reporting service (not just debugPrint)
+- [ ] `flutter analyze` returns 0 issues
+- [ ] `flutter test` passes all tests
+- [ ] Web `next build` passes if applicable
+
+## Cross-Project Rules Worth Reusing
+
+- Never trust project status without checking the repo and running the proof command.
+- Keep planning, execution, and proof in separate but connected layers.
+- Script repeated workflows early.
+- Test the orchestration around the system, not just the system itself.
+- Use one canonical local verification command and make CI run that exact path.
+- Treat environment setup as part of the product delivery pipeline, not as developer folklore.
