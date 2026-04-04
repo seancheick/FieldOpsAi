@@ -37,16 +37,28 @@ aliases:
 
 ---
 
+## Guides & References
+
+| Doc | Purpose |
+|-----|---------|
+| [[README_GUIDE]] | GitHub README best practices — structure, badges, tech stack visuals |
+
+---
+
 ## Sprint Status at a Glance
 
 | Sprint | Goal | Status |
 |--------|------|--------|
-| Sprint 1 | Core backend endpoints | Done |
-| Sprint 2 | MVP worker loop + supervisor view | Review |
-| Sprint 3 | Structured tasks with photo enforcement | Next |
-| Sprint 4 | Overtime verification | Backlog |
-| Sprint 5 | Reporting engine | Backlog |
-| Sprint 6 | Multi-company SaaS | Backlog |
+| Sprint 1 | Core backend endpoints | ✅ Done |
+| Sprint 2 | MVP worker loop + supervisor view | ✅ Done |
+| Sprint 3 | Structured tasks with photo enforcement | ✅ Done |
+| Sprint 4 | Overtime verification | ✅ Done |
+| Sprint 5 | Reporting engine | ✅ Done |
+| Sprint 6 | Competitive parity + pilot readiness | 🔄 In Progress (~50%) |
+| Sprint 7 | Field intelligence | ⬜ Backlog |
+| Sprint 8 | Billing + integrations | ⬜ Backlog |
+| Sprint 9 | AI layer | ⬜ Backlog |
+| Sprint 10 | Scale + platform | ⬜ Backlog |
 
 ---
 
