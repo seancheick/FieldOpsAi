@@ -845,6 +845,101 @@ Before closing any sprint, verify:
 - [ ] `flutter test` passes all tests
 - [ ] Web `next build` passes if applicable
 
+## Git & GitHub Setup Lessons (2026-04-04)
+
+### 27. Never write status-based docs without checking all three trackers first
+
+What we learned:
+- The README roadmap was written based on ROADMAP.md's step structure (Steps 0-8), without checking SPRINT_TRACKER.md or Notion.
+- It incorrectly showed Sprints 2-5 as "In progress" or "Backlog" when all five sprints were Done.
+- The README shipped publicly to GitHub with wrong status for ~30 minutes before being corrected.
+
+What we fixed:
+- Read SPRINT_TRACKER.md and queried Notion before updating the README.
+- Rewrote the roadmap table to reflect actual sprint status, not the strategic step structure.
+
+Why it mattered:
+- Investors, partners, or future developers reading the README would have a false picture of how far along the product is.
+- Status claims require evidence from authoritative sources (SPRINT_TRACKER + Notion), not structural documentation (ROADMAP.md).
+
+What to do earlier next time:
+- Before writing any status table or progress summary, open three tabs: SPRINT_TRACKER.md, Notion board, and the code itself.
+- Cross-reference all three before publishing.
+
+Reusable rule:
+- ROADMAP.md describes architecture. SPRINT_TRACKER.md describes reality. Always use the tracker for status claims.
+
+---
+
+### 28. .env.example must always have placeholder values — real keys only in .env (gitignored)
+
+What we learned:
+- The initial `.env.example` contained real Supabase keys. It was committed to the repo.
+- Even if keys are personal-use-only at the time, `.env.example` is a public contract — it gets committed and pushed.
+
+What we fixed:
+- Replaced real keys in `.env.example` with explicit placeholders (`your-anon-key`, `your-project-ref`).
+- Created `.env` with the real keys (excluded by `.gitignore`).
+- Verified `.env` was absent from `git status` before pushing.
+
+Why it mattered:
+- Keys in `.env.example` end up in git history permanently, even after you fix them. Rotation is the only real fix after a leak.
+- The `.env.example` file purpose is to show structure, not to carry real values.
+
+What to do earlier next time:
+- When creating `.env.example`, use placeholder text from the first commit. Never copy-paste real values into it.
+
+Reusable rule:
+- `.env.example` = structure only. `.env` = real values, always gitignored. Audit both before every push.
+
+---
+
+### 29. GitHub creates a `main` branch with a LICENSE when you initialize a repo — merge before pushing
+
+What we learned:
+- When a GitHub repo is initialized with a license file, it creates a `main` branch with one commit.
+- Pushing a local `master` branch succeeds but doesn't affect `main`.
+- Pushing local `main` to remote `main` fails with "fetch first" because the two histories are unrelated.
+
+What we fixed:
+- Used `--allow-unrelated-histories` to merge the remote LICENSE commit into the local branch.
+- Renamed local `master` → `main`, pushed, deleted remote `master`, and set `main` as default branch.
+
+Why it mattered:
+- First-time GitHub push is a one-shot moment — getting it wrong results in two branches with split history.
+- Force-pushing `main` would have destroyed the LICENSE commit and created a messy history.
+
+What to do earlier next time:
+- After creating a GitHub repo with any auto-generated file (LICENSE, README), immediately `git fetch` and merge before creating your first local commit.
+- Or: initialize the repo with no files and push freely.
+
+Reusable rule:
+- If GitHub initialized the repo with any file, fetch and merge `--allow-unrelated-histories` before your first push. Never force-push over it.
+
+---
+
+### 30. Verify all gitignore exclusions against actual `git status` output before the first push
+
+What we learned:
+- The initial `.gitignore` was missing 7 entries: `.claude/`, `OldAgentoberemoved.md`, `**/.DS_Store`, `**/__pycache__/`, `*.pyc`, `infra/supabase/.branches/`, `infra/supabase/.temp/`, and `FieldOps_AI_Complete_Plan_2026_v5.docx`.
+- Several of these would have committed secrets-adjacent data (Claude session files), system junk (`.DS_Store`), or binary documents.
+
+What we fixed:
+- Audited every category of file in the repo against best practices for a monorepo with Python, Flutter, Next.js, and Supabase.
+- Added all missing entries before the first commit.
+- Verified with `git status --short` that excluded files were absent from staging.
+
+Why it mattered:
+- Secrets and session data in git history are permanent. You cannot "un-commit" them from a public repo without a full history rewrite.
+
+What to do earlier next time:
+- Before the first `git add`, generate a `.gitignore` that covers every language and tool in the project. Run `git status` and look for unexpected files.
+
+Reusable rule:
+- The first commit is the most important gitignore audit. Every file in `git status` before the initial commit is a deliberate choice.
+
+---
+
 ## Cross-Project Rules Worth Reusing
 
 - Never trust project status without checking the repo and running the proof command.
@@ -853,3 +948,6 @@ Before closing any sprint, verify:
 - Test the orchestration around the system, not just the system itself.
 - Use one canonical local verification command and make CI run that exact path.
 - Treat environment setup as part of the product delivery pipeline, not as developer folklore.
+- `.env.example` = structure only. Real values only in gitignored `.env`.
+- ROADMAP.md describes architecture. SPRINT_TRACKER.md describes reality. Always use the tracker for status claims.
+- The first commit is the most important gitignore audit. Verify `git status` before staging anything.
