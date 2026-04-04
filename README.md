@@ -267,17 +267,18 @@ Supabase Storage           Next.js Dashboard
 
 ## Roadmap
 
-| Step | What ships | Status |
-|------|-----------|--------|
-| 0 | Foundation tables, RLS, CI pipeline | ✅ Done |
-| 1 | Core backend endpoints, regression suite | ✅ Done |
-| 2 | Worker loop, supervisor dashboard, photo pipeline | 🔄 In progress |
-| 3 | Task checklists with photo enforcement | ⬜ Next |
-| 4 | OT verification workflow | ⬜ Backlog |
-| 5 | Reporting engine (PDF timesheets, exports) | ⬜ Backlog |
-| 6 | Multi-company SaaS (self-serve onboarding) | ⬜ Backlog |
-| 7 | QuickBooks + payroll integrations | ⬜ Backlog |
-| 8 | AI summaries on structured event data | ⬜ Backlog |
+| Sprint | What ships | Status |
+|--------|-----------|--------|
+| 1 | Core backend endpoints, regression suite, CI gate | ✅ Done |
+| 2 | Worker loop (clock, camera, offline sync), supervisor dashboard, photo stamp pipeline | ✅ Done |
+| 3 | Structured task checklists with photo enforcement | ✅ Done |
+| 4 | Overtime request + supervisor approval workflow | ✅ Done |
+| 5 | Reporting engine — PDF job reports, timesheet CSV export | ✅ Done |
+| 6 | Competitive parity: worker hours dashboard, receipt capture, time card signatures, cost codes, schedule, Spanish i18n, state-specific OT rules | 🔄 Next |
+| 7 | Field intelligence: crew clock-in, GPS breadcrumb trail, equipment tracking, safety sign-off, manual time entry | ⬜ Backlog |
+| 8 | Billing + integrations: Stripe, QuickBooks, Zapier/webhooks, client portal | ⬜ Backlog |
+| 9 | AI layer: daily report writing, anomaly detection, voice-to-log | ⬜ Backlog |
+| 10 | Scale + platform: marketplace, advanced AI, enterprise SSO | ⬜ Backlog |
 
 ---
 
