@@ -412,6 +412,129 @@ Stripe billing deferred to Sprint 8 — run free during pilot to validate all fe
   - Type: Backend | Priority: HIGH
   - Definition of Done: CA daily (>8h), weekly (>40h), double-time (>12h, 7th day). Company settings select jurisdiction. Timesheet export reflects correct classification.
 
+### Admin System (Sprint 6.5 — added 2026-04-05)
+
+Based on competitive research: ClockShark, Busybusy, Connecteam, Jobber, ServiceTitan, Procore.
+Full research: `.claude/plans/rosy-puzzling-clover-agent-a5ebd4159a6e7ee7e.md`
+
+#### Phase 1: Database + Storage Foundation
+
+- [-] Admin system migration (20260406000000_admin_system.sql)
+  - Type: Database | Priority: HIGH
+  - Definition of Done: companies table extended (industry, address, phone, email, stripe_customer_id, payment_status, logo_data_uri, settings_version). platform_admins table created. platform_admin_invites table created. admin_audit_log table (SOC2/GDPR: ip_address, user_agent). company_summary view. is_platform_admin() function. company-logos storage bucket with RLS. Default company settings populated.
+
+#### Phase 2: Edge Functions
+
+- [ ] Company logo edge function (/company_logo)
+  - Type: Backend | Priority: HIGH
+  - Definition of Done: POST generates presigned URL, uploads to company-logos bucket, resizes to 120x120 PNG, stores logo_data_uri for stamp. DELETE clears logo. Rate limited (5/5min per company). Admin-only.
+
+- [ ] Settings helper (_shared/settings.ts)
+  - Type: Backend | Priority: CRITICAL
+  - Definition of Done: DEFAULT_COMPANY_SETTINGS constant. deepMerge() (not shallow spread). getCompanySettings() returns typed, guaranteed-complete object. validateCompanySettings() rejects malformed JSONB server-side (400). All edge functions use this instead of raw JSONB.
+
+- [ ] Audit trail helper (logAdminAction in _shared/api.ts)
+  - Type: Backend | Priority: HIGH
+  - Definition of Done: Extracts IP (cf-connecting-ip → x-real-ip → x-forwarded-for fallback) + user-agent. Writes to admin_audit_log. Called by invites, settings save, staff role changes, suspension.
+
+- [ ] Company status check (checkCompanyActive in _shared/api.ts)
+  - Type: Backend | Priority: CRITICAL
+  - Definition of Done: Returns 403 if companies.status = 'suspended' or deleted_at IS NOT NULL. Called at top of every authenticated edge function.
+
+- [ ] Modify invites (admin can invite supervisors)
+  - Type: Backend | Priority: HIGH
+  - Definition of Done: Line 72 allows supervisor role when caller is admin. Logs to audit trail.
+
+- [ ] Modify media_stamp (company logo on stamp)
+  - Type: Backend | Priority: HIGH
+  - Definition of Done: Reads logo_data_uri directly (no download/conversion). If settings.stamp_branding=logo AND logo_data_uri exists → embed SVG image. Else → company name text only.
+
+- [ ] Role change session sync
+  - Type: Backend | Priority: HIGH
+  - Definition of Done: After role change, call supabase.auth.admin.updateUserById() with app_metadata.role. Return requires_session_refresh to client. Log before/after in audit trail.
+
+- [ ] Platform admin invite claim (/platform_admin/claim)
+  - Type: Backend | Priority: HIGH
+  - Definition of Done: Validates invite_token + expiry. Handles existing email (409). Creates auth user + platform_admins row. Marks invite claimed.
+
+- [ ] Platform admin API (/platform_admin)
+  - Type: Backend | Priority: HIGH
+  - Definition of Done: GET /companies (from company_summary). POST /companies (create + initial admin, idempotent). PATCH /companies/:id (activate/deactivate via GoTrue ban/unban). GET /companies/:id/users. POST /invites (generate token). GET /audit?limit=50&before=timestamp (cursor paginated).
+
+- [ ] Server-side settings validation
+  - Type: Backend | Priority: HIGH
+  - Definition of Done: validateCompanySettings() rejects malformed JSONB. Edge functions that write settings return 400 INVALID_SETTINGS. Client-side Zod is convenience; server-side is enforcement.
+
+#### Phase 3: Web Dashboard Enhancements
+
+- [ ] use-role.ts hook (reusable)
+  - Type: Web | Priority: HIGH
+  - Definition of Done: useCurrentUser() returns userId, email, role, companyId, companyLogoUrl, loading. Replaces duplicate useEffect role-check blocks in sidebar, staff page, settings.
+
+- [ ] Settings page — complete rewrite
+  - Type: Web | Priority: HIGH
+  - Definition of Done: Admin-only role gate. 4 tabbed sections: General (name, industry, address), Branding (logo upload + stamp toggle), Time & Attendance (pay period, OT, rounding, GPS, breaks), Notifications (toggles). Toast feedback on save. Saving... disabled state. Settings written to companies.settings JSONB + explicit columns. settings_version incremented.
+
+- [ ] Logo upload component (logo-upload.tsx)
+  - Type: Web | Priority: HIGH
+  - Definition of Done: Drag-and-drop or file picker. Client-side validation (2MB, image/png|jpeg|webp). Calls company_logo edge function. Shows current logo or placeholder. Used in settings branding tab.
+
+- [ ] Sidebar logo display
+  - Type: Web | Priority: HIGH
+  - Definition of Done: Company logo (32x32) renders bottom-left next to user email. Fetched via useCurrentUser() hook. Fallback to no image if no logo_url.
+
+- [ ] Staff page invite wiring
+  - Type: Web | Priority: HIGH
+  - Definition of Done: "Add Staff" form calls /invites edge function. Admin callers can invite supervisor role. Existing staff edit calls supabase.from('users').update(). Toast on success/failure.
+
+- [ ] First-run setup checklist
+  - Type: Web | Priority: MEDIUM
+  - Definition of Done: 3-step checklist on /settings: Upload Logo → Configure Pay Period → Add First Staff. Tracked in settings.onboarding_steps. Dismiss when all complete.
+
+- [ ] i18n additions (EN + ES)
+  - Type: Web | Priority: MEDIUM
+  - Definition of Done: Logo upload, stamp branding, settings tabs, access denied, invite flow, audit log viewer labels in both EN and ES.
+
+#### Phase 4: Super-Admin App (separate Next.js at apps/fieldops_admin/)
+
+- [ ] Scaffold admin app
+  - Type: Infra | Priority: HIGH
+  - Definition of Done: Next.js 15 App Router + Tailwind + Supabase. Separate package.json, env vars, CI workflow. Auth against platform_admins table.
+
+- [ ] Platform admin login + auth guard
+  - Type: Web | Priority: HIGH
+  - Definition of Done: Email/password login. Server-side check against platform_admins. Non-platform-admin → deny + sign out.
+
+- [ ] Company list page (/companies)
+  - Type: Web | Priority: HIGH
+  - Definition of Done: Shows all companies from company_summary view. Columns: name, status, payment_status, user count, created date. Filter by status. Action buttons.
+
+- [ ] Company detail page (/companies/[id])
+  - Type: Web | Priority: HIGH
+  - Definition of Done: Full company data. User list. Activate/deactivate toggle (bans/unbans all users via GoTrue). Audit log viewer for that company.
+
+- [ ] Create company page (/companies/new)
+  - Type: Web | Priority: HIGH
+  - Definition of Done: Form: company name, slug, industry, timezone, initial admin email. Creates company + admin user via auth.admin.createUser(). Idempotent.
+
+- [ ] Platform admin management (/admins)
+  - Type: Web | Priority: MEDIUM
+  - Definition of Done: List platform admins. Generate invite links. Deactivate admins.
+
+#### Deferred to Future Sprints (documented)
+
+- [ ] Custom role builder / per-feature permission matrix (Phase 2)
+- [ ] Multi-state compliance engine — top 10 states (Phase 2)
+- [ ] White-label / custom domain (Phase 3)
+- [ ] Smart Groups / dynamic user grouping (Phase 3)
+- [ ] Stripe billing integration (Sprint 8)
+- [ ] JSONB diff compression in audit log
+- [ ] Audit log retention cron (90-day purge)
+- [ ] Mobile settings viewer (read-only, Phase 2)
+- [ ] Playwright e2e tests for admin flows
+- [ ] Settings cache (Deno.Kv/Redis, Phase 2)
+- [ ] Settings rollback to version N
+
 ---
 
 ## Sprint 7 — Field Intelligence + Code Quality Hardening
