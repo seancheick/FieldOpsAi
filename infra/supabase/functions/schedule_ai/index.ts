@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/api.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { corsHeaders } from "../_shared/api.ts";
 
 interface AiRequest {
   workers: string[];
@@ -15,37 +15,104 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Missing auth header");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
+        status: 401,
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    const jwt = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Invalid auth token" }), {
+        status: 401,
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
 
     const body: AiRequest = await req.json();
+    const { anchorDate, jobs } = body;
 
-    // Mock AI Network Delay (simulating an LLM generation loop)
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    if (!anchorDate || !jobs?.length) {
+      return new Response(JSON.stringify({ error: "anchorDate and jobs are required" }), {
+        status: 400,
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
 
-    // MOCK RESPONSE LOGIC:
-    // We will generate 3 fake standard shifts from the provided datasets if available.
+    // Build 4-week lookback range
+    const anchor = new Date(`${anchorDate}T12:00:00Z`);
+    const lookbackEnd = new Date(anchor);
+    lookbackEnd.setUTCDate(lookbackEnd.getUTCDate() - 1);
+    const lookbackStart = new Date(lookbackEnd);
+    lookbackStart.setUTCDate(lookbackStart.getUTCDate() - 27);
+
+    // Fetch historical published shifts with worker names
+    const { data: historicalShifts, error: histError } = await supabaseAdmin
+      .from("schedule_shifts")
+      .select("worker_id, job_id, start_time, end_time, users!inner(id, full_name)")
+      .in("job_id", jobs)
+      .gte("shift_date", lookbackStart.toISOString().slice(0, 10))
+      .lte("shift_date", lookbackEnd.toISOString().slice(0, 10))
+      .eq("status", "published");
+
+    if (histError) throw histError;
+
+    // Build frequency map: job_id → { worker_id: { count, full_name, start_time, end_time } }
+    const freq: Record<string, Record<string, { count: number; full_name: string; start_time: string; end_time: string }>> = {};
+
+    for (const shift of (historicalShifts ?? [])) {
+      const workerRecord = Array.isArray(shift.users) ? shift.users[0] : shift.users;
+      const workerName = (workerRecord as { full_name?: string } | null)?.full_name ?? "Unknown";
+      if (!freq[shift.job_id]) freq[shift.job_id] = {};
+      if (!freq[shift.job_id][shift.worker_id]) {
+        freq[shift.job_id][shift.worker_id] = {
+          count: 0,
+          full_name: workerName,
+          start_time: shift.start_time,
+          end_time: shift.end_time,
+        };
+      }
+      freq[shift.job_id][shift.worker_id].count += 1;
+    }
+
+    // For each job, pick top 3 workers by frequency
     const ghost_shifts = [];
-    const validWorkers = body.workers?.slice(0, 3) || [];
-    const targetJob = body.jobs?.[0]; // Dump them onto the first active job
+    for (const jobId of jobs) {
+      const jobWorkers = freq[jobId];
+      if (!jobWorkers) continue;
+      const sorted = Object.entries(jobWorkers)
+        .sort(([, a], [, b]) => b.count - a.count)
+        .slice(0, 3);
 
-    if (targetJob) {
-      for (const workerId of validWorkers) {
+      for (const [workerId, info] of sorted) {
         ghost_shifts.push({
           id: `ghost-${crypto.randomUUID()}`,
           worker_id: workerId,
-          job_id: targetJob,
-          date: body.anchorDate,
-          start_time: "07:00",
-          end_time: "15:30",
+          worker_name: info.full_name,
+          job_id: jobId,
+          date: anchorDate,
+          start_time: info.start_time,
+          end_time: info.end_time,
           status: "ghost",
-          notes: "[AI SUGGESTION] Historically high-performing crew matching this job profile.",
+          notes: `[AI] Based on ${info.count} historical shift${info.count !== 1 ? "s" : ""} on this job.`,
         });
       }
     }
 
     return new Response(
       JSON.stringify({
-        message: "AI recommendations built based on historical worker efficiency metrics.",
+        message: `AI recommendations based on ${(historicalShifts ?? []).length} historical shifts.`,
         ghost_shifts,
       }),
       {
@@ -56,7 +123,7 @@ serve(async (req) => {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: message }), {
-      status: 400,
+      status: 500,
       headers: { ...corsHeaders(req), "Content-Type": "application/json" },
     });
   }
