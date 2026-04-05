@@ -128,3 +128,26 @@
     @apply font-sans;
     }
 }
+
+@media print {
+  /* Hide sidebar, navigation, and action buttons when printing */
+  nav,
+  aside,
+  [data-sidebar],
+  .no-print {
+    display: none !important;
+  }
+
+  /* Show only the report content area */
+  [data-print-area] {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+  }
+}

@@ -41,15 +41,20 @@ interface PtoRequest {
   end_date: string;
 }
 
+type AvailabilityStatus = "available" | "partial" | "pto";
+
 function DraggableWorker({
   worker,
   isOverlappingPTO,
   currentHours,
+  availabilityStatus,
 }: {
   worker: Worker;
   isOverlappingPTO: boolean;
   currentHours: number;
+  availabilityStatus: AvailabilityStatus;
 }) {
+  const { t } = useI18n();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: worker.id,
     data: { worker },
@@ -65,6 +70,19 @@ function DraggableWorker({
     statusGlow = "shadow-[0_0_8px_rgba(245,158,11,0.4)]";
   }
 
+  const availBadgeColor =
+    availabilityStatus === "pto"
+      ? "bg-red-500"
+      : availabilityStatus === "partial"
+        ? "bg-amber-500"
+        : "bg-green-500";
+  const availTooltip =
+    availabilityStatus === "pto"
+      ? t("schedulePage.onPto")
+      : availabilityStatus === "partial"
+        ? t("schedulePage.partialAvailability")
+        : t("schedulePage.available");
+
   return (
     <div
       ref={setNodeRef}
@@ -73,15 +91,21 @@ function DraggableWorker({
       className={`relative cursor-grab rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-opacity hover:border-slate-300 ${isDragging ? "opacity-40" : "opacity-100"}`}
     >
       <div className="flex items-center justify-between">
-        <div className="font-semibold text-slate-900">{worker.full_name}</div>
+        <div className="flex items-center gap-1.5">
+          <div
+            className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${availBadgeColor}`}
+            title={availTooltip}
+          />
+          <div className="font-semibold text-slate-900">{worker.full_name}</div>
+        </div>
         <div
           className={`h-3 w-3 rounded-full ${statusColor} ${statusGlow}`}
           title={
             isOverlappingPTO
-              ? "On PTO"
+              ? t("schedulePage.onPto")
               : currentHours >= 40
                 ? "Overtime Risk"
-                : "Available"
+                : t("schedulePage.available")
           }
         />
       </div>
@@ -283,6 +307,9 @@ export default function SchedulePage() {
   const [activeWorker, setActiveWorker] = useState<Worker | null>(null);
   const calendarRef = useRef<FullCalendar | null>(null);
   
+  // Availability heatmap state
+  const [workerAvailability, setWorkerAvailability] = useState<Record<string, AvailabilityStatus>>({});
+
   // Conflict Detection State
   const [conflictContext, setConflictContext] = useState<ConflictContext | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
@@ -344,22 +371,79 @@ export default function SchedulePage() {
 
   const loadReferenceData = useCallback(async () => {
     const supabase = getSupabase();
-    const { data: workersData } = await supabase
-      .from("users")
-      .select("id, full_name, role, metadata")
-      .eq("is_active", true)
-      .in("role", ["worker", "foreman"])
-      .order("full_name");
+    const [workersRes, jobsRes, ptoRes, historyRes] = await Promise.all([
+      supabase
+        .from("users")
+        .select("id, full_name, role, metadata")
+        .eq("is_active", true)
+        .in("role", ["worker", "foreman"])
+        .order("full_name"),
+      supabase
+        .from("jobs")
+        .select("id, name, code")
+        .in("status", ["active", "in_progress"])
+        .order("name"),
+      supabase
+        .from("pto_requests")
+        .select("worker_id, start_date, end_date, status")
+        .eq("status", "approved")
+        .lte("start_date", rangeEnd)
+        .gte("end_date", rangeStart),
+      supabase
+        .from("schedule_shifts")
+        .select("worker_id, shift_date")
+        .gte("shift_date", rangeStart)
+        .lte("shift_date", rangeEnd)
+        .eq("status", "published"),
+    ]);
 
-    const { data: jobsData } = await supabase
-      .from("jobs")
-      .select("id, name, code")
-      .in("status", ["active", "in_progress"])
-      .order("name");
+    const workersData = workersRes.data ?? [];
+    const jobsData = jobsRes.data ?? [];
+    const ptoData = ptoRes.data ?? [];
+    const historyData = historyRes.data ?? [];
 
-    setWorkers(workersData ?? []);
-    setJobs(jobsData ?? []);
-  }, []);
+    // Compute availability status per worker
+    const availability: Record<string, AvailabilityStatus> = {};
+    const weekStart = parseDate(rangeStart);
+    const weekEnd = parseDate(rangeEnd);
+
+    for (const w of workersData) {
+      // Check PTO coverage
+      const workerPto = ptoData.filter(
+        (p: { worker_id: string }) => p.worker_id === w.id,
+      );
+
+      // Count how many visible days fall within any approved PTO range
+      let ptoDays = 0;
+      const totalDays = visibleDates.length;
+      for (const d of visibleDates) {
+        const dk = asDateKey(d);
+        const hasPto = workerPto.some(
+          (p: { start_date: string; end_date: string }) =>
+            p.start_date <= dk && p.end_date >= dk,
+        );
+        if (hasPto) ptoDays++;
+      }
+
+      if (ptoDays > 0 && ptoDays >= totalDays) {
+        // Full PTO coverage
+        availability[w.id] = "pto";
+      } else if (ptoDays > 0) {
+        // Partial PTO coverage
+        availability[w.id] = "partial";
+      } else {
+        // Check shift count from history
+        const shiftCount = historyData.filter(
+          (s: { worker_id: string }) => s.worker_id === w.id,
+        ).length;
+        availability[w.id] = shiftCount >= 5 ? "partial" : "available";
+      }
+    }
+
+    setWorkers(workersData);
+    setJobs(jobsData);
+    setWorkerAvailability(availability);
+  }, [rangeStart, rangeEnd, visibleDates]);
 
   const loadSchedule = useCallback(async () => {
     const supabase = getSupabase();
@@ -1320,6 +1404,7 @@ export default function SchedulePage() {
                     worker={worker}
                     isOverlappingPTO={isOverlappingPTO}
                     currentHours={currentHours}
+                    availabilityStatus={workerAvailability[worker.id] ?? "available"}
                   />
                 );
               })}

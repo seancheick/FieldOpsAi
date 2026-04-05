@@ -1,14 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
+import { FileDown, Save, ChevronDown } from "lucide-react";
+import { JobReportView } from "./JobReportView";
+
+/* ---------- Types ---------- */
 
 interface Job {
   id: string;
   name: string;
   code: string;
 }
+
+interface Preset {
+  name: string;
+  jobId: string;
+  dateFrom: string;
+  dateTo: string;
+  reportType: string;
+}
+
+const PRESET_KEY = "report_presets";
+
+function loadPresets(): Preset[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(PRESET_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function savePresetsToStorage(presets: Preset[]) {
+  localStorage.setItem(PRESET_KEY, JSON.stringify(presets));
+}
+
+/* ---------- Page ---------- */
 
 export default function ReportsPage() {
   const { t } = useI18n();
@@ -26,9 +55,17 @@ export default function ReportsPage() {
   const [reportData, setReportData] = useState<Record<string, unknown> | null>(null);
   const [csvData, setCsvData] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastReportType, setLastReportType] = useState<string>("");
+
+  // Presets state
+  const [presets, setPresets] = useState<Preset[]>([]);
+  const [presetName, setPresetName] = useState("");
+  const [showPresetInput, setShowPresetInput] = useState(false);
+  const [showPresetDropdown, setShowPresetDropdown] = useState(false);
 
   useEffect(() => {
     loadJobs();
+    setPresets(loadPresets());
   }, []);
 
   async function loadJobs() {
@@ -46,6 +83,7 @@ export default function ReportsPage() {
     setError(null);
     setReportData(null);
     setCsvData(null);
+    setLastReportType(reportType);
 
     try {
       const supabase = getSupabase();
@@ -98,12 +136,40 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   }
 
+  function handleExportPdf() {
+    window.print();
+  }
+
+  const handleSavePreset = useCallback(() => {
+    const trimmed = presetName.trim();
+    if (!trimmed) return;
+    const newPreset: Preset = {
+      name: trimmed,
+      jobId: selectedJob,
+      dateFrom,
+      dateTo,
+      reportType: lastReportType || "job_report",
+    };
+    const updated = [...presets.filter((p) => p.name !== trimmed), newPreset];
+    setPresets(updated);
+    savePresetsToStorage(updated);
+    setPresetName("");
+    setShowPresetInput(false);
+  }, [presetName, selectedJob, dateFrom, dateTo, lastReportType, presets]);
+
+  function applyPreset(preset: Preset) {
+    setSelectedJob(preset.jobId);
+    setDateFrom(preset.dateFrom);
+    setDateTo(preset.dateTo);
+    setShowPresetDropdown(false);
+  }
+
   return (
     <div>
       <div className="mb-8">
         <a
           href="/"
-          className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900"
+          className="no-print mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900"
         >
           <span>&larr;</span> {t("common.backToDashboard")}
         </a>
@@ -112,7 +178,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Controls */}
-      <div className="mb-8 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+      <div className="no-print mb-8 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
@@ -170,6 +236,81 @@ export default function ReportsPage() {
             </button>
           </div>
         </div>
+
+        {/* Action row: Export PDF + Presets */}
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-stone-100 pt-4">
+          {/* Export PDF */}
+          <button
+            onClick={handleExportPdf}
+            disabled={!reportData}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-stone-50 disabled:opacity-40"
+          >
+            <FileDown size={16} />
+            {t("reports.exportPdf")}
+          </button>
+
+          {/* Save Preset */}
+          {showPresetInput ? (
+            <div className="inline-flex items-center gap-2">
+              <input
+                type="text"
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSavePreset()}
+                placeholder={t("reports.presetName")}
+                className="rounded-xl border border-stone-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                autoFocus
+              />
+              <button
+                onClick={handleSavePreset}
+                disabled={!presetName.trim()}
+                className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                <Save size={16} />
+              </button>
+              <button
+                onClick={() => { setShowPresetInput(false); setPresetName(""); }}
+                className="text-sm text-slate-500 hover:text-slate-700"
+              >
+                {t("common.cancel")}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowPresetInput(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-stone-50"
+            >
+              <Save size={16} />
+              {t("reports.savePreset")}
+            </button>
+          )}
+
+          {/* Load Preset */}
+          {presets.length > 0 && (
+            <div className="relative">
+              <button
+                onClick={() => setShowPresetDropdown(!showPresetDropdown)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-stone-50"
+              >
+                <ChevronDown size={16} />
+                {t("reports.loadPreset")}
+              </button>
+              {showPresetDropdown && (
+                <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-xl border border-stone-200 bg-white py-1 shadow-lg">
+                  {presets.map((p) => (
+                    <button
+                      key={p.name}
+                      onClick={() => applyPreset(p)}
+                      className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-stone-50"
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -194,7 +335,7 @@ export default function ReportsPage() {
             </div>
             <button
               onClick={downloadCsv}
-              className="rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
+              className="no-print rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
             >
               {t("reports.downloadCsv")}
             </button>
@@ -203,164 +344,11 @@ export default function ReportsPage() {
       )}
 
       {/* Job Report Display */}
-      {reportData && (reportData as Record<string, unknown>).report_type === "job_report" && (
-        <JobReportView report={reportData} t={t} />
-      )}
-    </div>
-  );
-}
-
-function JobReportView({
-  report,
-  t,
-}: {
-  report: Record<string, unknown>;
-  t: (key: string, vars?: Record<string, string | number>) => string;
-}) {
-  const job = report.job as Record<string, string>;
-  const summary = report.summary as Record<string, number>;
-  const workerHours = report.worker_hours as Array<Record<string, unknown>>;
-  const tasks = report.tasks as Array<Record<string, unknown>>;
-  const photos = report.photos as Array<Record<string, unknown>>;
-
-  return (
-    <div className="space-y-6">
-      {/* Job header */}
-      <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-xl font-bold text-slate-900">
-              {job.name}
-            </h3>
-            <p className="text-sm text-slate-500">
-              {job.code} &middot; {job.status} &middot; {job.site_name || t("reports.noSite")}
-            </p>
-          </div>
-          <span className="text-xs text-slate-400">
-            {t("reports.generated", {
-              time: new Date(report.generated_at as string).toLocaleString(),
-            })}
-          </span>
-        </div>
+      <div data-print-area>
+        {reportData && (reportData as Record<string, unknown>).report_type === "job_report" && (
+          <JobReportView report={reportData} t={t} />
+        )}
       </div>
-
-      {/* Summary stats */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        {[
-          { label: t("reports.clockEvents"), value: summary.total_clock_events },
-          { label: t("reports.photos"), value: summary.total_photos },
-          { label: t("reports.tasks"), value: `${summary.completed_tasks}/${summary.total_tasks}` },
-          { label: t("reports.otDecisions"), value: summary.total_ot_decisions },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-xl border border-stone-200 bg-white p-4 text-center"
-          >
-            <div className="text-2xl font-bold text-slate-900">
-              {stat.value}
-            </div>
-            <div className="text-xs text-slate-500">{stat.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Worker hours */}
-      {workerHours && workerHours.length > 0 && (
-        <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <h4 className="mb-4 font-bold text-slate-900">{t("reports.workerHours")}</h4>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-slate-500">
-                <th className="pb-2">{t("reports.worker")}</th>
-                <th className="pb-2">{t("reports.sessions")}</th>
-                <th className="pb-2">{t("reports.regular")}</th>
-                <th className="pb-2">{t("reports.ot")}</th>
-                <th className="pb-2">{t("reports.total")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {workerHours.map((wh) => (
-                <tr key={wh.worker as string} className="border-b border-stone-100">
-                  <td className="py-2 font-medium text-slate-900">
-                    {wh.worker as string}
-                  </td>
-                  <td className="py-2">{wh.sessions as number}</td>
-                  <td className="py-2">{wh.regular_hours as number}h</td>
-                  <td className="py-2 text-amber-600">
-                    {wh.ot_hours as number}h
-                  </td>
-                  <td className="py-2 font-semibold">
-                    {wh.total_hours as number}h
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Tasks */}
-      {tasks && tasks.length > 0 && (
-        <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <h4 className="mb-4 font-bold text-slate-900">{t("reports.tasks")}</h4>
-          <div className="space-y-2">
-            {tasks.map((t, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between rounded-lg bg-stone-50 px-4 py-2"
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`h-2 w-2 rounded-full ${
-                      t.status === "completed"
-                        ? "bg-green-500"
-                        : t.status === "in_progress"
-                          ? "bg-amber-500"
-                          : "bg-stone-300"
-                    }`}
-                  />
-                  <span className="text-sm text-slate-900">
-                    {t.name as string}
-                  </span>
-                  {(t.requires_photo as boolean) && (
-                    <span className="text-xs text-amber-600">📷</span>
-                  )}
-                </div>
-                <span className="text-xs text-slate-500">
-                  {t.status as string}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Photos */}
-      {photos && photos.length > 0 && (
-        <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <h4 className="mb-4 font-bold text-slate-900">
-            {t("reports.photoProof", { count: photos.length })}
-          </h4>
-          <div className="space-y-2">
-            {photos.map((p, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between rounded-lg bg-stone-50 px-4 py-2 text-sm"
-              >
-                <span className="text-slate-600">
-                  {new Date(p.occurred_at as string).toLocaleString()}
-                  {(p.is_checkpoint as boolean) && ` ${t("reports.checkpoint")}`}
-                </span>
-                {(p.verification_code as string | null) && (
-                  <code className="rounded bg-slate-200 px-2 py-0.5 text-xs font-mono text-slate-700">
-                    {p.verification_code as string}
-                  </code>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

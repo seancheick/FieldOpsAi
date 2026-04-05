@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
+import { SkeletonCard } from "@/components/ui/skeleton";
 
 interface OTRequest {
   id: string;
@@ -18,13 +19,13 @@ interface OTRequest {
 }
 
 export default function OvertimePage() {
-  const { t } = useI18n();
   return (
     <Suspense
       fallback={
-        <div className="flex items-center gap-2 text-slate-500">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
-          {t("overtimePage.loading")}
+        <div className="space-y-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       }
     >
@@ -130,6 +131,18 @@ function OvertimeContent() {
     });
   }
 
+  const kpiStats = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    const pendingCount = requests.filter((r) => r.status === "pending").length;
+    const approvedTodayCount = requests.filter(
+      (r) => r.status === "approved" && r.requested_at.slice(0, 10) === todayStr,
+    ).length;
+    const deniedCount = requests.filter((r) => r.status === "denied").length;
+
+    return { pendingCount, approvedTodayCount, deniedCount };
+  }, [requests]);
+
   return (
     <div>
       <div className="mb-8">
@@ -143,6 +156,22 @@ function OvertimeContent() {
           {t("overtimePage.title")}
         </h2>
         <p className="mt-1 text-slate-600">{t("overtimePage.subtitle")}</p>
+
+        {/* KPI Summary Row */}
+        <div className="mt-4 grid grid-cols-3 gap-4 mb-6">
+          <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+            <div className="text-xs font-medium text-slate-400">{t("overtimePage.pendingRequests")}</div>
+            <div className="mt-1 text-2xl font-bold text-slate-900">{kpiStats.pendingCount}</div>
+          </div>
+          <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+            <div className="text-xs font-medium text-slate-400">{t("overtimePage.approvedToday")}</div>
+            <div className="mt-1 text-2xl font-bold text-slate-900">{kpiStats.approvedTodayCount}</div>
+          </div>
+          <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+            <div className="text-xs font-medium text-slate-400">{t("overtimePage.deniedStat")}</div>
+            <div className="mt-1 text-2xl font-bold text-slate-900">{kpiStats.deniedCount}</div>
+          </div>
+        </div>
 
         {/* Status filter tabs */}
         <div className="mt-4 flex gap-2">
@@ -163,9 +192,10 @@ function OvertimeContent() {
       </div>
 
       {loading && (
-        <div className="flex items-center gap-2 text-slate-500">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
-          {t("overtimePage.loading")}
+        <div className="space-y-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       )}
 

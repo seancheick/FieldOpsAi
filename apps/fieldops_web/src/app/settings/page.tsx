@@ -80,6 +80,7 @@ const ROUNDING_OPTIONS = [
 interface CompanySettings {
   pay_period: string;
   ot_threshold_weekly: number;
+  ot_jurisdiction: string;
   time_rounding: string;
   gps_required: boolean;
   geofence_radius: number;
@@ -97,9 +98,15 @@ interface CompanySettings {
   };
 }
 
+const JURISDICTION_OPTIONS = [
+  { value: "federal", label: "Federal (40h/week)" },
+  { value: "california", label: "California (8h/day + 40h/week)" },
+];
+
 const DEFAULT_SETTINGS: CompanySettings = {
   pay_period: "weekly",
   ot_threshold_weekly: 40,
+  ot_jurisdiction: "federal",
   time_rounding: "off",
   gps_required: false,
   geofence_radius: 150,
@@ -264,9 +271,11 @@ export default function CompanySettingsPage() {
   /* ── Onboarding checklist ────────────────────────────────── */
 
   const onboarding = settings.onboarding_steps;
-  const hasIncompleteOnboarding =
-    onboarding &&
-    (!onboarding.upload_logo || !onboarding.set_pay_period || !onboarding.invite_first_staff);
+  const completedSteps = onboarding
+    ? [onboarding.upload_logo, onboarding.set_pay_period, onboarding.invite_first_staff].filter(Boolean).length
+    : 0;
+  const hasIncompleteOnboarding = onboarding && completedSteps < 3;
+  const setupProgress = Math.round((completedSteps / 3) * 100);
 
   /* ── Render ──────────────────────────────────────────────── */
 
@@ -275,14 +284,38 @@ export default function CompanySettingsPage() {
       <h1 className="text-2xl font-bold tracking-tight text-slate-900">Company Settings</h1>
       <p className="mt-1 text-sm text-slate-400">Manage your company configuration and preferences</p>
 
-      {/* First-run checklist */}
+      {/* First-run checklist with progress ring */}
       {hasIncompleteOnboarding && (
-        <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-          <h3 className="text-sm font-bold text-amber-800">Getting Started</h3>
-          <div className="mt-2 flex flex-wrap gap-3">
-            <ChecklistItem done={onboarding?.upload_logo ?? false} label="Upload Logo" />
-            <ChecklistItem done={onboarding?.set_pay_period ?? false} label="Set Pay Period" />
-            <ChecklistItem done={onboarding?.invite_first_staff ?? false} label="Invite First Staff" />
+        <div className="mt-6 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-5">
+            <ProgressRing progress={setupProgress} />
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Setup Progress</h3>
+              <p className="text-xs text-slate-400">{completedSteps} of 3 complete</p>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <SetupCard
+              done={onboarding?.upload_logo ?? false}
+              icon="🎨"
+              title="Upload Logo"
+              description="Add your company branding"
+              onClick={() => setActiveTab("Branding")}
+            />
+            <SetupCard
+              done={onboarding?.set_pay_period ?? false}
+              icon="📅"
+              title="Configure Pay Period"
+              description="Set weekly, biweekly, or monthly"
+              onClick={() => setActiveTab("Time & Attendance")}
+            />
+            <SetupCard
+              done={onboarding?.invite_first_staff ?? false}
+              icon="👤"
+              title="Add First Staff"
+              description="Invite your team members"
+              href="/settings/staff"
+            />
           </div>
         </div>
       )}
@@ -427,6 +460,12 @@ export default function CompanySettingsPage() {
                 max={168}
               />
               <SelectField
+                label="OT Jurisdiction"
+                value={settings.ot_jurisdiction}
+                onChange={(v) => updateSetting("ot_jurisdiction", v)}
+                options={JURISDICTION_OPTIONS}
+              />
+              <SelectField
                 label="Time Rounding"
                 value={settings.time_rounding}
                 onChange={(v) => updateSetting("time_rounding", v)}
@@ -547,17 +586,65 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-function ChecklistItem({ done, label }: { done: boolean; label: string }) {
+function ProgressRing({ progress }: { progress: number }) {
+  const r = 36;
+  const c = 2 * Math.PI * r;
+  const offset = c - (progress / 100) * c;
   return (
-    <span className="flex items-center gap-1.5 text-sm text-amber-800">
-      {done ? (
-        <span className="text-green-600">&#10003;</span>
-      ) : (
-        <span className="inline-block h-4 w-4 rounded border border-amber-300" />
-      )}
-      {label}
-    </span>
+    <svg width="88" height="88" className="rotate-[-90deg]">
+      <circle cx="44" cy="44" r={r} fill="none" stroke="#e7e5e4" strokeWidth="6" />
+      <circle cx="44" cy="44" r={r} fill="none" stroke="#10b981" strokeWidth="6"
+        strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
+        className="transition-all duration-500" />
+    </svg>
   );
+}
+
+function SetupCard({
+  done,
+  icon,
+  title,
+  description,
+  onClick,
+  href,
+}: {
+  done: boolean;
+  icon: string;
+  title: string;
+  description: string;
+  onClick?: () => void;
+  href?: string;
+}) {
+  const content = (
+    <div
+      className={`flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-all ${
+        done
+          ? "border-green-200 bg-green-50"
+          : "border-stone-200 bg-stone-50 hover:border-stone-300 hover:shadow-sm"
+      }`}
+    >
+      <span className="text-2xl">{icon}</span>
+      <div>
+        <p className={`text-sm font-semibold ${done ? "text-green-700" : "text-slate-900"}`}>
+          {done ? `${title} \u2713` : title}
+        </p>
+        <p className="mt-0.5 text-[11px] text-slate-400">{description}</p>
+      </div>
+      {!done && (
+        <span className="text-xs font-semibold text-amber-600 hover:text-amber-700">
+          Set up &rarr;
+        </span>
+      )}
+    </div>
+  );
+
+  if (href && !done) {
+    return <a href={href}>{content}</a>;
+  }
+  if (onClick && !done) {
+    return <button onClick={onClick} className="text-left">{content}</button>;
+  }
+  return content;
 }
 
 function Field({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 
 interface WorkerEntry {
@@ -46,6 +46,8 @@ const TIMEZONE_VALUES = [
   "Asia/Dubai",
 ] as const;
 
+const STORAGE_KEY = "onboarding_progress";
+
 export default function OnboardingPage() {
   const { t } = useI18n();
   const [step, setStep] = useState(0);
@@ -57,6 +59,44 @@ export default function OnboardingPage() {
   const [jobName, setJobName] = useState("");
   const [jobAddress, setJobAddress] = useState("");
   const [jobCode, setJobCode] = useState("");
+  const [resumed, setResumed] = useState(false);
+
+  // Restore progress from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.step != null) setStep(data.step);
+        if (data.companyName) setCompanyName(data.companyName);
+        if (data.companyLogo) setCompanyLogo(data.companyLogo);
+        if (data.timezone) setTimezone(data.timezone);
+        if (data.industry) setIndustry(data.industry);
+        if (data.workers) setWorkers(data.workers);
+        if (data.jobName) setJobName(data.jobName);
+        if (data.jobAddress) setJobAddress(data.jobAddress);
+        if (data.jobCode) setJobCode(data.jobCode);
+        if (data.step > 0) {
+          setResumed(true);
+          setTimeout(() => setResumed(false), 3000);
+        }
+      }
+    } catch {
+      // ignore corrupt localStorage
+    }
+  }, []);
+
+  // Auto-save progress on every step change
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ step, companyName, companyLogo, timezone, industry, workers, jobName, jobAddress, jobCode }),
+      );
+    } catch {
+      // ignore quota errors
+    }
+  }, [step, companyName, companyLogo, timezone, industry, workers, jobName, jobAddress, jobCode]);
 
   const steps = useMemo(
     () =>
@@ -100,6 +140,11 @@ export default function OnboardingPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
+      {resumed && (
+        <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-2.5 text-sm text-green-700">
+          {t("onboardingPage.resuming")}
+        </div>
+      )}
       <div className="mb-8">
         <div className="flex items-center justify-between">
           {steps.map((entry, index) => (
@@ -198,7 +243,13 @@ export default function OnboardingPage() {
             </div>
           </div>
 
-          <div className="mt-8 flex justify-end">
+          <div className="mt-8 flex items-center justify-between">
+            <button
+              onClick={() => setStep(1)}
+              className="text-sm font-medium text-slate-400 hover:text-slate-600"
+            >
+              {t("onboardingPage.skipForNow")} &rarr;
+            </button>
             <button
               onClick={() => setStep(1)}
               disabled={!canProceedStep0}
@@ -334,20 +385,28 @@ export default function OnboardingPage() {
             </div>
           ))}
 
-          <div className="flex justify-between pt-4">
+          <div className="flex items-center justify-between pt-4">
             <button
               onClick={() => setStep(0)}
               className="rounded-xl px-6 py-3 text-sm font-semibold text-slate-500 hover:bg-stone-100"
             >
               {t("onboardingPage.back")}
             </button>
-            <button
-              onClick={() => setStep(2)}
-              disabled={!canProceedStep1}
-              className="rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-40"
-            >
-              {t("onboardingPage.continue")}
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setStep(2)}
+                className="text-sm font-medium text-slate-400 hover:text-slate-600"
+              >
+                {t("onboardingPage.skipForNow")} &rarr;
+              </button>
+              <button
+                onClick={() => setStep(2)}
+                disabled={!canProceedStep1}
+                className="rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-40"
+              >
+                {t("onboardingPage.continue")}
+              </button>
+            </div>
           </div>
         </div>
       )}

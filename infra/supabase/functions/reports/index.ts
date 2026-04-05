@@ -223,7 +223,7 @@ serve(async (req) => {
       // Fetch all clock events in date range for this company
       const { data: clockEvents } = await supabaseAdmin
         .from("clock_events")
-        .select("id, user_id, job_id, event_subtype, occurred_at, users!clock_events_user_id_fkey(full_name), jobs!clock_events_job_id_fkey(code)")
+        .select("id, user_id, job_id, event_subtype, occurred_at, cost_code, users!clock_events_user_id_fkey(full_name), jobs!clock_events_job_id_fkey(code)")
         .eq("company_id", userRecord.company_id)
         .gte("occurred_at", `${from}T00:00:00Z`)
         .lte("occurred_at", `${to}T23:59:59Z`)
@@ -238,9 +238,9 @@ serve(async (req) => {
       const rows = buildTimesheetRows(clockEvents || [], job_id)
 
       // Generate CSV
-      const csvHeader = "Worker,Date,Job Code,Clock In,Clock Out,Regular Hours,OT Hours,Total Hours"
+      const csvHeader = "Worker,Date,Job Code,Cost Code,Clock In,Clock Out,Regular Hours,OT Hours,Total Hours"
       const csvRows = rows.map((r: any) =>
-        `"${r.worker}","${r.date}","${r.job_code}","${r.clock_in}","${r.clock_out}","${r.regular_hours}","${r.ot_hours}","${r.total_hours}"`
+        `"${r.worker}","${r.date}","${r.job_code}","${r.cost_code || ""}","${r.clock_in}","${r.clock_out}","${r.regular_hours}","${r.ot_hours}","${r.total_hours}"`
       )
       const csv = [csvHeader, ...csvRows].join("\n")
 
@@ -343,6 +343,7 @@ function buildTimesheetRows(events: any[], filterJobId?: string) {
       openSessions[key] = {
         worker: workerName,
         job_code: jobCode,
+        cost_code: event.cost_code || "",
         clock_in: event.occurred_at,
       }
     } else if (event.event_subtype === "clock_out" && openSessions[key]) {
@@ -360,6 +361,7 @@ function buildTimesheetRows(events: any[], filterJobId?: string) {
         worker: session.worker,
         date: inTime.toISOString().split("T")[0],
         job_code: session.job_code,
+        cost_code: session.cost_code || "",
         clock_in: inTime.toISOString(),
         clock_out: outTime.toISOString(),
         regular_hours: roundTo15(regularMinutes),

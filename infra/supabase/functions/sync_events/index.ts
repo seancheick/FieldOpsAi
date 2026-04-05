@@ -194,6 +194,7 @@ serve(async (req) => {
         gps_accuracy_m: event.gps?.accuracy_m,
         geofence_passed: true,
         task_classification: event.task_classification || null,
+        cost_code: event.cost_code || null,
         rate_code: event.rate_code || null,
         notes: event.notes || null,
         source_event_uuid: event.id,

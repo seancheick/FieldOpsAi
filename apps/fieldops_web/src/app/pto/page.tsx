@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
+import { SkeletonCard } from "@/components/ui/skeleton";
 
 interface PTORequest {
   id: string;
@@ -107,6 +108,27 @@ export default function PTOPage() {
     }
   }
 
+  const kpiStats = useMemo(() => {
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const pendingCount = requests.filter((r) => r.status === "pending").length;
+    const upcomingApproved = requests.filter(
+      (r) => r.status === "approved" && r.start_date >= todayStr,
+    ).length;
+    const daysOffThisMonth = requests
+      .filter((r) => {
+        if (r.status !== "approved") return false;
+        const start = new Date(r.start_date);
+        return start.getMonth() === currentMonth && start.getFullYear() === currentYear;
+      })
+      .reduce((sum, r) => sum + r.day_count, 0);
+
+    return { pendingCount, upcomingApproved, daysOffThisMonth };
+  }, [requests]);
+
   return (
     <div>
       <div className="mb-6">
@@ -115,6 +137,22 @@ export default function PTOPage() {
         </a>
         <h2 className="text-2xl font-bold text-slate-900">Time Off Requests</h2>
         <p className="mt-1 text-slate-600">Review and manage worker PTO requests.</p>
+      </div>
+
+      {/* KPI Summary Row */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-medium text-slate-400">{t("ptoPage.pendingRequests")}</div>
+          <div className="mt-1 text-2xl font-bold text-slate-900">{kpiStats.pendingCount}</div>
+        </div>
+        <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-medium text-slate-400">{t("ptoPage.upcomingApproved")}</div>
+          <div className="mt-1 text-2xl font-bold text-slate-900">{kpiStats.upcomingApproved}</div>
+        </div>
+        <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-medium text-slate-400">{t("ptoPage.daysOffThisMonth")}</div>
+          <div className="mt-1 text-2xl font-bold text-slate-900">{kpiStats.daysOffThisMonth}</div>
+        </div>
       </div>
 
       {error && (
@@ -139,9 +177,10 @@ export default function PTOPage() {
       </div>
 
       {loading && (
-        <div className="flex items-center gap-2 text-slate-500">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
-          Loading...
+        <div className="space-y-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       )}
 

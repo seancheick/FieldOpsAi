@@ -42,6 +42,7 @@ export default function StaffPage() {
   const [saved, setSaved] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<Set<string>>(new Set());
 
   // Role gate: only admin users can access staff management
   useEffect(() => {
@@ -217,6 +218,54 @@ export default function StaffPage() {
   const activeCount = staff.filter((member) => member.is_active).length;
   const roleLabel = (role: string) => roles.find((entry) => entry.value === role)?.label ?? role;
 
+  const ROLE_TOOLTIPS: Record<string, string> = {
+    worker: t("staff.workerRole"),
+    supervisor: t("staff.supervisorRole"),
+    admin: t("staff.adminRole"),
+    foreman: t("staff.foremanRole"),
+  };
+
+  function toggleStaffSelection(id: string) {
+    setSelectedStaff((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedStaff.size === staff.length) {
+      setSelectedStaff(new Set());
+    } else {
+      setSelectedStaff(new Set(staff.map((m) => m.id)));
+    }
+  }
+
+  async function suspendSelected() {
+    const supabase = getSupabase();
+    for (const id of selectedStaff) {
+      await supabase.from("users").update({ is_active: false }).eq("id", id);
+    }
+    setSelectedStaff(new Set());
+    loadStaff();
+  }
+
+  function exportStaffCsv() {
+    const header = "id,name,email,role,active";
+    const rows = staff.map(
+      (m) => `${m.id},"${m.full_name}","${m.email ?? ""}",${m.role},${m.is_active}`,
+    );
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "staff_export.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (accessDenied) {
     return (
       <div className="mt-20 text-center">
@@ -248,6 +297,24 @@ export default function StaffPage() {
         </button>
       </div>
 
+      {/* Bulk action bar */}
+      {selectedStaff.size > 0 && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <button
+            onClick={suspendSelected}
+            className="rounded-lg bg-red-500 px-4 py-2 text-xs font-semibold text-white hover:bg-red-600"
+          >
+            {t("staff.suspendSelected")} ({selectedStaff.size})
+          </button>
+          <button
+            onClick={exportStaffCsv}
+            className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-stone-50"
+          >
+            {t("staff.exportList")}
+          </button>
+        </div>
+      )}
+
       <div className="flex gap-6">
         <div className="flex-1">
           {loading && (
@@ -269,48 +336,75 @@ export default function StaffPage() {
             </div>
           )}
 
+          {/* Select all header */}
+          {staff.length > 0 && (
+            <div className="mb-2 flex items-center gap-2 px-1">
+              <input
+                type="checkbox"
+                checked={selectedStaff.size === staff.length && staff.length > 0}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-stone-300 accent-slate-900"
+              />
+              <span className="text-xs font-medium text-slate-500">{t("staff.selectAll")}</span>
+            </div>
+          )}
+
           <div className="space-y-2">
             {staff.map((member) => {
-              const isSelected = editing?.id === member.id;
+              const isEditing = editing?.id === member.id;
+              const isChecked = selectedStaff.has(member.id);
               return (
-                <button
-                  key={member.id}
-                  onClick={() => startEdit(member)}
-                  className={`w-full rounded-xl border p-4 text-left transition-all ${
-                    isSelected
-                      ? "border-slate-900 bg-slate-50 shadow-sm"
-                      : "border-stone-200 bg-white hover:border-stone-300 hover:shadow-sm"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-900">{member.full_name}</span>
-                        {!member.is_active && (
-                          <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-500">
-                            {t("staffPage.inactive")}
-                          </span>
-                        )}
+                <div key={member.id} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleStaffSelection(member.id)}
+                    className="h-4 w-4 flex-shrink-0 rounded border-stone-300 accent-slate-900"
+                  />
+                  <button
+                    onClick={() => startEdit(member)}
+                    className={`w-full rounded-xl border p-4 text-left transition-all ${
+                      isEditing
+                        ? "border-slate-900 bg-slate-50 shadow-sm"
+                        : "border-stone-200 bg-white hover:border-stone-300 hover:shadow-sm"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-900">{member.full_name}</span>
+                          {!member.is_active && (
+                            <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-500">
+                              {t("staffPage.inactive")}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-0.5 text-xs text-slate-400">
+                          {member.email ?? member.phone ?? t("staffPage.noContact")}
+                        </div>
                       </div>
-                      <div className="mt-0.5 text-xs text-slate-400">
-                        {member.email ?? member.phone ?? t("staffPage.noContact")}
+                      {/* Role badge with tooltip */}
+                      <div className="group relative">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                            member.role === "admin"
+                              ? "bg-purple-50 text-purple-600"
+                              : member.role === "supervisor"
+                                ? "bg-blue-50 text-blue-600"
+                                : member.role === "foreman"
+                                  ? "bg-amber-50 text-amber-600"
+                                  : "bg-stone-100 text-slate-500"
+                          }`}
+                        >
+                          {roleLabel(member.role)}
+                        </span>
+                        <div className="absolute bottom-full right-0 z-10 mb-2 hidden w-56 rounded-lg border border-stone-200 bg-white p-2.5 text-xs text-slate-600 shadow-lg group-hover:block">
+                          {ROLE_TOOLTIPS[member.role] ?? member.role}
+                        </div>
                       </div>
                     </div>
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
-                        member.role === "admin"
-                          ? "bg-purple-50 text-purple-600"
-                          : member.role === "supervisor"
-                            ? "bg-blue-50 text-blue-600"
-                            : member.role === "foreman"
-                              ? "bg-amber-50 text-amber-600"
-                              : "bg-stone-100 text-slate-500"
-                      }`}
-                    >
-                      {roleLabel(member.role)}
-                    </span>
-                  </div>
-                </button>
+                  </button>
+                </div>
               );
             })}
           </div>

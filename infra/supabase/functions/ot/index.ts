@@ -18,6 +18,85 @@ import {
 const ENDPOINT = "ot"
 const OT_RATE_LIMIT = 20
 
+// ─── State-Specific OT Computation ──────────────────────────
+// Jurisdiction-aware OT calculation (Sprint 6 — Payroll & Compliance)
+export interface OTBreakdown {
+  regular: number    // regular hours
+  overtime: number   // 1.5x hours
+  doubletime: number // 2x hours (CA only)
+}
+
+/**
+ * Compute OT breakdown based on jurisdiction rules.
+ *
+ * @param jurisdiction - "federal" | "california"
+ * @param dailyHours  - Array of daily hours worked (length = 7 for a week)
+ * @returns OTBreakdown with regular, overtime, and doubletime hours
+ */
+export function computeOTHours(
+  jurisdiction: string,
+  dailyHours: number[],
+): OTBreakdown {
+  if (jurisdiction === "california") {
+    return computeCaliforniaOT(dailyHours)
+  }
+  // Default: federal — OT after 40h/week
+  return computeFederalOT(dailyHours)
+}
+
+function computeFederalOT(dailyHours: number[]): OTBreakdown {
+  const totalWeekly = dailyHours.reduce((sum, h) => sum + h, 0)
+  const regular = Math.min(totalWeekly, 40)
+  const overtime = Math.max(totalWeekly - 40, 0)
+  return { regular, overtime, doubletime: 0 }
+}
+
+function computeCaliforniaOT(dailyHours: number[]): OTBreakdown {
+  let regular = 0
+  let overtime = 0
+  let doubletime = 0
+  let consecutiveDays = 0
+
+  for (let i = 0; i < dailyHours.length; i++) {
+    const hours = dailyHours[i]
+    if (hours <= 0) {
+      consecutiveDays = 0
+      continue
+    }
+    consecutiveDays++
+
+    if (consecutiveDays >= 7) {
+      // 7th consecutive day: first 8h at OT, rest at doubletime
+      const dtHours = Math.max(hours - 8, 0)
+      const otHours = Math.min(hours, 8)
+      overtime += otHours
+      doubletime += dtHours
+    } else {
+      // Daily OT after 8h, doubletime after 12h
+      const dtHours = Math.max(hours - 12, 0)
+      const otHours = Math.max(Math.min(hours, 12) - 8, 0)
+      const regHours = Math.min(hours, 8)
+      regular += regHours
+      overtime += otHours
+      doubletime += dtHours
+    }
+  }
+
+  // Also check weekly: if weekly regular > 40, shift excess to OT
+  const weeklyTotal = regular + overtime + doubletime
+  if (regular > 40) {
+    const excess = regular - 40
+    regular = 40
+    overtime += excess
+  }
+
+  return {
+    regular: +regular.toFixed(2),
+    overtime: +overtime.toFixed(2),
+    doubletime: +doubletime.toFixed(2),
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS_HEADERS })
