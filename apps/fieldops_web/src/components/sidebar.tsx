@@ -18,9 +18,9 @@ const NAV_ITEMS = [
   { href: "/overtime", labelKey: "shell.overtime", section: "operations" },
   { href: "/reports", labelKey: "shell.reports", section: "reports" },
   { href: "/settings", labelKey: "shell.company", section: "settings" },
-  { href: "/settings/staff", labelKey: "shell.staff", section: "settings" },
-  { href: "/onboarding", labelKey: "shell.onboarding", section: "settings" },
-];
+  { href: "/settings/staff", labelKey: "shell.staff", section: "settings", adminOnly: true },
+  { href: "/onboarding", labelKey: "shell.onboarding", section: "settings", adminOnly: true },
+] as const;
 
 const SECTIONS: Record<string, string> = {
   overview: "shell.overview",
@@ -32,13 +32,22 @@ const SECTIONS: Record<string, string> = {
 export function Sidebar() {
   const pathname = usePathname();
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const { locale, setLocale, t } = useI18n();
 
   useEffect(() => {
     try {
       const supabase = getSupabase();
-      supabase.auth.getSession().then(({ data }) => {
+      supabase.auth.getSession().then(async ({ data }) => {
         setUserEmail(data.session?.user?.email ?? null);
+        if (data.session?.user?.id) {
+          const { data: user } = await supabase
+            .from("users")
+            .select("role")
+            .eq("id", data.session.user.id)
+            .maybeSingle();
+          setUserRole(user?.role ?? null);
+        }
       });
       const { data: listener } = supabase.auth.onAuthStateChange(
         (_event, session) => setUserEmail(session?.user?.email ?? null),
@@ -49,9 +58,11 @@ export function Sidebar() {
     }
   }, []);
 
+  const isAdmin = userRole === "admin";
+  const visibleItems = NAV_ITEMS.filter((item) => !("adminOnly" in item && item.adminOnly) || isAdmin);
   const grouped = Object.entries(SECTIONS).map(([key, label]) => ({
     section: t(label),
-    items: NAV_ITEMS.filter((item) => item.section === key),
+    items: visibleItems.filter((item) => item.section === key),
   }));
 
   return (

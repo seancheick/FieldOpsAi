@@ -13,31 +13,18 @@ class ClockController extends Notifier<ClockState> {
     required String jobId,
     required String jobName,
   }) async {
-    state = state.copyWith(
-      activeRequestJobId: jobId,
-      clockError: null,
-    );
-
-    try {
-      final result =
-          await ref.read(clockRepositoryProvider).clockIn(jobId: jobId);
-      state = state.copyWith(
+    state = state.copyWith(activeRequestJobId: jobId, clockError: null);
+    await _handleClockAction(
+      actionName: 'Clock in',
+      action: () => ref.read(clockRepositoryProvider).clockIn(jobId: jobId),
+      onSuccess: (result) => state = state.copyWith(
         activeRequestJobId: null,
         activeJobId: jobId,
         activeJobName: jobName,
         lastOccurredAt: result.occurredAt,
-      );
-    } on ClockRepositoryException catch (error) {
-      state = state.copyWith(
-        activeRequestJobId: null,
-        clockError: (title: 'Clock in failed', message: error.message),
-      );
-    } on Exception catch (_) {
-      state = state.copyWith(
-        activeRequestJobId: null,
-        clockError: (title: 'Clock in failed', message: 'Clock in could not be completed right now.'),
-      );
-    }
+      ),
+      onError: () => state = state.copyWith(activeRequestJobId: null),
+    );
   }
 
   Future<void> clockOut() async {
@@ -45,32 +32,19 @@ class ClockController extends Notifier<ClockState> {
     final jobName = state.activeJobName;
     if (jobId == null) return;
 
-    state = state.copyWith(
-      activeRequestJobId: jobId,
-      clockError: null,
-    );
-
-    try {
-      final result =
-          await ref.read(clockRepositoryProvider).clockOut(jobId: jobId);
-      state = state.copyWith(
+    state = state.copyWith(activeRequestJobId: jobId, clockError: null);
+    await _handleClockAction(
+      actionName: 'Clock out',
+      action: () => ref.read(clockRepositoryProvider).clockOut(jobId: jobId),
+      onSuccess: (result) => state = state.copyWith(
         activeRequestJobId: null,
         activeJobId: null,
         activeJobName: null,
         lastOccurredAt: result.occurredAt,
         lastCompletedJobName: jobName,
-      );
-    } on ClockRepositoryException catch (error) {
-      state = state.copyWith(
-        activeRequestJobId: null,
-        clockError: (title: 'Clock out failed', message: error.message),
-      );
-    } on Exception catch (_) {
-      state = state.copyWith(
-        activeRequestJobId: null,
-        clockError: (title: 'Clock out failed', message: 'Clock out could not be completed right now.'),
-      );
-    }
+      ),
+      onError: () => state = state.copyWith(activeRequestJobId: null),
+    );
   }
 
   Future<void> startBreak() async {
@@ -78,20 +52,12 @@ class ClockController extends Notifier<ClockState> {
     if (jobId == null) return;
 
     state = state.copyWith(clockError: null, isOnBreak: true);
-
-    try {
-      await ref.read(clockRepositoryProvider).breakStart(jobId: jobId);
-    } on ClockRepositoryException catch (error) {
-      state = state.copyWith(
-        isOnBreak: false,
-        clockError: (title: 'Break failed', message: error.message),
-      );
-    } on Exception catch (_) {
-      state = state.copyWith(
-        isOnBreak: false,
-        clockError: (title: 'Break failed', message: 'Could not start break.'),
-      );
-    }
+    await _handleClockAction(
+      actionName: 'Break',
+      action: () => ref.read(clockRepositoryProvider).breakStart(jobId: jobId),
+      onSuccess: (_) {},
+      onError: () => state = state.copyWith(isOnBreak: false),
+    );
   }
 
   Future<void> endBreak() async {
@@ -99,17 +65,38 @@ class ClockController extends Notifier<ClockState> {
     if (jobId == null) return;
 
     state = state.copyWith(clockError: null);
+    await _handleClockAction(
+      actionName: 'Break end',
+      action: () => ref.read(clockRepositoryProvider).breakEnd(jobId: jobId),
+      onSuccess: (_) => state = state.copyWith(isOnBreak: false),
+      onError: () {},
+    );
+  }
 
+  /// Centralised error handler for all clock actions.
+  /// [onSuccess] is called with the result on success.
+  /// [onError] runs first to revert optimistic state, then [clockError] is set.
+  Future<void> _handleClockAction({
+    required String actionName,
+    required Future<ClockActionResult> Function() action,
+    required void Function(ClockActionResult result) onSuccess,
+    required void Function() onError,
+  }) async {
     try {
-      await ref.read(clockRepositoryProvider).breakEnd(jobId: jobId);
-      state = state.copyWith(isOnBreak: false);
+      final result = await action();
+      onSuccess(result);
     } on ClockRepositoryException catch (error) {
+      onError();
       state = state.copyWith(
-        clockError: (title: 'Break end failed', message: error.message),
+        clockError: (title: '$actionName failed', message: error.message),
       );
     } on Exception catch (_) {
+      onError();
       state = state.copyWith(
-        clockError: (title: 'Break end failed', message: 'Could not end break.'),
+        clockError: (
+          title: '$actionName failed',
+          message: '$actionName could not be completed right now.',
+        ),
       );
     }
   }

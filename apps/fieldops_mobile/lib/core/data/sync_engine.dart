@@ -7,8 +7,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:fieldops_mobile/core/data/local_database.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
-
 const _maxRetries = 5;
 const _syncIntervalSeconds = 15;
 
@@ -16,12 +14,10 @@ class SyncEngine {
   SyncEngine({
     required this.database,
     required this.supabaseClient,
-    Uuid? uuid,
-  }) : _uuid = uuid ?? const Uuid();
+  });
 
   final LocalDatabase database;
   final SupabaseClient supabaseClient;
-  final Uuid _uuid;
   Timer? _timer;
   bool _isSyncing = false;
 
@@ -31,8 +27,11 @@ class SyncEngine {
       const Duration(seconds: _syncIntervalSeconds),
       (_) => syncPendingEvents(),
     );
-    // Also sync immediately on start
-    unawaited(syncPendingEvents());
+    // Also sync immediately on start.
+    unawaited(syncPendingEvents().catchError(
+      // ignore: avoid_print
+      (Object e) => print('[FieldOps] Initial sync failed: $e'),
+    ));
   }
 
   void stop() {
@@ -103,7 +102,8 @@ class SyncEngine {
         'X-Client-Version': 'fieldops-mobile',
       },
       body: {
-        'batch_id': _uuid.v4(),
+        // Stable batch_id ensures the entire request body is idempotent on retry.
+        'batch_id': 'batch-${event.id}',
         'clock_events': [payload],
       },
     );

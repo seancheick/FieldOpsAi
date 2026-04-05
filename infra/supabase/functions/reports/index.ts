@@ -2,9 +2,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
 import {
+  applyRateLimit,
   CORS_HEADERS,
+  corsHeaders,
   errorResponse,
   jsonResponse,
+  logRequestStart,
+  logRequestResult,
+  logRequestError,
   makeRequestId,
 } from "../_shared/api.ts"
 
@@ -12,7 +17,7 @@ const ENDPOINT = "reports"
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS_HEADERS })
+    return new Response("ok", { headers: corsHeaders(req) })
   }
 
   const requestId = makeRequestId(req)
@@ -56,6 +61,15 @@ serve(async (req) => {
       return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors or admins can generate reports")
     }
 
+    logRequestStart(ENDPOINT, requestId, req)
+
+    // Rate limit: 10 requests per 60 seconds per user
+    const rateLimit = await applyRateLimit(supabaseAdmin, user.id, ENDPOINT, requestId, 10, 60)
+    if (rateLimit.limited) {
+      logRequestResult(ENDPOINT, requestId, 429, { reason: "rate_limited" })
+      return errorResponse(requestId, 429, "RATE_LIMITED", "Too many report requests. Try again shortly.", [], rateLimit.headers)
+    }
+
     const payload = await req.json()
     const { report_type, job_id, date_from, date_to } = payload
 
@@ -83,39 +97,40 @@ serve(async (req) => {
         return errorResponse(requestId, 404, "NOT_FOUND", "Job not found")
       }
 
-      // Fetch clock events
-      const { data: clockEvents } = await supabaseAdmin
-        .from("clock_events")
-        .select("id, user_id, event_subtype, occurred_at, gps_lat, gps_lng, users!clock_events_user_id_fkey(full_name)")
-        .eq("job_id", job_id)
-        .eq("company_id", userRecord.company_id)
-        .order("occurred_at", { ascending: true })
-        .limit(500)
-
-      // Fetch tasks
-      const { data: tasks } = await supabaseAdmin
-        .from("tasks")
-        .select("id, name, status, requires_photo, completed_at, completed_by")
-        .eq("job_id", job_id)
-        .eq("company_id", userRecord.company_id)
-        .order("sort_order", { ascending: true })
-
-      // Fetch photo events
-      const { data: photoEvents } = await supabaseAdmin
-        .from("photo_events")
-        .select("id, occurred_at, media_asset_id, user_id, is_checkpoint")
-        .eq("job_id", job_id)
-        .eq("company_id", userRecord.company_id)
-        .order("occurred_at", { ascending: true })
-        .limit(200)
-
-      // Fetch OT approvals
-      const { data: otApprovals } = await supabaseAdmin
-        .from("ot_approval_events")
-        .select("id, worker_id, decision, reason, occurred_at, users!ot_approval_events_approver_id_fkey(full_name)")
-        .eq("job_id", job_id)
-        .eq("company_id", userRecord.company_id)
-        .order("occurred_at", { ascending: true })
+      // Fetch all supplementary data in parallel (no dependencies between queries)
+      const [
+        { data: clockEvents },
+        { data: tasks },
+        { data: photoEvents },
+        { data: otApprovals },
+      ] = await Promise.all([
+        supabaseAdmin
+          .from("clock_events")
+          .select("id, user_id, event_subtype, occurred_at, gps_lat, gps_lng, users!clock_events_user_id_fkey(full_name)")
+          .eq("job_id", job_id)
+          .eq("company_id", userRecord.company_id)
+          .order("occurred_at", { ascending: true })
+          .limit(500),
+        supabaseAdmin
+          .from("tasks")
+          .select("id, name, status, requires_photo, completed_at, completed_by")
+          .eq("job_id", job_id)
+          .eq("company_id", userRecord.company_id)
+          .order("sort_order", { ascending: true }),
+        supabaseAdmin
+          .from("photo_events")
+          .select("id, occurred_at, media_asset_id, user_id, is_checkpoint")
+          .eq("job_id", job_id)
+          .eq("company_id", userRecord.company_id)
+          .order("occurred_at", { ascending: true })
+          .limit(200),
+        supabaseAdmin
+          .from("ot_approval_events")
+          .select("id, worker_id, decision, reason, occurred_at, users!ot_approval_events_approver_id_fkey(full_name)")
+          .eq("job_id", job_id)
+          .eq("company_id", userRecord.company_id)
+          .order("occurred_at", { ascending: true }),
+      ])
 
       // Compute worker hours
       const workerHours = computeWorkerHours(clockEvents || [])
@@ -278,7 +293,9 @@ function computeWorkerHours(events: any[]) {
         clock_out: null,
       })
     } else if (event.event_subtype === "clock_out") {
-      const openSession = sessions[workerId].findLast((s: any) => s.clock_out === null)
+      // .findLast() is ES2023 — not available in all Deno versions.
+      // Use .slice().reverse().find() for broad compatibility.
+      const openSession = sessions[workerId].slice().reverse().find((s: any) => s.clock_out === null)
       if (openSession) {
         openSession.clock_out = event.occurred_at
       }

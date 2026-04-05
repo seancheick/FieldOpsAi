@@ -143,9 +143,7 @@ class _QuickActionCard extends StatelessWidget {
                   ),
                 ),
                 Icon(Icons.chevron_right_rounded,
-                    color: Theme.of(context)
-                        .extension<FieldOpsPalette>()!
-                        .steel),
+                    color: context.palette.steel),
               ],
             ),
           ),

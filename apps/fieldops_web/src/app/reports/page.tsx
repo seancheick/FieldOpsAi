@@ -279,8 +279,8 @@ function JobReportView({
               </tr>
             </thead>
             <tbody>
-              {workerHours.map((wh, i) => (
-                <tr key={i} className="border-b border-stone-100">
+              {workerHours.map((wh) => (
+                <tr key={wh.worker as string} className="border-b border-stone-100">
                   <td className="py-2 font-medium text-slate-900">
                     {wh.worker as string}
                   </td>

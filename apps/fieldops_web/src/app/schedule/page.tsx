@@ -1,6 +1,6 @@
 "use client";
 
-import { CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
+import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 
@@ -197,8 +197,12 @@ export default function SchedulePage() {
     setEntries((payload.shifts as ScheduleEntry[]) ?? []);
   }, [rangeEnd, rangeStart, t]);
 
+  // Version counter prevents stale responses from overwriting fresher ones
+  // when rapid view-mode changes cause multiple loadSchedule calls in flight.
+  const loadVersionRef = useRef(0);
+
   useEffect(() => {
-    let isMounted = true;
+    const version = ++loadVersionRef.current;
 
     async function loadData() {
       setLoading(true);
@@ -206,20 +210,17 @@ export default function SchedulePage() {
       try {
         await Promise.all([loadReferenceData(), loadSchedule()]);
       } catch (err) {
-        if (isMounted) {
+        if (loadVersionRef.current === version) {
           setError(err instanceof Error ? err.message : t("schedulePage.failedToLoad"));
         }
       } finally {
-        if (isMounted) {
+        if (loadVersionRef.current === version) {
           setLoading(false);
         }
       }
     }
 
     loadData();
-    return () => {
-      isMounted = false;
-    };
   }, [loadReferenceData, loadSchedule, t]);
 
   function clearForm(dateOverride?: string) {

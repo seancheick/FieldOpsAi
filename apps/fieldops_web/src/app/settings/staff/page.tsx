@@ -40,6 +40,26 @@ export default function StaffPage() {
   const [editing, setEditing] = useState<EditingStaff | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
+
+  // Role gate: only admin users can access staff management
+  useEffect(() => {
+    let mounted = true;
+    const supabase = getSupabase();
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!mounted || !data.session) return;
+      const { data: user } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", data.session.user.id)
+        .maybeSingle();
+      if (mounted && user?.role !== "admin") {
+        setAccessDenied(true);
+        setLoading(false);
+      }
+    });
+    return () => { mounted = false; };
+  }, []);
 
   const roles = useMemo(
     () =>
@@ -114,6 +134,20 @@ export default function StaffPage() {
 
   const activeCount = staff.filter((member) => member.is_active).length;
   const roleLabel = (role: string) => roles.find((entry) => entry.value === role)?.label ?? role;
+
+  if (accessDenied) {
+    return (
+      <div className="mt-20 text-center">
+        <h2 className="text-xl font-bold text-slate-900">{t("common.accessDenied") || "Access denied"}</h2>
+        <p className="mt-2 text-sm text-slate-500">
+          {t("staffPage.adminOnly") || "Only administrators can manage staff."}
+        </p>
+        <a href="/" className="mt-4 inline-block text-sm font-medium text-amber-600 hover:text-amber-700">
+          &larr; {t("common.backToDashboard") || "Back to dashboard"}
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div>
