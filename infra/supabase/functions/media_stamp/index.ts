@@ -5,6 +5,9 @@ import {
   CORS_HEADERS,
   errorResponse,
   jsonResponse,
+  logRequestError,
+  logRequestResult,
+  logRequestStart,
   makeRequestId,
 } from "../_shared/api.ts"
 
@@ -27,6 +30,7 @@ serve(async (req) => {
   }
 
   const requestId = makeRequestId(req)
+  logRequestStart(ENDPOINT, requestId, req)
 
   try {
     if (req.method !== "POST") {
@@ -299,6 +303,11 @@ serve(async (req) => {
 
     if (originalUpdateError) throw originalUpdateError
 
+    logRequestResult(ENDPOINT, requestId, 200, {
+      user_id: user.id,
+      media_asset_id,
+      stamped_media_id: stampedId,
+    })
     return jsonResponse({
       status: "success",
       media_asset_id,
@@ -311,6 +320,7 @@ serve(async (req) => {
       request_id: requestId,
     }, 200, requestId)
   } catch (error) {
+    logRequestError(ENDPOINT, requestId, error)
     console.error("media_stamp error:", error)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", error.message || "Internal server error")
   }

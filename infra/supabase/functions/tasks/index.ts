@@ -6,6 +6,9 @@ import {
   CORS_HEADERS,
   errorResponse,
   jsonResponse,
+  logRequestError,
+  logRequestResult,
+  logRequestStart,
   lookupIdempotency,
   makeRequestId,
   sha256Hex,
@@ -29,6 +32,7 @@ serve(async (req) => {
   }
 
   const requestId = makeRequestId(req)
+  logRequestStart(ENDPOINT, requestId, req)
 
   try {
     const authHeader = req.headers.get("Authorization")
@@ -98,6 +102,11 @@ serve(async (req) => {
 
       if (tasksError) throw tasksError
 
+      logRequestResult(ENDPOINT, requestId, 200, {
+        user_id: user.id,
+        job_id: jobId,
+        result_count: (tasks || []).length,
+      })
       return jsonResponse({
         status: "success",
         job_id: jobId,
@@ -272,11 +281,19 @@ serve(async (req) => {
         requestId,
       )
 
+      logRequestResult(ENDPOINT, requestId, 200, {
+        user_id: user.id,
+        action,
+        task_id,
+        from_status: task.status,
+        to_status: toStatus,
+      })
       return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
     }
 
     return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Use GET or POST for /tasks")
   } catch (error) {
+    logRequestError(ENDPOINT, requestId, error)
     console.error("tasks error:", error)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", error.message || "Internal server error")
   }

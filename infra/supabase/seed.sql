@@ -122,3 +122,48 @@ VALUES (
     '55555555-5555-5555-5555-555555555555'
 )
 ON CONFLICT DO NOTHING;
+
+-- ─── Company B (RLS isolation test partner) ─────────────────
+
+INSERT INTO companies (id, name, slug)
+VALUES ('b0b0b0b0-b0b0-b0b0-b0b0-b0b0b0b0b0b0', 'Rival Corp', 'rivalcorp')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO auth.users (
+    instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+    recovery_sent_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data,
+    created_at, updated_at, confirmation_token, email_change, email_change_token_new, recovery_token
+) VALUES (
+    '00000000-0000-0000-0000-000000000000', 'b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1',
+    'authenticated', 'authenticated', 'worker@rival.com', crypt('password123', gen_salt('bf')),
+    now(), null, now(), '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''
+) ON CONFLICT DO NOTHING;
+
+INSERT INTO public.users (id, company_id, role, full_name, email)
+VALUES ('b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1', 'b0b0b0b0-b0b0-b0b0-b0b0-b0b0b0b0b0b0', 'worker', 'Rival Worker', 'worker@rival.com')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO jobs (id, company_id, name, code, created_by)
+VALUES (
+    'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2',
+    'b0b0b0b0-b0b0-b0b0-b0b0-b0b0b0b0b0b0',
+    'Rival Job',
+    'RIVAL-1',
+    'b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1'
+)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO assignments (id, company_id, job_id, user_id, assigned_role, assigned_by)
+VALUES ('b3b3b3b3-b3b3-b3b3-b3b3-b3b3b3b3b3b3', 'b0b0b0b0-b0b0-b0b0-b0b0-b0b0b0b0b0b0', 'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2', 'b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1', 'worker', 'b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO tasks (id, company_id, job_id, name, requires_photo, assigned_to)
+VALUES (
+    'b4b4b4b4-b4b4-b4b4-b4b4-b4b4b4b4b4b4',
+    'b0b0b0b0-b0b0-b0b0-b0b0-b0b0b0b0b0b0',
+    'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2',
+    'Rival Task',
+    false,
+    'b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1'
+)
+ON CONFLICT DO NOTHING;

@@ -8,6 +8,9 @@ import {
   haversineDistanceMeters,
   isValidGpsCoordinates,
   jsonResponse,
+  logRequestError,
+  logRequestResult,
+  logRequestStart,
   lookupIdempotency,
   makeRequestId,
   sha256Hex,
@@ -24,6 +27,7 @@ serve(async (req) => {
 
   const requestId = makeRequestId(req)
   const startedAt = Date.now()
+  logRequestStart(ENDPOINT, requestId, req)
 
   try {
     if (req.method !== "POST") {
@@ -230,19 +234,17 @@ serve(async (req) => {
       requestId,
     )
 
-    console.log(JSON.stringify({
-      request_id: requestId,
-      endpoint: ENDPOINT,
+    logRequestResult(ENDPOINT, requestId, 200, {
       user_id: user.id,
-      company_id: userRecord.company_id,
-      latency_ms: Date.now() - startedAt,
       accepted_count: accepted.length,
       duplicate_count: duplicates.length,
       rejected_count: rejected.length,
-    }))
+      latency_ms: Date.now() - startedAt,
+    })
 
     return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
   } catch (error) {
+    logRequestError(ENDPOINT, requestId, error)
     console.error("Sync events error:", error)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", error.message || "Internal server error")
   }

@@ -1,13 +1,16 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
-import { CORS_HEADERS, errorResponse, jsonResponse, makeRequestId } from "../_shared/api.ts"
+import { CORS_HEADERS, errorResponse, jsonResponse, logRequestError, logRequestResult, logRequestStart, makeRequestId } from "../_shared/api.ts"
+
+const ENDPOINT = "jobs_active"
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS })
   }
   const requestId = makeRequestId(req)
+  logRequestStart(ENDPOINT, requestId, req)
 
   try {
     if (req.method !== "GET") {
@@ -89,6 +92,10 @@ serve(async (req) => {
         })),
       }))
 
+    logRequestResult(ENDPOINT, requestId, 200, {
+      user_id: user.id,
+      result_count: jobs.length,
+    })
     return jsonResponse(
       {
         jobs,
@@ -98,6 +105,7 @@ serve(async (req) => {
       requestId,
     )
   } catch (error) {
+    logRequestError(ENDPOINT, requestId, error)
     console.error(error)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", error.message || "Internal server error")
   }

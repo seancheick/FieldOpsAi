@@ -349,6 +349,12 @@ entrypoint = "./functions/media_presign/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/media_presign/*.html" ]
 
+[functions.pto]
+enabled = true
+verify_jwt = true
+import_map = "./functions/pto/deno.json"
+entrypoint = "./functions/pto/index.ts"
+
 [functions.media_finalize]
 enabled = true
 verify_jwt = true

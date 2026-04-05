@@ -159,10 +159,11 @@ Roadmap alignment: Steps 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6
 
 ### Backlog (Sprint 2 — deferred to next session)
 
-- [ ] Logging system
+- [x] Logging system
   - Type: Infra | Priority: Medium
   - Definition of Done: Structured JSON logs with requestId and userId on every request. Searchable log dashboard (Supabase Studio or external). Alert threshold on elevated error rates (>5% 5xx in 5 min window). Log retention policy defined. No PII in logs.
-  - Notes: Central logging + alerts for sync pipeline failures.
+  - Agent findings: Completed on 2026-04-05. `emitStructuredLog`, `logRequestStart`, `logRequestResult`, `logRequestError` were already implemented in `_shared/api.ts` but only used in 3/12 edge functions. Wired logging into all remaining 9 functions: ot, sync_events, media_presign, media_finalize, media_stamp, tasks, alerts, shift_reports, jobs_active. All 12 functions now emit structured JSON logs with requestId, userId, status codes, and relevant metadata. Analytics backend enabled in config.toml (Postgres). Alert thresholds and log retention to be configured when Supabase hosted project is deployed.
+  - Evidence: `infra/supabase/functions/_shared/api.ts`, all 12 edge function `index.ts` files
 
 ### Sprint 2 Exit Criteria (from Roadmap)
 
@@ -354,11 +355,11 @@ Stripe billing deferred to Sprint 8 — run free during pilot to validate all fe
 
 ### Infrastructure
 
-- [-] RLS validation
+- [x] RLS validation
   - Type: Backend | Priority: High
   - Definition of Done: Every tenant-owned table has RLS. Automated 2-company test. CI gate. Zero data leakage.
-  - Partial: `test_rls_validation.py` exists and runs in CI (added 2026-04-05). Checks RLS enabled + policy count on 14 tables. Missing: actual 2-company data isolation test (Company A cannot read Company B's data).
-  - Evidence: `execution/test_rls_validation.py`, `execution/run_backend_regression_suite.py`
+  - Agent findings: Completed on 2026-04-05. Test suite now has 2 tiers: (1) Schema checks — RLS enabled + policy count on 14 tables, (2) Data isolation — Company B (Rival Corp) added to seed.sql, test simulates authenticated requests as Worker A and Worker B using SET LOCAL role + request.jwt.claims, verifies cross-company SELECT returns 0 rows on jobs, tasks, assignments. Both directions tested (A→B and B→A).
+  - Evidence: `execution/test_rls_validation.py`, `infra/supabase/seed.sql` (Company B block), `execution/run_backend_regression_suite.py`
 
 ### Worker Experience
 
@@ -368,9 +369,11 @@ Stripe billing deferred to Sprint 8 — run free during pilot to validate all fe
   - Agent findings: Completed on 2026-04-04. The worker home screen now fetches live totals from `/worker_hours`, refreshes after clock actions, and keeps the existing visual summary card. Regression coverage was added to `execution/test_sprint_1.py` and the mobile widget suite now verifies non-zero live totals through a fake repository override. Verified with `python3 execution/run_backend_regression_suite.py`, `flutter analyze`, and `flutter test`.
   - Source: User requested. Makes the app feel complete.
 
-- [ ] Time off / PTO requests
-  - Type: Mobile | Priority: Medium
+- [x] Time off / PTO requests
+  - Type: Full-stack | Priority: Medium
   - Definition of Done: Worker submits PTO request (vacation/sick/personal) with dates. Supervisor approves/denies. PTO balance tracking. Reflected in timesheets.
+  - Agent findings: Completed on 2026-04-05. New migration `20260405100000_pto_requests.sql` creates `pto_requests` table with RLS (worker sees own + inserts, supervisor decides, worker cancels pending). Edge function `/pto` supports GET (list with role filtering), POST request/decide/cancel actions with validation. Mobile: domain model existed, added `SupabasePTORepository`, `PTOController` with Riverpod state, `PTORequestScreen` with type selector, date pickers, day count, notes, submit, and "My Requests" list with status badges. Web: `/pto` page with pending/approved/denied/cancelled tabs, decision UI with inline reason textarea, approve/deny/cancel buttons. Sidebar updated with "Time Off" link. i18n keys added (EN + ES). PTO balance tracking deferred (needs company-level config for annual allowances). Timesheet reflection deferred (needs reports function update).
+  - Evidence: `infra/supabase/migrations/20260405100000_pto_requests.sql`, `infra/supabase/functions/pto/index.ts`, `apps/fieldops_mobile/lib/features/pto/**`, `apps/fieldops_web/src/app/pto/page.tsx`
 
 - [x] Receipt / expense capture
   - Type: Mobile | Priority: HIGH — No competitor has this

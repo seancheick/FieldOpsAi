@@ -5,8 +5,13 @@ import {
   CORS_HEADERS,
   errorResponse,
   jsonResponse,
+  logRequestError,
+  logRequestResult,
+  logRequestStart,
   makeRequestId,
 } from "../_shared/api.ts"
+
+const ENDPOINT = "alerts"
 
 /**
  * Alert system — generates and manages alert_events.
@@ -21,6 +26,7 @@ serve(async (req) => {
   }
 
   const requestId = makeRequestId(req)
+  logRequestStart(ENDPOINT, requestId, req)
 
   try {
     const authHeader = req.headers.get("Authorization")
@@ -71,6 +77,10 @@ serve(async (req) => {
       const { data, error: fetchError } = await query
       if (fetchError) throw fetchError
 
+      logRequestResult(ENDPOINT, requestId, 200, {
+        user_id: user.id,
+        result_count: (data || []).length,
+      })
       return jsonResponse({
         status: "success",
         alerts: data || [],
@@ -108,6 +118,12 @@ serve(async (req) => {
 
         if (updateError) throw updateError
 
+        logRequestResult(ENDPOINT, requestId, 200, {
+          user_id: user.id,
+          action: "resolve",
+          alert_id,
+          resolution: resolveStatus,
+        })
         return jsonResponse({
           status: "success",
           alert_id,
@@ -180,6 +196,11 @@ serve(async (req) => {
           }
         }
 
+        logRequestResult(ENDPOINT, requestId, 200, {
+          user_id: user.id,
+          action: "scan",
+          alerts_generated: alertsGenerated.length,
+        })
         return jsonResponse({
           status: "success",
           alerts_generated: alertsGenerated.length,
@@ -193,6 +214,7 @@ serve(async (req) => {
 
     return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Use GET or POST")
   } catch (error) {
+    logRequestError(ENDPOINT, requestId, error)
     console.error("alerts error:", error)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", error.message || "Internal server error")
   }

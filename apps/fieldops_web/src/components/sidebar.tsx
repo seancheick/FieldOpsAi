@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/expenses", labelKey: "shell.expenses", section: "operations" },
   { href: "/cost-codes", labelKey: "shell.costCodes", section: "operations" },
   { href: "/overtime", labelKey: "shell.overtime", section: "operations" },
+  { href: "/pto", labelKey: "shell.pto", section: "operations" },
   { href: "/reports", labelKey: "shell.reports", section: "reports" },
   { href: "/settings", labelKey: "shell.company", section: "settings" },
   { href: "/settings/staff", labelKey: "shell.staff", section: "settings", adminOnly: true },

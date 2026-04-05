@@ -7,6 +7,9 @@ import {
   errorResponse,
   isValidGpsCoordinates,
   jsonResponse,
+  logRequestError,
+  logRequestResult,
+  logRequestStart,
   lookupIdempotency,
   makeRequestId,
   sha256Hex,
@@ -75,6 +78,7 @@ serve(async (req) => {
   }
 
   const requestId = makeRequestId(req)
+  logRequestStart(ENDPOINT, requestId, req)
 
   try {
     if (req.method !== "POST") {
@@ -259,8 +263,13 @@ serve(async (req) => {
       requestId,
     )
 
+    logRequestResult(ENDPOINT, requestId, 201, {
+      user_id: user.id,
+      media_asset_id: assetId,
+    })
     return jsonResponse(responseBody, 201, requestId, rateLimit.headers)
   } catch (error) {
+    logRequestError(ENDPOINT, requestId, error)
     console.error("media_presign error:", error)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", error.message || "Internal server error")
   }

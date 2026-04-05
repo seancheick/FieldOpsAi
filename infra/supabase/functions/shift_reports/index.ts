@@ -6,6 +6,9 @@ import {
   CORS_HEADERS,
   errorResponse,
   jsonResponse,
+  logRequestError,
+  logRequestResult,
+  logRequestStart,
   lookupIdempotency,
   makeRequestId,
   sha256Hex,
@@ -21,6 +24,7 @@ serve(async (req) => {
   }
 
   const requestId = makeRequestId(req)
+  logRequestStart(ENDPOINT, requestId, req)
 
   try {
     const authHeader = req.headers.get("Authorization")
@@ -69,6 +73,10 @@ serve(async (req) => {
       const { data, error: fetchError } = await query
       if (fetchError) throw fetchError
 
+      logRequestResult(ENDPOINT, requestId, 200, {
+        user_id: user.id,
+        result_count: (data || []).length,
+      })
       return jsonResponse({ status: "success", reports: data || [], request_id: requestId }, 200, requestId)
     }
 
@@ -168,11 +176,17 @@ serve(async (req) => {
       }
 
       await storeIdempotency(supabaseAdmin, user.id, ENDPOINT, idempotencyKey, requestHash, 201, responseBody, requestId)
+      logRequestResult(ENDPOINT, requestId, 201, {
+        user_id: user.id,
+        report_id: reportId,
+        report_date,
+      })
       return jsonResponse(responseBody, 201, requestId, rateLimit.headers)
     }
 
     return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Use GET or POST")
   } catch (error) {
+    logRequestError(ENDPOINT, requestId, error)
     console.error("shift_reports error:", error)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", error.message || "Internal server error")
   }

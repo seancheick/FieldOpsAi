@@ -6,6 +6,9 @@ import {
   CORS_HEADERS,
   errorResponse,
   jsonResponse,
+  logRequestError,
+  logRequestResult,
+  logRequestStart,
   lookupIdempotency,
   makeRequestId,
   sha256Hex,
@@ -21,6 +24,7 @@ serve(async (req) => {
   }
 
   const requestId = makeRequestId(req)
+  logRequestStart(ENDPOINT, requestId, req)
 
   try {
     if (req.method !== "POST") {
@@ -237,8 +241,14 @@ serve(async (req) => {
       })
     )
 
+    logRequestResult(ENDPOINT, requestId, 200, {
+      user_id: user.id,
+      media_asset_id: media_asset_id,
+      photo_event_id: photoEventId,
+    })
     return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
   } catch (error) {
+    logRequestError(ENDPOINT, requestId, error)
     console.error("media_finalize error:", error)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", error.message || "Internal server error")
   }
