@@ -128,10 +128,10 @@ serve(async (req) => {
       }, 200, requestId)
     }
 
-    // Fetch company for logo/branding
+    // Fetch company for logo/branding + settings
     const { data: company } = await supabaseAdmin
       .from("companies")
-      .select("name, logo_url")
+      .select("name, logo_url, logo_data_uri, settings")
       .eq("id", asset.company_id)
       .single()
 
@@ -185,15 +185,32 @@ serve(async (req) => {
     // This approach creates an SVG with the proof text, then we store both
     // the stamp metadata and the SVG overlay as the canonical proof record.
     // The SVG can be composited onto the image by any renderer (web, PDF, mobile).
-    const svgWidth = 600
+
+    // Check if company logo should be included on the stamp
+    const companySettings = company?.settings as Record<string, unknown> | null
+    const stampBranding = (companySettings?.stamp_branding as string) || "name_only"
+    const logoDataUri = company?.logo_data_uri as string | null
+    const showLogo = stampBranding === "logo" && logoDataUri
+
+    // If showing logo, add extra space on the left for the logo image
+    const logoOffset = showLogo ? 52 : 0 // 40px logo + 12px gap
+    const svgWidth = 600 + logoOffset
     const svgHeight = 40 + (stampLines.length * 22)
-    const svgStamp = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}">
+
+    // Build SVG: optional logo image + text lines
+    const logoSvg = showLogo
+      ? `<image href="${escapeXml(logoDataUri!)}" x="10" y="10" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>`
+      : ""
+
+    const svgStamp = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${svgWidth}" height="${svgHeight}">
   <rect width="100%" height="100%" fill="rgba(0,0,0,0.65)" rx="8"/>
+  ${logoSvg}
   ${stampLines.map((line, i) => {
     const fontSize = i === 0 ? 16 : 13
     const fontWeight = i === 0 ? "bold" : "normal"
     const y = 24 + (i * 22)
-    return `<text x="12" y="${y}" fill="white" font-family="system-ui, sans-serif" font-size="${fontSize}" font-weight="${fontWeight}">${escapeXml(line)}</text>`
+    const x = 12 + logoOffset
+    return `<text x="${x}" y="${y}" fill="white" font-family="system-ui, sans-serif" font-size="${fontSize}" font-weight="${fontWeight}">${escapeXml(line)}</text>`
   }).join("\n  ")}
 </svg>`
 

@@ -68,8 +68,13 @@ serve(async (req) => {
       }
 
       const workerRole = role || "worker"
-      if (!["worker", "foreman"].includes(workerRole)) {
-        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "role must be worker or foreman")
+      // Admins can invite supervisors; non-admins can only invite worker/foreman
+      const allowedRoles = userRecord.role === "admin"
+        ? ["worker", "foreman", "supervisor"]
+        : ["worker", "foreman"]
+      if (!allowedRoles.includes(workerRole)) {
+        const allowed = allowedRoles.join(", ")
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", `role must be one of: ${allowed}`)
       }
 
       // Create invite via Supabase Auth
