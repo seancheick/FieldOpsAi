@@ -294,7 +294,7 @@ export default function SchedulePage() {
           notes: entry.notes,
         },
       })),
-    [entries],
+    [entries, ghostShifts, workers],
   );
 
   const resources = useMemo(
