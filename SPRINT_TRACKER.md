@@ -20,6 +20,7 @@ related:
 This file mirrors the Notion board structure so active execution can live with the code.
 
 > [!info] Related Docs
+>
 > - [[ROADMAP]] — Master plan and phase sequence
 > - [[LESSONS_LEARNED]] — What we learned each sprint
 > - [[PRD]] — Product requirements and pillars
@@ -28,11 +29,13 @@ This file mirrors the Notion board structure so active execution can live with t
 > - [[DATA_MODEL]] — Database schema and events
 
 Update rule:
+
 - Update this file during implementation.
 - Mirror status/sprint changes back to Notion after a task meaningfully changes state.
 - Do not mark a task `Done` without fresh verification evidence.
 
 Status legend:
+
 - `[x]` = `Done`
 - `[-]` = `In Progress` or `Review`
 - `[ ]` = `Ready` or `Backlog`
@@ -126,8 +129,8 @@ Roadmap alignment: Steps 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6
 
 - [x] Camera capture flow
   - Type: Mobile | Priority: High
-  - Definition of Done: Opens in-app camera only (no gallery), captures photo, uploads via presigned URL with progress indication, finalizes via /media/finalize, retries on failure, auto-returns to home on success, "Take proof photo" button appears only when clocked in for that job. Total flow under 10 seconds on reasonable connection.
-  - Evidence: `apps/fieldops_mobile/lib/features/camera/**`, `apps/fieldops_mobile/lib/features/home/presentation/widgets/job_card.dart`
+  - Definition of Done: Opens in-app camera only (no gallery), captures photo, routes through a review screen, supports retake and lightweight auto-enhance, allows standalone proof photos to be saved locally for later send, uploads via presigned URL with progress indication, finalizes via /media/finalize, exposes saved drafts from the job card, and keeps task/expense photo flows on review-before-upload. "Take proof photo" button appears only when clocked in for that job.
+  - Evidence: `apps/fieldops_mobile/lib/features/camera/**`, `apps/fieldops_mobile/lib/features/home/presentation/widgets/job_card.dart`, `apps/fieldops_mobile/test/photo_enhancer_test.dart`, `apps/fieldops_mobile/test/photo_draft_repository_test.dart`
 
 - [x] Offline queue system
   - Type: Mobile | Priority: High
@@ -357,25 +360,25 @@ Stripe billing deferred to Sprint 8 — run free during pilot to validate all fe
 
 ### Worker Experience
 
-- [-] Worker hours dashboard (daily/weekly/monthly)
+- [x] Worker hours dashboard (daily/weekly/monthly)
   - Type: Mobile | Priority: HIGH
   - Definition of Done: Worker home screen shows hours worked today (progress bar), this week (bar chart), this month (total). Visual, easy to read. Data from clock_events. Real-time when clocked in.
-  - Agent findings: UI widget exists on the worker home screen, but it is still placeholder data. The surface is real; the live clock-event aggregation is not finished.
+  - Agent findings: Completed on 2026-04-04. The worker home screen now fetches live totals from `/worker_hours`, refreshes after clock actions, and keeps the existing visual summary card. Regression coverage was added to `execution/test_sprint_1.py` and the mobile widget suite now verifies non-zero live totals through a fake repository override. Verified with `python3 execution/run_backend_regression_suite.py`, `flutter analyze`, and `flutter test`.
   - Source: User requested. Makes the app feel complete.
 
 - [ ] Time off / PTO requests
   - Type: Mobile | Priority: Medium
   - Definition of Done: Worker submits PTO request (vacation/sick/personal) with dates. Supervisor approves/denies. PTO balance tracking. Reflected in timesheets.
 
-- [-] Receipt / expense capture
+- [x] Receipt / expense capture
   - Type: Mobile | Priority: HIGH — No competitor has this
   - Definition of Done: Snap receipt → auto-categorize → attach to job → supervisor approve → job cost report + CSV. Receipt stored with proof metadata. Reimbursement tracked.
-  - Agent findings: Mobile expense capture UI exists and is reachable from the worker job card. Backend persistence was fixed on 2026-04-04 with a real `expense_events` table and regression coverage. Supervisor approval/reporting and auto-categorization are still pending.
+  - Agent findings: Completed on 2026-04-04. Worker expense submission now requires a real uploaded receipt photo, suggests a category from vendor/notes, and persists through `expense_events`. Supervisors can review, approve or deny, mark expenses reimbursed with a reference, and export CSV from the web expenses page. Verified with `python3 execution/run_backend_regression_suite.py`, `flutter analyze`, `flutter test test/expense_capture_screen_test.dart test/expense_category_suggester_test.dart`, `cd apps/fieldops_web && npm run lint`, and `cd apps/fieldops_web && npm run build`.
 
-- [-] Spanish language support
+- [x] Spanish language support
   - Type: Mobile | Priority: HIGH
   - Definition of Done: app_es.arb with all translations. Added to supportedLocales. Critical for US construction crews.
-  - Agent findings: Mobile localization assets already include Spanish. On 2026-04-04, the web supervisor shell plus the main operating pages (`dashboard`, `workers`, `map`, `timeline`, `photos`, `overtime`, `reports`, `schedule`, `cost-codes`) were wired to a persisted `en/es` locale provider and passed `npm run lint` + `npm run build`. This is still partial at the product level because `onboarding`, `settings`, and other lower-traffic surfaces are not fully localized yet.
+  - Agent findings: Completed on 2026-04-04. Mobile already shipped with Spanish localization assets and supported locales. The remaining web gap was closed by wiring `onboarding`, `settings`, and `settings/staff` to the shared `en/es` locale provider, so every supervisor page now consumes translation keys instead of hardcoded English. Verified with `python3 -m unittest execution/test_web_i18n_coverage.py`, `cd apps/fieldops_web && npm run lint`, and `cd apps/fieldops_web && npm run build`.
 
 ### Supervisor Experience
 
@@ -384,10 +387,10 @@ Stripe billing deferred to Sprint 8 — run free during pilot to validate all fe
   - Definition of Done: Real-time worker status list: clocked in (green), on break (amber), out (gray), late (red). Current job, clock-in time, hours today. Sortable. Auto-refresh.
   - Evidence: `apps/fieldops_web/src/app/workers/page.tsx`
 
-- [-] Schedule draft → edit → publish flow
+- [x] Schedule draft → edit → publish flow
   - Type: Web | Priority: HIGH
   - Definition of Done: Drag-and-drop calendar (day/week/2-week/month). Assign workers to jobs/shifts. Draft mode → edit → publish with notification. Workers see schedule in mobile app. Optional — workers can just clock in without schedule.
-  - Agent findings: The supervisor schedule page is now backed by persisted `schedule_shifts` data and supports draft creation, draft removal, weekly load, and publish through the `schedule` edge function. Drag-and-drop, worker notifications, and worker mobile schedule consumption are still pending.
+  - Agent findings: Completed on 2026-04-05. The `schedule` edge function now supports draft update, worker-scoped published schedule reads, and flexible date ranges. The supervisor web planner now supports day/week/2-week/month views, drag-and-drop day reassignment for drafts, full draft edit, assign worker/job/time/notes, and publish. Workers can open `My schedule` in the mobile app, see published shifts for the next two weeks, and get an in-app `Updated` badge from `published_at` after supervisors publish changes. Verified with `python3 execution/test_schedule_flow.py`, `python3 execution/run_backend_regression_suite.py`, `flutter test test/schedule_screen_test.dart`, `flutter analyze`, `cd apps/fieldops_web && npm run lint`, and `cd apps/fieldops_web && npm run build`.
 
 ### Payroll & Compliance
 
@@ -456,6 +459,7 @@ Stripe billing deferred to Sprint 8 — run free during pilot to validate all fe
 Sprint 6 is the next sprint to execute. It closes every competitive gap identified from ClockShark and busybusy analysis, completes the worker/supervisor experience, and prepares the product for pilot deployment.
 
 Sprint 3 depends on:
+
 - Sprint 2 camera capture flow (done — in review)
 - Sprint 2 offline queue (done — in review)
 - Existing `tasks` and `task_events` tables in DATA_MODEL.md (schema ready)

@@ -1,5 +1,8 @@
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
+import 'package:fieldops_mobile/features/camera/data/photo_draft_repository.dart';
+import 'package:fieldops_mobile/features/camera/domain/photo_capture_result.dart';
 import 'package:fieldops_mobile/features/camera/presentation/camera_capture_screen.dart';
+import 'package:fieldops_mobile/features/camera/presentation/photo_drafts_screen.dart';
 import 'package:fieldops_mobile/features/clock/presentation/clock_in_controller.dart';
 import 'package:fieldops_mobile/features/expenses/presentation/expense_capture_screen.dart';
 import 'package:fieldops_mobile/features/jobs/domain/job_summary.dart';
@@ -8,7 +11,7 @@ import 'package:fieldops_mobile/features/tasks/presentation/tasks_controller.dar
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class JobCard extends StatelessWidget {
+class JobCard extends ConsumerWidget {
   const JobCard({
     super.key,
     required this.job,
@@ -19,14 +22,19 @@ class JobCard extends StatelessWidget {
   final JobSummary job;
   final ClockInState clockState;
   final Future<void> Function({required String jobId, required String jobName})
-      onClockIn;
+  onClockIn;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = Theme.of(context).extension<FieldOpsPalette>()!;
     final textTheme = Theme.of(context).textTheme;
-    final taskLabel =
-        job.taskCount == 1 ? '1 task ready' : '${job.taskCount} tasks ready';
+    final draftCountAsync = ref.watch(
+      pendingPhotoDraftCountForJobProvider(job.jobId),
+    );
+    final draftCount = draftCountAsync.value ?? 0;
+    final taskLabel = job.taskCount == 1
+        ? '1 task ready'
+        : '${job.taskCount} tasks ready';
     final isSubmitting = clockState.isSubmitting(job.jobId);
     final isClockedIn = clockState.isClockedInFor(job.jobId);
 
@@ -51,9 +59,7 @@ class JobCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 14),
-                Expanded(
-                  child: Text(job.jobName, style: textTheme.titleLarge),
-                ),
+                Expanded(child: Text(job.jobName, style: textTheme.titleLarge)),
               ],
             ),
             const SizedBox(height: 18),
@@ -76,13 +82,12 @@ class JobCard extends StatelessWidget {
                 label: isSubmitting
                     ? 'Clocking in to ${job.jobName}'
                     : isClockedIn
-                        ? 'Clocked in to ${job.jobName}'
-                        : 'Clock in to ${job.jobName}',
+                    ? 'Clocked in to ${job.jobName}'
+                    : 'Clock in to ${job.jobName}',
                 child: ElevatedButton.icon(
                   onPressed: isSubmitting || isClockedIn
                       ? null
-                      : () =>
-                          onClockIn(jobId: job.jobId, jobName: job.jobName),
+                      : () => onClockIn(jobId: job.jobId, jobName: job.jobName),
                   icon: isSubmitting
                       ? SizedBox(
                           width: 18,
@@ -101,8 +106,8 @@ class JobCard extends StatelessWidget {
                     isSubmitting
                         ? 'Clocking in...'
                         : isClockedIn
-                            ? 'Clocked in'
-                            : 'Clock in',
+                        ? 'Clocked in'
+                        : 'Clock in',
                   ),
                 ),
               ),
@@ -131,8 +136,9 @@ class JobCard extends StatelessWidget {
                             MaterialPageRoute<void>(
                               builder: (_) => ProviderScope(
                                 overrides: [
-                                  activeTaskJobIdProvider
-                                      .overrideWithValue(job.jobId),
+                                  activeTaskJobIdProvider.overrideWithValue(
+                                    job.jobId,
+                                  ),
                                 ],
                                 child: TaskListScreen(
                                   jobId: job.jobId,
@@ -163,23 +169,74 @@ class JobCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(22),
                           ),
                         ),
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<bool>(
-                              builder: (_) => CameraCaptureScreen(
-                                jobId: job.jobId,
-                                jobName: job.jobName,
-                              ),
-                            ),
-                          );
+                        onPressed: () async {
+                          final result = await Navigator.of(context)
+                              .push<PhotoCaptureResult?>(
+                                MaterialPageRoute<PhotoCaptureResult?>(
+                                  builder: (_) => CameraCaptureScreen(
+                                    jobId: job.jobId,
+                                    jobName: job.jobName,
+                                    allowSaveForLater: true,
+                                  ),
+                                ),
+                              );
+
+                          if (!context.mounted || result == null) {
+                            return;
+                          }
+
+                          final message = result.isSavedForLater
+                              ? 'Photo saved on device. Send it later from Saved photos.'
+                              : 'Photo uploaded for ${job.jobName}.';
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text(message)));
                         },
                         icon: const Icon(Icons.camera_alt_rounded),
-                        label: const Text('Photo'),
+                        label: Text(
+                          draftCount > 0
+                              ? 'Photo ($draftCount saved)'
+                              : 'Photo',
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
+              if (draftCount > 0) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: palette.signal,
+                      side: BorderSide(
+                        color: palette.signal.withValues(alpha: 0.28),
+                      ),
+                      minimumSize: const Size.fromHeight(44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => PhotoDraftsScreen(
+                            jobId: job.jobId,
+                            jobName: job.jobName,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.photo_library_outlined, size: 18),
+                    label: Text(
+                      draftCount == 1
+                          ? '1 saved photo'
+                          : '$draftCount saved photos',
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,

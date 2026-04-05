@@ -113,8 +113,8 @@ serve(async (req) => {
       if (action === "submit") {
         const { job_id, category, amount, vendor, notes, media_asset_id } = payload
 
-        if (!job_id || !category || !amount) {
-          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "job_id, category, and amount are required")
+        if (!job_id || !category || !amount || !media_asset_id) {
+          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "job_id, category, amount, and media_asset_id are required")
         }
 
         if (!["materials", "fuel", "tools", "meals", "other"].includes(category)) {
@@ -134,6 +134,26 @@ serve(async (req) => {
           return errorResponse(requestId, 403, "FORBIDDEN", "Not assigned to this job")
         }
 
+        const { data: receiptAsset, error: receiptError } = await supabaseAdmin
+          .from("media_assets")
+          .select("id, company_id, uploaded_by, job_id, sync_status")
+          .eq("id", media_asset_id)
+          .maybeSingle()
+
+        if (receiptError) throw receiptError
+        if (!receiptAsset) {
+          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Receipt media asset not found")
+        }
+        if (receiptAsset.company_id !== userRecord.company_id || receiptAsset.uploaded_by !== user.id) {
+          return errorResponse(requestId, 403, "FORBIDDEN", "Receipt asset does not belong to this worker")
+        }
+        if (receiptAsset.job_id !== job_id) {
+          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Receipt asset must belong to the same job")
+        }
+        if (!["uploaded", "processed"].includes(receiptAsset.sync_status)) {
+          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Receipt asset is not ready")
+        }
+
         const expenseId = crypto.randomUUID()
         const now = new Date().toISOString()
 
@@ -148,7 +168,7 @@ serve(async (req) => {
             amount,
             vendor: vendor || null,
             notes: notes || null,
-            media_asset_id: media_asset_id || null,
+            media_asset_id,
             status: "pending",
             submitted_at: now,
           })
@@ -200,7 +220,65 @@ serve(async (req) => {
         return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
       }
 
-      return errorResponse(requestId, 400, "INVALID_PAYLOAD", "action must be 'submit' or 'decide'")
+      if (action === "reimburse") {
+        if (!["supervisor", "admin"].includes(userRecord.role)) {
+          return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors/admins can mark expenses reimbursed")
+        }
+
+        const { expense_id, reference, notes } = payload
+        if (!expense_id || !reference) {
+          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "expense_id and reference are required")
+        }
+
+        const { data: expenseRow, error: expenseFetchError } = await supabaseAdmin
+          .from("expense_events")
+          .select("id, status, reimbursed_at")
+          .eq("id", expense_id)
+          .eq("company_id", userRecord.company_id)
+          .maybeSingle()
+
+        if (expenseFetchError) throw expenseFetchError
+        if (!expenseRow) {
+          return errorResponse(requestId, 404, "NOT_FOUND", "Expense not found")
+        }
+        if (expenseRow.status !== "approved") {
+          return errorResponse(requestId, 409, "INVALID_STATE", "Only approved expenses can be reimbursed")
+        }
+        if (expenseRow.reimbursed_at) {
+          return errorResponse(requestId, 409, "INVALID_STATE", "Expense has already been reimbursed")
+        }
+
+        const reimbursedAt = new Date().toISOString()
+        const { error: reimburseError } = await supabaseAdmin
+          .from("expense_events")
+          .update({
+            reimbursed_at: reimbursedAt,
+            reimbursed_by: user.id,
+            reimbursement_reference: reference,
+            reimbursement_notes: notes || null,
+          })
+          .eq("id", expense_id)
+          .eq("company_id", userRecord.company_id)
+
+        if (reimburseError) throw reimburseError
+
+        const responseBody = {
+          status: "success",
+          expense_id,
+          reimbursed_at: reimbursedAt,
+          reimbursement_reference: reference,
+          request_id: requestId,
+        }
+        await storeIdempotency(supabaseAdmin, user.id, ENDPOINT, idempotencyKey, requestHash, 200, responseBody, requestId)
+        logRequestResult(ENDPOINT, requestId, 200, {
+          user_id: user.id,
+          action: "reimburse",
+          expense_id,
+        })
+        return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
+      }
+
+      return errorResponse(requestId, 400, "INVALID_PAYLOAD", "action must be 'submit', 'decide', or 'reimburse'")
     }
 
     return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Use GET or POST")

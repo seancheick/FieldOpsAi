@@ -37,6 +37,19 @@ function weekRange(weekStart: string | null) {
   }
 }
 
+function dateRange(dateFrom: string | null, dateTo: string | null) {
+  if (!dateFrom || !dateTo) return null
+  const start = new Date(`${dateFrom}T00:00:00Z`)
+  const end = new Date(`${dateTo}T00:00:00Z`)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+    return null
+  }
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS_HEADERS })
@@ -77,12 +90,14 @@ serve(async (req) => {
 
     if (req.method === "GET") {
       const url = new URL(req.url)
-      const range = weekRange(url.searchParams.get("week_start"))
+      const range =
+        dateRange(url.searchParams.get("date_from"), url.searchParams.get("date_to")) ??
+        weekRange(url.searchParams.get("week_start"))
       if (!range) {
-        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Invalid week_start")
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Invalid date range")
       }
 
-      const { data, error } = await supabaseAdmin
+      let query = supabaseAdmin
         .from("schedule_shifts")
         .select(`
           id,
@@ -101,6 +116,11 @@ serve(async (req) => {
         .eq("company_id", userRecord.company_id)
         .gte("shift_date", range.start)
         .lte("shift_date", range.end)
+      if (["worker", "foreman"].includes(userRecord.role)) {
+        query = query.eq("worker_id", user.id).eq("status", "published")
+      }
+
+      const { data, error } = await query
         .order("shift_date", { ascending: true })
         .order("start_time", { ascending: true })
 
@@ -253,6 +273,105 @@ serve(async (req) => {
         shift_id: shiftId,
       })
       return jsonResponse(responseBody, 201, requestId, rateLimit.headers)
+    }
+
+    if (action === "update") {
+      const { shift_id, worker_id, job_id, shift_date, start_time, end_time, notes } = payload
+      if (!shift_id) {
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "shift_id is required")
+      }
+
+      const updates: Record<string, unknown> = {}
+      if (worker_id) updates.worker_id = worker_id
+      if (job_id) updates.job_id = job_id
+      if (shift_date) updates.shift_date = shift_date
+      if (start_time) updates.start_time = start_time
+      if (end_time) updates.end_time = end_time
+      if (notes !== undefined) updates.notes = notes || null
+
+      if (Object.keys(updates).length === 0) {
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "At least one editable field is required")
+      }
+
+      if (worker_id || job_id) {
+        const [{ data: worker }, { data: job }] = await Promise.all([
+          worker_id
+            ? supabaseAdmin
+                .from("users")
+                .select("id")
+                .eq("id", worker_id)
+                .eq("company_id", userRecord.company_id)
+                .in("role", ["worker", "foreman"])
+                .maybeSingle()
+            : Promise.resolve({ data: { id: "unchanged" } }),
+          job_id
+            ? supabaseAdmin
+                .from("jobs")
+                .select("id")
+                .eq("id", job_id)
+                .eq("company_id", userRecord.company_id)
+                .maybeSingle()
+            : Promise.resolve({ data: { id: "unchanged" } }),
+        ])
+
+        if (!worker || !job) {
+          return errorResponse(requestId, 404, "NOT_FOUND", "Worker or job not found")
+        }
+      }
+
+      const { data: updated, error: updateError } = await supabaseAdmin
+        .from("schedule_shifts")
+        .update(updates)
+        .eq("id", shift_id)
+        .eq("company_id", userRecord.company_id)
+        .eq("status", "draft")
+        .select(`
+          id,
+          worker_id,
+          job_id,
+          shift_date,
+          start_time,
+          end_time,
+          status,
+          notes,
+          published_at,
+          published_by,
+          users!schedule_shifts_worker_id_fkey(full_name),
+          jobs!schedule_shifts_job_id_fkey(name, code)
+        `)
+        .maybeSingle()
+
+      if (updateError) throw updateError
+      if (!updated) {
+        return errorResponse(requestId, 404, "NOT_FOUND", "Draft shift not found")
+      }
+
+      const responseBody = {
+        status: "success",
+        shift: {
+          id: updated.id,
+          worker_id: updated.worker_id,
+          worker_name: updated.users?.full_name ?? "Unknown worker",
+          job_id: updated.job_id,
+          job_name: updated.jobs?.name ?? "Unknown job",
+          job_code: updated.jobs?.code ?? null,
+          date: updated.shift_date,
+          start_time: typeof updated.start_time === "string" ? updated.start_time.slice(0, 5) : updated.start_time,
+          end_time: typeof updated.end_time === "string" ? updated.end_time.slice(0, 5) : updated.end_time,
+          status: updated.status,
+          notes: updated.notes,
+          published_at: updated.published_at,
+          published_by: updated.published_by,
+        },
+        request_id: requestId,
+      }
+      await storeIdempotency(supabaseAdmin, user.id, ENDPOINT, idempotencyKey, requestHash, 200, responseBody, requestId)
+      logRequestResult(ENDPOINT, requestId, 200, {
+        user_id: user.id,
+        action: "update",
+        shift_id,
+      })
+      return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
     }
 
     if (action === "delete") {

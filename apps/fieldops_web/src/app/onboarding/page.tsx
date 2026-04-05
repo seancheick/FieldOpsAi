@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 
 interface WorkerEntry {
   id: string;
@@ -12,23 +13,59 @@ interface WorkerEntry {
   notes: string;
 }
 
-const STEPS = [
-  { title: "Company", description: "Basic company information" },
-  { title: "Team", description: "Add your workers" },
-  { title: "First Job", description: "Create your first job site" },
-  { title: "Go Live", description: "Start tracking" },
-];
+const STEP_KEYS = [
+  { titleKey: "onboardingPage.steps.company.title", descriptionKey: "onboardingPage.steps.company.description" },
+  { titleKey: "onboardingPage.steps.team.title", descriptionKey: "onboardingPage.steps.team.description" },
+  { titleKey: "onboardingPage.steps.firstJob.title", descriptionKey: "onboardingPage.steps.firstJob.description" },
+  { titleKey: "onboardingPage.steps.goLive.title", descriptionKey: "onboardingPage.steps.goLive.description" },
+] as const;
+
+const INDUSTRY_VALUES = [
+  "electrical",
+  "construction",
+  "plumbing",
+  "hvac",
+  "telecom",
+  "solar",
+  "landscaping",
+  "other",
+] as const;
+
+const TIMEZONE_VALUES = [
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Anchorage",
+  "Pacific/Honolulu",
+  "Europe/London",
+  "Europe/Paris",
+  "Africa/Abidjan",
+  "Asia/Bangkok",
+  "Asia/Shanghai",
+  "Asia/Dubai",
+] as const;
 
 export default function OnboardingPage() {
+  const { t } = useI18n();
   const [step, setStep] = useState(0);
   const [companyName, setCompanyName] = useState("");
   const [companyLogo, setCompanyLogo] = useState("");
-  const [timezone, setTimezone] = useState("America/New_York");
-  const [industry, setIndustry] = useState("electrical");
+  const [timezone, setTimezone] = useState<string>("America/New_York");
+  const [industry, setIndustry] = useState<string>("electrical");
   const [workers, setWorkers] = useState<WorkerEntry[]>([]);
   const [jobName, setJobName] = useState("");
   const [jobAddress, setJobAddress] = useState("");
   const [jobCode, setJobCode] = useState("");
+
+  const steps = useMemo(
+    () =>
+      STEP_KEYS.map((entry) => ({
+        title: t(entry.titleKey),
+        description: t(entry.descriptionKey),
+      })),
+    [t],
+  );
 
   function addWorker() {
     setWorkers((prev) => [
@@ -47,41 +84,42 @@ export default function OnboardingPage() {
 
   function updateWorker(id: string, field: keyof WorkerEntry, value: string) {
     setWorkers((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, [field]: value } : w)),
+      prev.map((worker) => (worker.id === id ? { ...worker, [field]: value } : worker)),
     );
   }
 
   function removeWorker(id: string) {
-    setWorkers((prev) => prev.filter((w) => w.id !== id));
+    setWorkers((prev) => prev.filter((worker) => worker.id !== id));
   }
 
   const canProceedStep0 = companyName.trim().length > 0;
-  const canProceedStep1 = workers.length > 0 && workers.every((w) => w.firstName.trim());
+  const canProceedStep1 = workers.length > 0 && workers.every((worker) => worker.firstName.trim());
   const canProceedStep2 = jobName.trim().length > 0;
+  const workerNoun =
+    workers.length === 1 ? t("onboardingPage.workerSingular") : t("onboardingPage.workerPlural");
 
   return (
     <div className="mx-auto max-w-3xl">
-      {/* Progress bar */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
-          {STEPS.map((s, i) => (
-            <div key={i} className="flex items-center">
+          {steps.map((entry, index) => (
+            <div key={entry.title} className="flex items-center">
               <button
-                onClick={() => i < step && setStep(i)}
+                onClick={() => index < step && setStep(index)}
                 className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition-all ${
-                  i === step
+                  index === step
                     ? "bg-slate-900 text-white shadow-md ring-4 ring-slate-900/10"
-                    : i < step
+                    : index < step
                       ? "bg-green-500 text-white"
                       : "bg-stone-200 text-stone-400"
                 }`}
               >
-                {i < step ? "✓" : i + 1}
+                {index < step ? "✓" : index + 1}
               </button>
-              {i < STEPS.length - 1 && (
+              {index < steps.length - 1 && (
                 <div
                   className={`mx-2 h-0.5 w-12 sm:w-20 ${
-                    i < step ? "bg-green-500" : "bg-stone-200"
+                    index < step ? "bg-green-500" : "bg-stone-200"
                   }`}
                 />
               )}
@@ -89,26 +127,23 @@ export default function OnboardingPage() {
           ))}
         </div>
         <div className="mt-4">
-          <h2 className="text-xl font-bold text-slate-900">
-            {STEPS[step].title}
-          </h2>
-          <p className="text-sm text-slate-500">{STEPS[step].description}</p>
+          <h2 className="text-xl font-bold text-slate-900">{steps[step].title}</h2>
+          <p className="text-sm text-slate-500">{steps[step].description}</p>
         </div>
       </div>
 
-      {/* Step 0: Company */}
       {step === 0 && (
         <div className="rounded-2xl border border-stone-200 bg-white p-8 shadow-sm">
           <div className="space-y-5">
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                Company Name <span className="text-red-400">*</span>
+                {t("onboardingPage.companyName")} <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
                 value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="e.g. Apex Electrical"
+                onChange={(event) => setCompanyName(event.target.value)}
+                placeholder={t("onboardingPage.placeholders.companyName")}
                 className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm transition-colors focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5"
               />
             </div>
@@ -116,57 +151,48 @@ export default function OnboardingPage() {
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  Industry
+                  {t("onboardingPage.industry")}
                 </label>
                 <select
                   value={industry}
-                  onChange={(e) => setIndustry(e.target.value)}
+                  onChange={(event) => setIndustry(event.target.value)}
                   className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5"
                 >
-                  <option value="electrical">Electrical</option>
-                  <option value="construction">General Construction</option>
-                  <option value="plumbing">Plumbing</option>
-                  <option value="hvac">HVAC</option>
-                  <option value="telecom">Telecom / Infrastructure</option>
-                  <option value="solar">Solar / Renewable</option>
-                  <option value="landscaping">Landscaping</option>
-                  <option value="other">Other</option>
+                  {INDUSTRY_VALUES.map((value) => (
+                    <option key={value} value={value}>
+                      {t(`commonOptions.industries.${value}`)}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  Timezone
+                  {t("onboardingPage.timezone")}
                 </label>
                 <select
                   value={timezone}
-                  onChange={(e) => setTimezone(e.target.value)}
+                  onChange={(event) => setTimezone(event.target.value)}
                   className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5"
                 >
-                  <option value="America/New_York">Eastern Time (ET)</option>
-                  <option value="America/Chicago">Central Time (CT)</option>
-                  <option value="America/Denver">Mountain Time (MT)</option>
-                  <option value="America/Los_Angeles">Pacific Time (PT)</option>
-                  <option value="America/Anchorage">Alaska (AKT)</option>
-                  <option value="Pacific/Honolulu">Hawaii (HST)</option>
-                  <option value="Europe/London">London (GMT)</option>
-                  <option value="Europe/Paris">Paris (CET)</option>
-                  <option value="Africa/Abidjan">West Africa (WAT)</option>
-                  <option value="Asia/Bangkok">Bangkok (ICT)</option>
-                  <option value="Asia/Shanghai">Shanghai (CST)</option>
-                  <option value="Asia/Dubai">Dubai (GST)</option>
+                  {TIMEZONE_VALUES.map((value) => (
+                    <option key={value} value={value}>
+                      {t(`commonOptions.timezones.${value}`)}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
 
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                Logo URL <span className="text-slate-400">(optional)</span>
+                {t("onboardingPage.logoUrl")}{" "}
+                <span className="text-slate-400">({t("onboardingPage.optional")})</span>
               </label>
               <input
                 type="url"
                 value={companyLogo}
-                onChange={(e) => setCompanyLogo(e.target.value)}
-                placeholder="https://yoursite.com/logo.png"
+                onChange={(event) => setCompanyLogo(event.target.value)}
+                placeholder={t("onboardingPage.placeholders.logoUrl")}
                 className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5"
               />
             </div>
@@ -178,41 +204,36 @@ export default function OnboardingPage() {
               disabled={!canProceedStep0}
               className="rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-slate-800 disabled:opacity-40"
             >
-              Continue
+              {t("onboardingPage.continue")}
             </button>
           </div>
         </div>
       )}
 
-      {/* Step 1: Add Workers */}
       {step === 1 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-slate-500">
-              {workers.length} worker{workers.length !== 1 ? "s" : ""} added
+              {t("onboardingPage.workerCountAdded", { count: workers.length, noun: workerNoun })}
             </span>
             <button
               onClick={addWorker}
               className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-slate-800"
             >
-              + Add Worker
+              + {t("onboardingPage.addWorker")}
             </button>
           </div>
 
           {workers.length === 0 && (
             <div className="rounded-2xl border-2 border-dashed border-stone-200 bg-white p-12 text-center">
               <div className="text-3xl text-stone-300">👷</div>
-              <p className="mt-3 text-sm font-medium text-slate-500">
-                No workers yet
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                Click &quot;+ Add Worker&quot; to start building your team.
-              </p>
+              <p className="mt-3 text-sm font-medium text-slate-500">{t("onboardingPage.noWorkersYet")}</p>
+              <p className="mt-1 text-xs text-slate-400">{t("onboardingPage.noWorkersHint")}</p>
               <button
                 onClick={addWorker}
                 className="mt-5 rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
               >
-                + Add First Worker
+                + {t("onboardingPage.addFirstWorker")}
               </button>
             </div>
           )}
@@ -224,98 +245,88 @@ export default function OnboardingPage() {
             >
               <div className="mb-4 flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-400">
-                  Worker {index + 1}
+                  {t("onboardingPage.workerLabel", { index: index + 1 })}
                 </span>
                 <button
                   onClick={() => removeWorker(worker.id)}
                   className="rounded-lg px-2 py-1 text-xs font-medium text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
                 >
-                  Remove
+                  {t("onboardingPage.remove")}
                 </button>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-600">
-                    First Name <span className="text-red-400">*</span>
+                    {t("onboardingPage.firstName")} <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="text"
                     value={worker.firstName}
-                    onChange={(e) =>
-                      updateWorker(worker.id, "firstName", e.target.value)
-                    }
-                    placeholder="John"
+                    onChange={(event) => updateWorker(worker.id, "firstName", event.target.value)}
+                    placeholder={t("onboardingPage.placeholders.firstName")}
                     className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-600">
-                    Last Name
+                    {t("onboardingPage.lastName")}
                   </label>
                   <input
                     type="text"
                     value={worker.lastName}
-                    onChange={(e) =>
-                      updateWorker(worker.id, "lastName", e.target.value)
-                    }
-                    placeholder="Smith"
+                    onChange={(event) => updateWorker(worker.id, "lastName", event.target.value)}
+                    placeholder={t("onboardingPage.placeholders.lastName")}
                     className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-600">
-                    Email
+                    {t("onboardingPage.email")}
                   </label>
                   <input
                     type="email"
                     value={worker.email}
-                    onChange={(e) =>
-                      updateWorker(worker.id, "email", e.target.value)
-                    }
-                    placeholder="john@company.com"
+                    onChange={(event) => updateWorker(worker.id, "email", event.target.value)}
+                    placeholder={t("onboardingPage.placeholders.email")}
                     className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-600">
-                    Phone
+                    {t("onboardingPage.phone")}
                   </label>
                   <input
                     type="tel"
                     value={worker.phone}
-                    onChange={(e) =>
-                      updateWorker(worker.id, "phone", e.target.value)
-                    }
-                    placeholder="+1 555-0100"
+                    onChange={(event) => updateWorker(worker.id, "phone", event.target.value)}
+                    placeholder={t("onboardingPage.placeholders.phone")}
                     className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-600">
-                    Address <span className="text-slate-300">(optional)</span>
+                    {t("onboardingPage.address")}{" "}
+                    <span className="text-slate-300">({t("onboardingPage.optional")})</span>
                   </label>
                   <input
                     type="text"
                     value={worker.address}
-                    onChange={(e) =>
-                      updateWorker(worker.id, "address", e.target.value)
-                    }
-                    placeholder="123 Main St"
+                    onChange={(event) => updateWorker(worker.id, "address", event.target.value)}
+                    placeholder={t("onboardingPage.placeholders.address")}
                     className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-600">
-                    Notes <span className="text-slate-300">(optional)</span>
+                    {t("onboardingPage.notes")}{" "}
+                    <span className="text-slate-300">({t("onboardingPage.optional")})</span>
                   </label>
                   <input
                     type="text"
                     value={worker.notes}
-                    onChange={(e) =>
-                      updateWorker(worker.id, "notes", e.target.value)
-                    }
-                    placeholder="e.g. Electrician, speaks Spanish"
+                    onChange={(event) => updateWorker(worker.id, "notes", event.target.value)}
+                    placeholder={t("onboardingPage.placeholders.notes")}
                     className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
                   />
                 </div>
@@ -328,57 +339,56 @@ export default function OnboardingPage() {
               onClick={() => setStep(0)}
               className="rounded-xl px-6 py-3 text-sm font-semibold text-slate-500 hover:bg-stone-100"
             >
-              Back
+              {t("onboardingPage.back")}
             </button>
             <button
               onClick={() => setStep(2)}
               disabled={!canProceedStep1}
               className="rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-40"
             >
-              Continue
+              {t("onboardingPage.continue")}
             </button>
           </div>
         </div>
       )}
 
-      {/* Step 2: Create First Job */}
       {step === 2 && (
         <div className="rounded-2xl border border-stone-200 bg-white p-8 shadow-sm">
           <div className="space-y-5">
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                Job Name <span className="text-red-400">*</span>
+                {t("onboardingPage.jobName")} <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
                 value={jobName}
-                onChange={(e) => setJobName(e.target.value)}
-                placeholder="e.g. Grid Restoration — Phase 1"
+                onChange={(event) => setJobName(event.target.value)}
+                placeholder={t("onboardingPage.placeholders.jobName")}
                 className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5"
               />
             </div>
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  Job Code
+                  {t("onboardingPage.jobCode")}
                 </label>
                 <input
                   type="text"
                   value={jobCode}
-                  onChange={(e) => setJobCode(e.target.value)}
-                  placeholder="JOB-001"
+                  onChange={(event) => setJobCode(event.target.value)}
+                  placeholder={t("onboardingPage.placeholders.jobCode")}
                   className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5"
                 />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  Site Address
+                  {t("onboardingPage.siteAddress")}
                 </label>
                 <input
                   type="text"
                   value={jobAddress}
-                  onChange={(e) => setJobAddress(e.target.value)}
-                  placeholder="123 Main St, Boston, MA"
+                  onChange={(event) => setJobAddress(event.target.value)}
+                  placeholder={t("onboardingPage.placeholders.jobAddress")}
                   className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5"
                 />
               </div>
@@ -387,20 +397,20 @@ export default function OnboardingPage() {
             {workers.length > 0 && (
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  Assign Workers
+                  {t("onboardingPage.assignWorkers")}
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {workers.map((w) => (
+                  {workers.map((worker) => (
                     <span
-                      key={w.id}
+                      key={worker.id}
                       className="rounded-full bg-stone-100 px-3 py-1.5 text-xs font-medium text-slate-600"
                     >
-                      {w.firstName} {w.lastName}
+                      {worker.firstName} {worker.lastName}
                     </span>
                   ))}
                 </div>
                 <p className="mt-1 text-xs text-slate-400">
-                  All {workers.length} workers will be assigned to this job.
+                  {t("onboardingPage.allWorkersAssigned", { count: workers.length, noun: workerNoun })}
                 </p>
               </div>
             )}
@@ -411,62 +421,44 @@ export default function OnboardingPage() {
               onClick={() => setStep(1)}
               className="rounded-xl px-6 py-3 text-sm font-semibold text-slate-500 hover:bg-stone-100"
             >
-              Back
+              {t("onboardingPage.back")}
             </button>
             <button
               onClick={() => setStep(3)}
               disabled={!canProceedStep2}
               className="rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-40"
             >
-              Continue
+              {t("onboardingPage.continue")}
             </button>
           </div>
         </div>
       )}
 
-      {/* Step 3: Go Live */}
       {step === 3 && (
         <div className="rounded-2xl border border-stone-200 bg-white p-10 text-center shadow-sm">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-green-50">
             <span className="text-3xl">✓</span>
           </div>
           <h3 className="mt-5 text-2xl font-bold text-slate-900">
-            {companyName} is ready
+            {t("onboardingPage.companyReady", { companyName })}
           </h3>
           <p className="mt-2 text-sm text-slate-500">
-            {workers.length} worker{workers.length !== 1 ? "s" : ""} added
-            &middot; 1 job created &middot; Ready for first clock-in
+            {t("onboardingPage.readySummary", { count: workers.length, noun: workerNoun })}
           </p>
 
           <div className="mx-auto mt-8 max-w-md rounded-xl bg-stone-50 p-5 text-left">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Next steps
+              {t("onboardingPage.nextSteps")}
             </p>
             <ol className="mt-3 space-y-2 text-sm text-slate-600">
-              <li className="flex items-start gap-2">
-                <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white">
-                  1
-                </span>
-                Share the app download link with your crew
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white">
-                  2
-                </span>
-                Workers sign in and clock in at the job site
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white">
-                  3
-                </span>
-                Open the Live Map to see them in real-time
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white">
-                  4
-                </span>
-                Check the Photo Feed for proof photos
-              </li>
+              {[1, 2, 3, 4].map((index) => (
+                <li key={index} className="flex items-start gap-2">
+                  <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white">
+                    {index}
+                  </span>
+                  {t(`onboardingPage.nextStepItems.${index}`)}
+                </li>
+              ))}
             </ol>
           </div>
 
@@ -475,13 +467,13 @@ export default function OnboardingPage() {
               href="/map"
               className="rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
             >
-              Open Live Map
+              {t("onboardingPage.openLiveMap")}
             </a>
             <a
               href="/"
               className="rounded-xl bg-stone-100 px-8 py-3 text-sm font-semibold text-slate-600 hover:bg-stone-200"
             >
-              Go to Dashboard
+              {t("onboardingPage.goToDashboard")}
             </a>
           </div>
         </div>

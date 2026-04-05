@@ -47,5 +47,12 @@
   "submitOTRequest": "Enviar solicitud de horas extra",
   "overtimeAlert": "Estás entrando en horas extra",
   "hoursWorked": "Horas trabajadas hasta ahora",
-  "reasonForOvertime": "Razón de las horas extra"
+  "reasonForOvertime": "Razón de las horas extra",
+  "mySchedule": "Mi horario",
+  "upcomingShifts": "Próximos turnos",
+  "scheduleHelp": "Turnos publicados para las próximas dos semanas. Desliza para actualizar si un supervisor cambia tu horario.",
+  "updated": "Actualizado",
+  "noScheduledShiftsYet": "Todavía no hay turnos programados",
+  "scheduleWillAppear": "Los turnos publicados aparecerán aquí cuando tu supervisor envíe el horario.",
+  "scheduleUnavailable": "Horario no disponible"
 }

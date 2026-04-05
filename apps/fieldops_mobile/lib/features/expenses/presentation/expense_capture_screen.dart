@@ -1,6 +1,8 @@
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
+import 'package:fieldops_mobile/features/camera/domain/photo_capture_result.dart';
 import 'package:fieldops_mobile/features/camera/presentation/camera_capture_screen.dart';
 import 'package:fieldops_mobile/features/expenses/data/expense_repository_provider.dart';
+import 'package:fieldops_mobile/features/expenses/domain/expense_category_suggester.dart';
 import 'package:fieldops_mobile/features/expenses/domain/expense_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,7 +17,8 @@ class ExpenseCaptureScreen extends ConsumerStatefulWidget {
 
   final String jobId;
   final String jobName;
-  final Future<String?> Function(BuildContext context)? onCaptureReceiptPhoto;
+  final Future<PhotoCaptureResult?> Function(BuildContext context)?
+  onCaptureReceiptPhoto;
 
   @override
   ConsumerState<ExpenseCaptureScreen> createState() =>
@@ -27,6 +30,8 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
   final _vendorController = TextEditingController();
   final _notesController = TextEditingController();
   String _category = 'materials';
+  String? _suggestedCategory;
+  bool _didOverrideCategory = false;
   bool _isSubmitting = false;
   String? _error;
   bool _photoTaken = false;
@@ -41,27 +46,54 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _vendorController.addListener(_updateSuggestedCategory);
+    _notesController.addListener(_updateSuggestedCategory);
+  }
+
+  @override
   void dispose() {
+    _vendorController.removeListener(_updateSuggestedCategory);
+    _notesController.removeListener(_updateSuggestedCategory);
     _amountController.dispose();
     _vendorController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
+  void _updateSuggestedCategory() {
+    final suggestion = suggestExpenseCategory(
+      vendor: _vendorController.text,
+      notes: _notesController.text,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _suggestedCategory = suggestion;
+      if (!_didOverrideCategory && suggestion != null) {
+        _category = suggestion;
+      }
+    });
+  }
+
   Future<void> _takeReceiptPhoto() async {
-    final result = await (widget.onCaptureReceiptPhoto?.call(context) ??
-        Navigator.of(context).push<String?>(
-          MaterialPageRoute<String?>(
-            builder: (_) => CameraCaptureScreen(
-              jobId: widget.jobId,
-              jobName: 'Receipt: ${widget.jobName}',
-            ),
-          ),
-        ));
-    if (result != null && mounted) {
+    final result =
+        await (widget.onCaptureReceiptPhoto?.call(context) ??
+            Navigator.of(context).push<PhotoCaptureResult?>(
+              MaterialPageRoute<PhotoCaptureResult?>(
+                builder: (_) => CameraCaptureScreen(
+                  jobId: widget.jobId,
+                  jobName: 'Receipt: ${widget.jobName}',
+                ),
+              ),
+            ));
+    if (result != null && result.isUploaded && mounted) {
       setState(() {
         _photoTaken = true;
-        _mediaAssetId = result;
+        _mediaAssetId = result.mediaAssetId;
       });
     }
   }
@@ -73,6 +105,10 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
       setState(() => _error = 'Enter a valid amount.');
       return;
     }
+    if (!_photoTaken || _mediaAssetId == null) {
+      setState(() => _error = 'Take a receipt photo before submitting.');
+      return;
+    }
 
     setState(() {
       _isSubmitting = true;
@@ -80,22 +116,25 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
     });
 
     try {
-      await ref.read(expenseRepositoryProvider).submitExpense(
+      await ref
+          .read(expenseRepositoryProvider)
+          .submitExpense(
             jobId: widget.jobId,
             category: _category,
             amount: amount,
             vendor: _vendorController.text.isNotEmpty
                 ? _vendorController.text
                 : null,
-            notes:
-                _notesController.text.isNotEmpty ? _notesController.text : null,
+            notes: _notesController.text.isNotEmpty
+                ? _notesController.text
+                : null,
             mediaAssetId: _mediaAssetId,
           );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Expense submitted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Expense submitted')));
         Navigator.of(context).pop(true);
       }
     } on ExpenseRepositoryException catch (e) {
@@ -137,8 +176,7 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(widget.jobName, style: textTheme.titleLarge),
-                      Text('Expense for this job',
-                          style: textTheme.bodySmall),
+                      Text('Expense for this job', style: textTheme.bodySmall),
                     ],
                   ),
                 ],
@@ -153,8 +191,9 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor:
-                      _photoTaken ? palette.success : palette.signal,
+                  foregroundColor: _photoTaken
+                      ? palette.success
+                      : palette.signal,
                   side: BorderSide(
                     color: _photoTaken
                         ? palette.success.withValues(alpha: 0.4)
@@ -191,7 +230,10 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
                   label: cat.$2,
                   selected: isSelected,
                   child: GestureDetector(
-                    onTap: () => setState(() => _category = cat.$1),
+                    onTap: () => setState(() {
+                      _category = cat.$1;
+                      _didOverrideCategory = true;
+                    }),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
@@ -201,22 +243,22 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
                         color: isSelected
                             ? palette.signal.withValues(alpha: 0.12)
                             : palette.muted,
-                        borderRadius:
-                            BorderRadius.circular(FieldOpsRadius.full),
+                        borderRadius: BorderRadius.circular(
+                          FieldOpsRadius.full,
+                        ),
                         border: Border.all(
-                          color: isSelected
-                              ? palette.signal
-                              : palette.border,
+                          color: isSelected ? palette.signal : palette.border,
                           width: isSelected ? 2 : 1,
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(cat.$3, size: 18,
-                              color: isSelected
-                                  ? palette.signal
-                                  : palette.steel),
+                          Icon(
+                            cat.$3,
+                            size: 18,
+                            color: isSelected ? palette.signal : palette.steel,
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             cat.$2,
@@ -236,6 +278,14 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
                 );
               }).toList(),
             ),
+            if (_suggestedCategory != null &&
+                _suggestedCategory == _category) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Suggested from vendor/notes: ${_labelForCategory(_suggestedCategory!)}',
+                style: textTheme.bodySmall?.copyWith(color: palette.steel),
+              ),
+            ],
             const SizedBox(height: FieldOpsSpacing.xl),
 
             // Amount
@@ -243,8 +293,9 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
             const SizedBox(height: 8),
             TextFormField(
               controller: _amountController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               textInputAction: TextInputAction.next,
               decoration: const InputDecoration(
                 hintText: '0.00',
@@ -291,11 +342,13 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
                   color: palette.danger.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(FieldOpsRadius.lg),
                   border: Border.all(
-                      color: palette.danger.withValues(alpha: 0.3)),
+                    color: palette.danger.withValues(alpha: 0.3),
+                  ),
                 ),
-                child: Text(_error!,
-                    style: textTheme.bodyMedium
-                        ?.copyWith(color: palette.danger)),
+                child: Text(
+                  _error!,
+                  style: textTheme.bodyMedium?.copyWith(color: palette.danger),
+                ),
               ),
             ],
 
@@ -309,16 +362,26 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Icon(Icons.send_rounded),
-                label: Text(
-                    _isSubmitting ? 'Submitting...' : 'Submit Expense'),
+                label: Text(_isSubmitting ? 'Submitting...' : 'Submit Expense'),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _labelForCategory(String category) {
+    for (final entry in _categories) {
+      if (entry.$1 == category) {
+        return entry.$2;
+      }
+    }
+    return 'Other';
   }
 }

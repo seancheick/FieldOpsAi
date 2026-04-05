@@ -12,15 +12,12 @@ class CaptureController extends Notifier<CaptureState> {
   @override
   CaptureState build() => const CaptureIdle();
 
-  Future<void> captureAndUpload({
+  Future<String> uploadCapturedPhoto({
     required String jobId,
-    required cam.CameraController cameraController,
+    required String filePath,
   }) async {
-    state = const CaptureCapturing();
-
     try {
-      final xFile = await cameraController.takePicture();
-      final file = File(xFile.path);
+      final file = File(filePath);
       final fileBytes = await file.readAsBytes();
       final fileSizeBytes = fileBytes.length;
 
@@ -45,16 +42,20 @@ class CaptureController extends Notifier<CaptureState> {
       await repository.finalizeUpload(mediaAssetId: presign.mediaAssetId);
 
       state = CaptureDone(mediaAssetId: presign.mediaAssetId);
+      return presign.mediaAssetId;
     } on MediaRepositoryException catch (error) {
       state = CaptureError(message: error.message);
+      rethrow;
     } on cam.CameraException catch (error) {
       state = CaptureError(
         message: error.description ?? 'Camera capture failed.',
       );
+      throw const MediaRepositoryException.unknown('Camera capture failed.');
     } on Exception catch (_) {
       state = const CaptureError(
         message: 'Photo capture could not be completed.',
       );
+      throw const MediaRepositoryException.unknown();
     }
   }
 

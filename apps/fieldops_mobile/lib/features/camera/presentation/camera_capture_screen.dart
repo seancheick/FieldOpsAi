@@ -1,8 +1,8 @@
-import 'dart:async';
-
 import 'package:camera/camera.dart' as cam;
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
+import 'package:fieldops_mobile/features/camera/domain/photo_capture_result.dart';
 import 'package:fieldops_mobile/features/camera/presentation/camera_controller.dart';
+import 'package:fieldops_mobile/features/camera/presentation/photo_review_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,12 +16,14 @@ class CameraCaptureScreen extends ConsumerStatefulWidget {
     required this.jobName,
     this.photoMode = PhotoMode.standard,
     this.beforeAfterGroupId,
+    this.allowSaveForLater = false,
   });
 
   final String jobId;
   final String jobName;
   final PhotoMode photoMode;
   final String? beforeAfterGroupId;
+  final bool allowSaveForLater;
 
   @override
   ConsumerState<CameraCaptureScreen> createState() =>
@@ -31,8 +33,8 @@ class CameraCaptureScreen extends ConsumerStatefulWidget {
 class _CameraCaptureScreenState extends ConsumerState<CameraCaptureScreen> {
   cam.CameraController? _cameraController;
   bool _isCameraReady = false;
+  bool _isCapturing = false;
   String? _cameraError;
-  Timer? _autoDismissTimer;
 
   @override
   void initState() {
@@ -82,19 +84,55 @@ class _CameraCaptureScreenState extends ConsumerState<CameraCaptureScreen> {
 
   @override
   void dispose() {
-    _autoDismissTimer?.cancel();
     _cameraController?.dispose();
     super.dispose();
   }
 
   Future<void> _capture() async {
     final controller = _cameraController;
-    if (controller == null || !controller.value.isInitialized) return;
+    if (controller == null || !controller.value.isInitialized || _isCapturing) {
+      return;
+    }
 
-    await ref.read(captureControllerProvider.notifier).captureAndUpload(
-          jobId: widget.jobId,
-          cameraController: controller,
-        );
+    setState(() => _isCapturing = true);
+
+    try {
+      final xFile = await controller.takePicture();
+      if (!mounted) return;
+
+      final result = await Navigator.of(context).push<PhotoCaptureResult>(
+        MaterialPageRoute<PhotoCaptureResult>(
+          builder: (_) => PhotoReviewScreen(
+            jobId: widget.jobId,
+            jobName: widget.jobName,
+            filePath: xFile.path,
+            allowSaveForLater: widget.allowSaveForLater,
+          ),
+        ),
+      );
+
+      if (!mounted || result == null) return;
+
+      if (result.shouldRetake) {
+        return;
+      }
+
+      ref.read(captureControllerProvider.notifier).reset();
+      Navigator.of(context).pop(result);
+    } on cam.CameraException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.description ?? 'Photo capture could not be completed.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isCapturing = false);
+      }
+    }
   }
 
   @override
@@ -102,18 +140,6 @@ class _CameraCaptureScreenState extends ConsumerState<CameraCaptureScreen> {
     final captureState = ref.watch(captureControllerProvider);
     final palette = Theme.of(context).extension<FieldOpsPalette>()!;
     final textTheme = Theme.of(context).textTheme;
-
-    ref.listen(captureControllerProvider, (_, next) {
-      if (next is CaptureDone && context.mounted) {
-        _autoDismissTimer?.cancel();
-        _autoDismissTimer = Timer(const Duration(seconds: 2), () {
-          if (mounted) {
-            ref.read(captureControllerProvider.notifier).reset();
-            Navigator.of(context).pop(next.mediaAssetId);
-          }
-        });
-      }
-    });
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -140,8 +166,10 @@ class _CameraCaptureScreenState extends ConsumerState<CameraCaptureScreen> {
               left: 0,
               right: 0,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -158,8 +186,11 @@ class _CameraCaptureScreenState extends ConsumerState<CameraCaptureScreen> {
                       button: true,
                       label: 'Close camera',
                       child: IconButton(
-                        icon: const Icon(Icons.close_rounded,
-                            color: Colors.white, size: 28),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                     ),
@@ -172,10 +203,11 @@ class _CameraCaptureScreenState extends ConsumerState<CameraCaptureScreen> {
                             widget.photoMode == PhotoMode.before
                                 ? 'BEFORE photo'
                                 : widget.photoMode == PhotoMode.after
-                                    ? 'AFTER photo'
-                                    : 'Proof photo',
-                            style: textTheme.titleLarge
-                                ?.copyWith(color: Colors.white),
+                                ? 'AFTER photo'
+                                : 'Proof photo',
+                            style: textTheme.titleLarge?.copyWith(
+                              color: Colors.white,
+                            ),
                           ),
                           Text(
                             widget.jobName,
@@ -209,11 +241,7 @@ class _CameraCaptureScreenState extends ConsumerState<CameraCaptureScreen> {
                     end: Alignment.bottomCenter,
                   ),
                 ),
-                child: _buildBottomContent(
-                  captureState,
-                  palette,
-                  textTheme,
-                ),
+                child: _buildBottomContent(captureState, palette, textTheme),
               ),
             ),
           ],
@@ -228,41 +256,44 @@ class _CameraCaptureScreenState extends ConsumerState<CameraCaptureScreen> {
     TextTheme textTheme,
   ) {
     return switch (captureState) {
-      CaptureIdle() => _CaptureButton(onCapture: _capture),
-      CaptureCapturing() => _StatusIndicator(
-          icon: Icons.camera_alt_rounded,
-          label: 'Capturing...',
-          color: palette.signal,
-        ),
+      CaptureIdle() => _CaptureButton(
+        onCapture: _capture,
+        isCapturing: _isCapturing,
+      ),
+      CaptureCapturing() => _CaptureButton(
+        onCapture: _capture,
+        isCapturing: true,
+      ),
       CaptureUploading() => _StatusIndicator(
-          icon: Icons.cloud_upload_rounded,
-          label: 'Uploading proof photo...',
-          color: palette.signal,
-        ),
+        icon: Icons.cloud_upload_rounded,
+        label: 'Uploading proof photo...',
+        color: palette.signal,
+      ),
       CaptureFinalizing() => _StatusIndicator(
-          icon: Icons.verified_rounded,
-          label: 'Finalizing...',
-          color: palette.signal,
-        ),
+        icon: Icons.verified_rounded,
+        label: 'Finalizing...',
+        color: palette.signal,
+      ),
       CaptureDone() => _StatusIndicator(
-          icon: Icons.check_circle_rounded,
-          label: 'Photo uploaded successfully',
-          color: palette.success,
-        ),
+        icon: Icons.check_circle_rounded,
+        label: 'Photo uploaded successfully',
+        color: palette.success,
+      ),
       CaptureError(message: final msg) => _ErrorControls(
-          message: msg,
-          palette: palette,
-          onRetry: _capture,
-          onCancel: () => Navigator.of(context).pop(),
-        ),
+        message: msg,
+        palette: palette,
+        onRetry: _capture,
+        onCancel: () => Navigator.of(context).pop(),
+      ),
     };
   }
 }
 
 class _CaptureButton extends StatelessWidget {
-  const _CaptureButton({required this.onCapture});
+  const _CaptureButton({required this.onCapture, required this.isCapturing});
 
   final VoidCallback onCapture;
+  final bool isCapturing;
 
   @override
   Widget build(BuildContext context) {
@@ -270,18 +301,17 @@ class _CaptureButton extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Tap to capture proof photo',
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(color: Colors.white.withValues(alpha: 0.8)),
+          isCapturing ? 'Capturing photo...' : 'Tap to capture proof photo',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Colors.white.withValues(alpha: 0.8),
+          ),
         ),
         const SizedBox(height: 16),
         Semantics(
           button: true,
           label: 'Capture photo',
           child: GestureDetector(
-            onTap: onCapture,
+            onTap: isCapturing ? null : onCapture,
             child: Container(
               width: 76,
               height: 76,
@@ -327,10 +357,9 @@ class _StatusIndicator extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             label,
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(color: Colors.white),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(color: Colors.white),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
@@ -419,8 +448,11 @@ class _CameraErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.no_photography_rounded,
-                color: Colors.white54, size: 56),
+            const Icon(
+              Icons.no_photography_rounded,
+              color: Colors.white54,
+              size: 56,
+            ),
             const SizedBox(height: 16),
             Text(
               message,
@@ -428,10 +460,7 @@ class _CameraErrorView extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: onBack,
-              child: const Text('Go back'),
-            ),
+            ElevatedButton(onPressed: onBack, child: const Text('Go back')),
           ],
         ),
       ),

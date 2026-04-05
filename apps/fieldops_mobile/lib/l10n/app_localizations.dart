@@ -331,6 +331,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reason for overtime'**
   String get reasonForOvertime;
+
+  /// No description provided for @mySchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'My schedule'**
+  String get mySchedule;
+
+  /// No description provided for @upcomingShifts.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming shifts'**
+  String get upcomingShifts;
+
+  /// No description provided for @scheduleHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Published shifts for the next two weeks. Pull to refresh if a supervisor updates your schedule.'**
+  String get scheduleHelp;
+
+  /// No description provided for @updated.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated'**
+  String get updated;
+
+  /// No description provided for @noScheduledShiftsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No scheduled shifts yet'**
+  String get noScheduledShiftsYet;
+
+  /// No description provided for @scheduleWillAppear.
+  ///
+  /// In en, this message translates to:
+  /// **'Published shifts will appear here when your supervisor sends the schedule.'**
+  String get scheduleWillAppear;
+
+  /// No description provided for @scheduleUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule unavailable'**
+  String get scheduleUnavailable;
 }
 
 class _AppLocalizationsDelegate

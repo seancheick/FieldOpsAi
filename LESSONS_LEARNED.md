@@ -259,6 +259,40 @@ Why it mattered:
 - It keeps the UI scaffold aligned with the actual product loop and backend contracts already in place.
 - It reduces rework because later worker actions need a stable assigned-job surface anyway.
 
+### 2. "Review before upload" is a real workflow, not a polish detail
+
+What we learned:
+- The original mobile photo flow uploaded immediately after shutter.
+- That was fast, but it skipped a critical field UX step: workers need to confirm the image, retake it if needed, and sometimes save it locally instead of sending it immediately.
+- "Save for later" also has to be a real local state path, not just a button label.
+
+What we fixed:
+- Split capture from upload in the mobile camera flow.
+- Added a dedicated review screen with:
+  - retake
+  - lightweight auto-enhance
+  - upload now
+  - save for later for standalone proof photos
+- Added a local draft store in Drift and a saved-photos screen reachable from the job card.
+- Kept task and expense capture flows on the same review screen, but did not fake deferred attachment where the surrounding workflow still requires an uploaded `media_asset_id`.
+
+Why it mattered:
+- Workers can now verify the evidence before it leaves the device.
+- The app is more trustworthy under weak connectivity because a proof photo can exist locally without being lost.
+- The workflow is honest: we did not pretend a saved local photo already satisfies task/expense attachment requirements.
+
+What to do earlier next time:
+- Design capture flows around states, not just screens:
+  - captured
+  - reviewed
+  - saved locally
+  - uploaded
+  - failed
+- Decide which actions truly support deferred send before wiring buttons into every capture entrypoint.
+
+Reusable rule:
+- In field apps, capture UX should be `camera -> review -> decision`, not `camera -> network immediately`.
+
 What to do earlier next time:
 - Reconcile the roadmap, tracker, and repo before picking the next implementation slice.
 - Prefer the next dependency in the user flow over the most visually interesting task.
@@ -1005,6 +1039,100 @@ What to do earlier next time:
 
 Reusable rule:
 - i18n is complete only when the real user surfaces are translated, verified, and enumerated.
+
+### 32. Append-only event stores should be tested with clean resets or delta assertions, not destructive cleanup
+
+What we learned:
+- The worker-hours summary is derived from `clock_events`, and that table is intentionally append-only.
+- A naive attempt to make the regression repeatable by deleting prior worker events failed, correctly, because the database blocks event mutation.
+- Re-running the same event-derived test on a dirty local database can also produce misleading totals because old and new sessions interleave in time.
+
+What we fixed:
+- Kept the clean canonical backend gate as `python3 execution/run_backend_regression_suite.py`, which resets Supabase before running.
+- Updated the worker-hours regression to compare `before` and `after` totals on a clean stack rather than assuming an empty event history.
+- Cleared `api_request_logs` for the seeded users so repeat local runs do not trip rate limits unrelated to the behavior under test.
+
+Why it mattered:
+- This avoided weakening the event-store model just to make a test easier.
+- It also made the regression honest about how append-only systems behave over time.
+
+What to do earlier next time:
+- When a feature is computed from an append-only ledger, decide up front whether the proof path is:
+
+### 33. Proof-backed finance flows are not complete until both evidence and payout state are enforced
+
+What we learned:
+- Receipt capture looked “mostly there” because the mobile form, backend endpoint, and supervisor review page all existed.
+- The slice was still incomplete because workers could submit without a real receipt asset, and supervisors had no final reimbursement state to close the loop.
+- In other words, the UI suggested a proof-backed flow while the backend still allowed proof-less submission.
+
+What we fixed:
+- Required a real uploaded `media_asset_id` for expense submission in the backend.
+- Added lightweight category suggestion from vendor and notes on mobile so the capture flow stays fast without pretending to be full OCR.
+- Added reimbursement fields and supervisor reimbursement actions so approved expenses can move to a final tracked state.
+- Verified the full slice through backend regression, mobile tests/analyze, and web lint/build.
+
+Why it mattered:
+- Finance features lose trust quickly if the proof requirement is optional or if approved items disappear into a manual side process.
+- “Approved” and “reimbursed” are different operational states, and collapsing them hides work that payroll or finance still has to do.
+
+What to do earlier next time:
+- For any workflow that depends on evidence, enforce that evidence on the server before shipping the UI.
+- Model the full lifecycle up front: submit, review, approve/deny, settle/export.
+- Keep “smart” assistance lightweight unless it is truly reliable enough to own the workflow.
+
+Reusable rule:
+- A finance flow is not done when it stores a request; it is done when proof, approval, and settlement are all explicit and verifiable.
+
+### 34. The fastest way to finish i18n debt is to turn the remaining untranslated surfaces into an explicit coverage list
+
+What we learned:
+- Once most of the app was localized, the remaining gap was not infrastructure. It was a short list of admin pages still carrying hardcoded English.
+- Those low-traffic pages are easy to miss because the main dashboards already look “done.”
+
+What we fixed:
+- Identified the exact remaining pages: `onboarding`, `settings`, and `settings/staff`.
+- Added a small regression check that fails unless those pages use `useI18n()` and the translation map contains matching sections.
+- Finished the last web translations and re-verified with lint and build.
+
+Why it mattered:
+- This prevented Spanish support from staying in a permanent “almost done” state.
+- It also gave the repo a concrete proof path for localization coverage instead of relying on a manual visual sweep.
+
+What to do earlier next time:
+- As soon as i18n is introduced, keep an explicit list of page surfaces and close them one by one.
+- Add a small coverage check before the final i18n pass so untranslated pages cannot hide in the long tail.
+
+Reusable rule:
+- When localization is partially complete, turn the remaining untranslated surfaces into a finite checklist and gate it with a simple regression test.
+
+### 35. A publish workflow becomes much simpler when the mobile notification cue is derived from publish metadata instead of blocked on push infrastructure
+
+What we learned:
+- The schedule feature was stalled in a “partial” state because the planner, worker view, and notification story were treated like separate systems.
+- In practice, the backend already had the right backbone once `published_at` and worker-scoped reads were respected.
+
+What we fixed:
+- Extended the schedule contract so supervisors can edit drafts and workers can only read their own published shifts.
+- Used `published_at` as the lightweight notification signal for the mobile app, surfacing newly published shifts with an in-app `Updated` badge.
+- Added the missing worker mobile schedule screen and finished the supervisor planner with real edit plus drag-to-reschedule behavior.
+
+Why it mattered:
+- This avoided blocking a useful worker notification experience on Firebase/APNs setup.
+- It also kept the schedule feature coherent across backend, supervisor web, and worker mobile instead of treating them as unrelated tasks.
+
+What to do earlier next time:
+- When a feature has a publish boundary, decide early what field proves “published” and let downstream clients react to that field.
+- Use push notifications as an enhancement, not as the only way the product can communicate an update.
+
+Reusable rule:
+- If a publish timestamp already exists, use it as the first-class update signal before adding heavier notification infrastructure.
+  - full reset, or
+  - baseline-plus-delta
+- Do not write tests that assume mutable history unless the system actually allows it.
+
+Reusable rule:
+- For append-only event models, prefer reset-based verification or delta assertions over destructive cleanup.
 
 ---
 

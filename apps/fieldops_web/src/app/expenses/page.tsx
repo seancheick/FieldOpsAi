@@ -17,6 +17,9 @@ interface ExpenseEntry {
   status: string;
   submitted_at: string;
   decision_reason: string | null;
+  reimbursed_at: string | null;
+  reimbursement_reference: string | null;
+  reimbursement_notes: string | null;
 }
 
 interface MediaAsset {
@@ -57,6 +60,7 @@ function ExpensesContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [reimbursingId, setReimbursingId] = useState<string | null>(null);
   const urlCacheRef = useRef<Record<string, string>>({});
 
   const loadExpenses = useCallback(async () => {
@@ -197,6 +201,91 @@ function ExpensesContent() {
     }
   }
 
+  async function handleReimbursement(
+    expenseId: string,
+    reference: string,
+    notes: string,
+  ) {
+    setReimbursingId(expenseId);
+    try {
+      const supabase = getSupabase();
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/expenses`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+            "Idempotency-Key": crypto.randomUUID(),
+          },
+          body: JSON.stringify({
+            action: "reimburse",
+            expense_id: expenseId,
+            reference,
+            notes,
+          }),
+        },
+      );
+
+      const body = await res.json();
+      if (!res.ok) {
+        throw new Error(body.message || t("expensesPage.failedToLoad"));
+      }
+
+      await loadExpenses();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("expensesPage.failedToLoad"));
+    } finally {
+      setReimbursingId(null);
+    }
+  }
+
+  function downloadCsv() {
+    const headers = [
+      "expense_id",
+      "status",
+      "worker",
+      "job",
+      "job_code",
+      "category",
+      "amount",
+      "vendor",
+      "submitted_at",
+      "decision_reason",
+      "reimbursed_at",
+      "reimbursement_reference",
+      "reimbursement_notes",
+    ];
+    const rows = expenses.map((expense) => [
+      expense.id,
+      expense.status,
+      expense.workerName,
+      expense.jobName,
+      expense.jobCode,
+      expense.category,
+      String(expense.amount),
+      expense.vendor ?? "",
+      expense.submitted_at,
+      expense.decision_reason ?? "",
+      expense.reimbursed_at ?? "",
+      expense.reimbursement_reference ?? "",
+      expense.reimbursement_notes ?? "",
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `expenses-${filterStatus}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   function formatTime(iso: string) {
     return new Date(iso).toLocaleString(undefined, {
       month: "short",
@@ -218,7 +307,7 @@ function ExpensesContent() {
         <h2 className="text-2xl font-bold text-slate-900">{t("expensesPage.title")}</h2>
         <p className="mt-1 text-slate-600">{t("expensesPage.subtitle")}</p>
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           {["pending", "approved", "denied"].map((status) => (
             <a
               key={status}
@@ -232,6 +321,12 @@ function ExpensesContent() {
               {t(`expensesPage.${status}`)}
             </a>
           ))}
+          <button
+            onClick={downloadCsv}
+            className="rounded-full bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            {t("expensesPage.downloadCsv")}
+          </button>
         </div>
       </div>
 
@@ -264,8 +359,11 @@ function ExpensesContent() {
             expense={expense}
             receiptUrl={expense.media_asset_id ? signedUrls[expense.media_asset_id] : undefined}
             isPending={filterStatus === "pending"}
+            isApproved={filterStatus === "approved"}
             isDeciding={decidingId === expense.id}
+            isReimbursing={reimbursingId === expense.id}
             onDecision={handleDecision}
+            onReimbursement={handleReimbursement}
             formatTime={formatTime}
           />
         ))}
@@ -278,21 +376,31 @@ function ExpenseCard({
   expense,
   receiptUrl,
   isPending,
+  isApproved,
   isDeciding,
+  isReimbursing,
   onDecision,
+  onReimbursement,
   formatTime,
 }: {
   expense: ExpenseCardData;
   receiptUrl?: string;
   isPending: boolean;
+  isApproved: boolean;
   isDeciding: boolean;
+  isReimbursing: boolean;
   onDecision: (id: string, decision: "approved" | "denied", reason: string) => void;
+  onReimbursement: (id: string, reference: string, notes: string) => void;
   formatTime: (iso: string) => string;
 }) {
   const { t } = useI18n();
   const [reason, setReason] = useState("");
   const [showReasonFor, setShowReasonFor] = useState<"approved" | "denied" | null>(null);
+  const [showReimbursementForm, setShowReimbursementForm] = useState(false);
+  const [reimbursementReference, setReimbursementReference] = useState("");
+  const [reimbursementNotes, setReimbursementNotes] = useState("");
   const amount = typeof expense.amount === "number" ? expense.amount : Number(expense.amount);
+  const isReimbursed = Boolean(expense.reimbursed_at);
 
   return (
     <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
@@ -332,6 +440,12 @@ function ExpenseCard({
               {t(`expensesPage.${expense.status}`)}
             </span>
           </div>
+
+          {isReimbursed && (
+            <div className="mt-2 inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+              {t("expensesPage.reimbursed")}
+            </div>
+          )}
 
           <div className="mt-3 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
             <div>
@@ -424,6 +538,81 @@ function ExpenseCard({
               <span className="font-semibold text-slate-900">{t("expensesPage.notes")}:</span>{" "}
               {expense.decision_reason}
             </p>
+          )}
+
+          {isApproved && !isReimbursed && (
+            <div className="mt-4">
+              {showReimbursementForm ? (
+                <div className="space-y-3">
+                  <input
+                    value={reimbursementReference}
+                    onChange={(event) => setReimbursementReference(event.target.value)}
+                    className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    placeholder={t("expensesPage.reimbursementReferencePlaceholder")}
+                  />
+                  <textarea
+                    value={reimbursementNotes}
+                    onChange={(event) => setReimbursementNotes(event.target.value)}
+                    className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    rows={2}
+                    placeholder={t("expensesPage.reimbursementNotesPlaceholder")}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        if (reimbursementReference.trim()) {
+                          onReimbursement(expense.id, reimbursementReference, reimbursementNotes);
+                        }
+                      }}
+                      disabled={!reimbursementReference.trim() || isReimbursing}
+                      className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                    >
+                      {isReimbursing
+                        ? t("expensesPage.submitting")
+                        : t("expensesPage.confirmReimbursement")}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowReimbursementForm(false);
+                        setReimbursementReference("");
+                        setReimbursementNotes("");
+                      }}
+                      className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-stone-100"
+                    >
+                      {t("overtimePage.cancel")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowReimbursementForm(true)}
+                  className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                >
+                  {t("expensesPage.markReimbursed")}
+                </button>
+              )}
+            </div>
+          )}
+
+          {isReimbursed && (
+            <div className="mt-4 space-y-1 text-sm text-slate-600">
+              <div>
+                <span className="font-semibold text-slate-900">{t("expensesPage.reimbursed")}:</span>{" "}
+                {formatTime(expense.reimbursed_at!)}
+              </div>
+              {expense.reimbursement_reference && (
+                <div>
+                  <span className="font-semibold text-slate-900">{t("expensesPage.reimbursementReference")}:</span>{" "}
+                  {expense.reimbursement_reference}
+                </div>
+              )}
+              {expense.reimbursement_notes && (
+                <div>
+                  <span className="font-semibold text-slate-900">{t("expensesPage.reimbursementNotes")}:</span>{" "}
+                  {expense.reimbursement_notes}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

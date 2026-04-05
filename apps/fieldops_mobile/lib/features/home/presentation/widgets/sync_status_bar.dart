@@ -1,6 +1,7 @@
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
 import 'package:fieldops_mobile/core/data/connectivity_provider.dart';
 import 'package:fieldops_mobile/core/data/pending_count_provider.dart';
+import 'package:fieldops_mobile/features/camera/data/photo_draft_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,9 +12,11 @@ class SyncStatusBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isOnline = ref.watch(isOnlineProvider);
     final pendingAsync = ref.watch(pendingEventCountProvider);
+    final photoDraftsAsync = ref.watch(pendingPhotoDraftCountProvider);
     final count = pendingAsync.value ?? 0;
+    final draftCount = photoDraftsAsync.value ?? 0;
 
-    if (isOnline && count == 0) {
+    if (isOnline && count == 0 && draftCount == 0) {
       return const SizedBox.shrink();
     }
 
@@ -27,13 +30,30 @@ class SyncStatusBar extends ConsumerWidget {
     if (!isOnline) {
       color = palette.danger;
       icon = Icons.cloud_off_rounded;
-      label = count > 0
-          ? 'Offline — $count event${count == 1 ? '' : 's'} queued'
-          : 'Offline — events will queue locally';
+      if (count > 0 || draftCount > 0) {
+        final parts = <String>[];
+        if (count > 0) {
+          parts.add('$count event${count == 1 ? '' : 's'} queued');
+        }
+        if (draftCount > 0) {
+          parts.add('$draftCount photo${draftCount == 1 ? '' : 's'} saved');
+        }
+        label = 'Offline — ${parts.join(' • ')}';
+      } else {
+        label = 'Offline — events will queue locally';
+      }
     } else {
       color = palette.signal;
-      icon = Icons.sync_rounded;
-      label = '$count event${count == 1 ? '' : 's'} syncing...';
+      icon = draftCount > 0 ? Icons.photo_library_outlined : Icons.sync_rounded;
+      if (count > 0 && draftCount > 0) {
+        label =
+            '$count event${count == 1 ? '' : 's'} syncing • $draftCount saved photo${draftCount == 1 ? '' : 's'} waiting';
+      } else if (count > 0) {
+        label = '$count event${count == 1 ? '' : 's'} syncing...';
+      } else {
+        label =
+            '$draftCount saved photo${draftCount == 1 ? '' : 's'} waiting to send';
+      }
     }
 
     return Semantics(

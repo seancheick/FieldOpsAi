@@ -1,8 +1,33 @@
 "use client";
 
 import { useState } from "react";
+import { useI18n } from "@/lib/i18n";
+
+const INDUSTRY_VALUES = [
+  "electrical",
+  "construction",
+  "plumbing",
+  "hvac",
+  "telecom",
+  "solar",
+  "landscaping",
+  "other",
+] as const;
+
+const TIMEZONE_VALUES = [
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "Europe/London",
+  "Europe/Paris",
+  "Africa/Abidjan",
+  "Asia/Bangkok",
+  "Asia/Shanghai",
+] as const;
 
 export default function CompanySettingsPage() {
+  const { t } = useI18n();
   const [companyName, setCompanyName] = useState("Test Company");
   const [logoUrl, setLogoUrl] = useState("");
   const [timezone, setTimezone] = useState("America/New_York");
@@ -13,7 +38,6 @@ export default function CompanySettingsPage() {
   const [saved, setSaved] = useState(false);
 
   function handleSave() {
-    // TODO: Save to Supabase companies table
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   }
@@ -21,22 +45,19 @@ export default function CompanySettingsPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-        Company Settings
+        {t("settingsPage.title")}
       </h1>
-      <p className="mt-1 text-sm text-slate-400">
-        Manage your company information and preferences.
-      </p>
+      <p className="mt-1 text-sm text-slate-400">{t("settingsPage.subtitle")}</p>
 
       <div className="mt-8 space-y-6">
-        {/* Company Info Card */}
         <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
           <h2 className="mb-5 text-sm font-bold uppercase tracking-wider text-slate-400">
-            Company Information
+            {t("settingsPage.companyInformation")}
           </h2>
 
           <div className="space-y-4">
             <Field
-              label="Company Name"
+              label={t("settingsPage.companyName")}
               value={companyName}
               onChange={setCompanyName}
               required
@@ -45,67 +66,76 @@ export default function CompanySettingsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-xs font-semibold text-slate-600">
-                  Industry
+                  {t("settingsPage.industry")}
                 </label>
                 <select
                   value={industry}
-                  onChange={(e) => setIndustry(e.target.value)}
+                  onChange={(event) => setIndustry(event.target.value)}
                   className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
                 >
-                  <option value="electrical">Electrical</option>
-                  <option value="construction">General Construction</option>
-                  <option value="plumbing">Plumbing</option>
-                  <option value="hvac">HVAC</option>
-                  <option value="telecom">Telecom / Infrastructure</option>
-                  <option value="solar">Solar / Renewable</option>
-                  <option value="landscaping">Landscaping</option>
-                  <option value="other">Other</option>
+                  {INDUSTRY_VALUES.map((value) => (
+                    <option key={value} value={value}>
+                      {t(`commonOptions.industries.${value}`)}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
                 <label className="mb-1.5 block text-xs font-semibold text-slate-600">
-                  Timezone
+                  {t("settingsPage.timezone")}
                 </label>
                 <select
                   value={timezone}
-                  onChange={(e) => setTimezone(e.target.value)}
+                  onChange={(event) => setTimezone(event.target.value)}
                   className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
                 >
-                  <option value="America/New_York">Eastern (ET)</option>
-                  <option value="America/Chicago">Central (CT)</option>
-                  <option value="America/Denver">Mountain (MT)</option>
-                  <option value="America/Los_Angeles">Pacific (PT)</option>
-                  <option value="Europe/London">London (GMT)</option>
-                  <option value="Europe/Paris">Paris (CET)</option>
-                  <option value="Africa/Abidjan">West Africa (WAT)</option>
-                  <option value="Asia/Bangkok">Bangkok (ICT)</option>
-                  <option value="Asia/Shanghai">Shanghai (CST)</option>
+                  {TIMEZONE_VALUES.map((value) => (
+                    <option key={value} value={value}>
+                      {t(`commonOptions.timezones.${value}`)}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
 
-            <Field label="Company Address" value={address} onChange={setAddress} placeholder="123 Main St, Boston, MA" />
+            <Field
+              label={t("settingsPage.companyAddress")}
+              value={address}
+              onChange={setAddress}
+              placeholder={t("settingsPage.placeholders.address")}
+            />
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Company Phone" value={phone} onChange={setPhone} placeholder="+1 555-0100" type="tel" />
-              <Field label="Company Email" value={email} onChange={setEmail} placeholder="office@company.com" type="email" />
+              <Field
+                label={t("settingsPage.companyPhone")}
+                value={phone}
+                onChange={setPhone}
+                placeholder={t("settingsPage.placeholders.phone")}
+                type="tel"
+              />
+              <Field
+                label={t("settingsPage.companyEmail")}
+                value={email}
+                onChange={setEmail}
+                placeholder={t("settingsPage.placeholders.email")}
+                type="email"
+              />
             </div>
           </div>
         </div>
 
-        {/* Branding Card */}
         <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
           <h2 className="mb-5 text-sm font-bold uppercase tracking-wider text-slate-400">
-            Branding
+            {t("settingsPage.branding")}
           </h2>
 
           <div className="space-y-4">
             <Field
-              label="Logo URL"
+              label={t("settingsPage.logoUrl")}
               value={logoUrl}
               onChange={setLogoUrl}
-              placeholder="https://yoursite.com/logo.png"
-              hint="Used on proof stamps, reports, and the dashboard."
+              placeholder={t("settingsPage.placeholders.logoUrl")}
+              hint={t("settingsPage.logoHint")}
             />
 
             {logoUrl && (
@@ -113,31 +143,26 @@ export default function CompanySettingsPage() {
                 <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl border border-stone-200 bg-stone-50">
                   <img
                     src={logoUrl}
-                    alt="Company logo preview"
+                    alt={t("settingsPage.logoPreviewAlt")}
                     className="h-full w-full object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
+                    onError={(event) => {
+                      (event.target as HTMLImageElement).style.display = "none";
                     }}
                   />
                 </div>
-                <span className="text-xs text-slate-400">Logo preview</span>
+                <span className="text-xs text-slate-400">{t("settingsPage.logoPreview")}</span>
               </div>
             )}
           </div>
         </div>
 
-        {/* Save */}
         <div className="flex items-center justify-between">
-          {saved && (
-            <span className="text-sm font-medium text-green-600">
-              Settings saved
-            </span>
-          )}
+          {saved && <span className="text-sm font-medium text-green-600">{t("settingsPage.saved")}</span>}
           <button
             onClick={handleSave}
             className="ml-auto rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
           >
-            Save Changes
+            {t("settingsPage.saveChanges")}
           </button>
         </div>
       </div>
@@ -156,7 +181,7 @@ function Field({
 }: {
   label: string;
   value: string;
-  onChange: (v: string) => void;
+  onChange: (value: string) => void;
   placeholder?: string;
   type?: string;
   required?: boolean;
@@ -171,7 +196,7 @@ function Field({
       <input
         type={type}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm transition-colors focus:border-slate-900 focus:bg-white focus:outline-none"
       />

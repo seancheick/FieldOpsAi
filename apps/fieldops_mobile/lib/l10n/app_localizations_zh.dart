@@ -131,4 +131,27 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get reasonForOvertime => '加班原因';
+
+  @override
+  String get mySchedule => 'My schedule';
+
+  @override
+  String get upcomingShifts => 'Upcoming shifts';
+
+  @override
+  String get scheduleHelp =>
+      'Published shifts for the next two weeks. Pull to refresh if a supervisor updates your schedule.';
+
+  @override
+  String get updated => 'Updated';
+
+  @override
+  String get noScheduledShiftsYet => 'No scheduled shifts yet';
+
+  @override
+  String get scheduleWillAppear =>
+      'Published shifts will appear here when your supervisor sends the schedule.';
+
+  @override
+  String get scheduleUnavailable => 'Schedule unavailable';
 }

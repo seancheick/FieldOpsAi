@@ -1,4 +1,5 @@
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
+import 'package:fieldops_mobile/features/camera/domain/photo_capture_result.dart';
 import 'package:fieldops_mobile/features/expenses/data/expense_repository_provider.dart';
 import 'package:fieldops_mobile/features/expenses/domain/expense_repository.dart';
 import 'package:fieldops_mobile/features/expenses/presentation/expense_capture_screen.dart';
@@ -20,7 +21,10 @@ void main() {
           home: ExpenseCaptureScreen(
             jobId: 'job-1',
             jobName: 'Grid Restoration',
-            onCaptureReceiptPhoto: (_) async => 'media-asset-123',
+            onCaptureReceiptPhoto: (_) async =>
+                const PhotoCaptureResult.uploaded(
+                  mediaAssetId: 'media-asset-123',
+                ),
           ),
         ),
       ),
@@ -37,6 +41,34 @@ void main() {
 
     expect(repository.submitCount, 1);
     expect(repository.lastMediaAssetId, 'media-asset-123');
+  });
+
+  testWidgets('requires a receipt photo before submitting an expense', (
+    tester,
+  ) async {
+    final repository = _FakeExpenseRepository();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [expenseRepositoryProvider.overrideWithValue(repository)],
+        child: MaterialApp(
+          theme: buildFieldOpsTheme(),
+          home: const ExpenseCaptureScreen(
+            jobId: 'job-1',
+            jobName: 'Grid Restoration',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).first, '42.50');
+    await tester.ensureVisible(find.byIcon(Icons.send_rounded));
+    await tester.tap(find.byIcon(Icons.send_rounded));
+    await tester.pumpAndSettle();
+
+    expect(repository.submitCount, 0);
+    expect(find.text('Take a receipt photo before submitting.'), findsOneWidget);
   });
 }
 

@@ -15,31 +15,54 @@ class PendingEvents extends Table {
   DateTimeColumn get occurredAt => dateTime()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
-  DateTimeColumn get nextRetryAt =>
-      dateTime().nullable()();
-  TextColumn get syncStatus =>
-      text().withDefault(const Constant('pending'))();
+  DateTimeColumn get nextRetryAt => dateTime().nullable()();
+  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
   TextColumn get errorMessage => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [PendingEvents])
+class PendingMediaUploads extends Table {
+  TextColumn get id => text()();
+  TextColumn get jobId => text()();
+  TextColumn get filePath => text()();
+  TextColumn get mimeType => text().withDefault(const Constant('image/jpeg'))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  TextColumn get syncStatus => text().withDefault(const Constant('saved'))();
+  TextColumn get errorMessage => text().nullable()();
+  IntColumn get retryCount => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [PendingEvents, PendingMediaUploads])
 class LocalDatabase extends _$LocalDatabase {
   LocalDatabase() : super(_openConnection());
 
   LocalDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (migrator, from, to) async {
+      if (from < 2) {
+        await migrator.createTable(pendingMediaUploads);
+      }
+    },
+  );
 
   Future<List<PendingEvent>> pendingEventsByAge() {
     return (select(pendingEvents)
           ..where((e) => e.syncStatus.equals('pending'))
-          ..where((e) =>
-              e.nextRetryAt.isNull() |
-              e.nextRetryAt.isSmallerOrEqualValue(DateTime.now()))
+          ..where(
+            (e) =>
+                e.nextRetryAt.isNull() |
+                e.nextRetryAt.isSmallerOrEqualValue(DateTime.now()),
+          )
           ..orderBy([(e) => OrderingTerm.asc(e.occurredAt)]))
         .get();
   }
@@ -52,9 +75,75 @@ class LocalDatabase extends _$LocalDatabase {
     return row.read(pendingEvents.id.count()) ?? 0;
   }
 
+  Future<int> pendingMediaUploadCount({String? jobId}) async {
+    final query = selectOnly(pendingMediaUploads)
+      ..addColumns([pendingMediaUploads.id.count()])
+      ..where(pendingMediaUploads.syncStatus.isIn(const ['saved', 'pending']));
+
+    if (jobId != null) {
+      query.where(pendingMediaUploads.jobId.equals(jobId));
+    }
+
+    final row = await query.getSingle();
+    return row.read(pendingMediaUploads.id.count()) ?? 0;
+  }
+
+  Stream<List<PendingMediaUpload>> watchPendingMediaUploadsForJob(
+    String jobId,
+  ) {
+    return (select(pendingMediaUploads)
+          ..where((draft) => draft.jobId.equals(jobId))
+          ..where((draft) => draft.syncStatus.isNotValue('uploaded'))
+          ..orderBy([(draft) => OrderingTerm.desc(draft.createdAt)]))
+        .watch();
+  }
+
+  Future<void> savePendingMediaUpload(PendingMediaUploadsCompanion draft) {
+    return into(
+      pendingMediaUploads,
+    ).insert(draft, mode: InsertMode.insertOrReplace);
+  }
+
+  Future<PendingMediaUpload?> findPendingMediaUpload(String id) {
+    return (select(
+      pendingMediaUploads,
+    )..where((draft) => draft.id.equals(id))).getSingleOrNull();
+  }
+
+  Future<void> markPendingMediaUploadUploaded(String id) {
+    return (update(
+      pendingMediaUploads,
+    )..where((draft) => draft.id.equals(id))).write(
+      const PendingMediaUploadsCompanion(syncStatus: Value('uploaded')),
+    );
+  }
+
+  Future<void> markPendingMediaUploadFailed(
+    String id,
+    String error, {
+    required int retryCount,
+  }) {
+    return (update(
+      pendingMediaUploads,
+    )..where((draft) => draft.id.equals(id))).write(
+      PendingMediaUploadsCompanion(
+        syncStatus: const Value('saved'),
+        errorMessage: Value(error),
+        retryCount: Value(retryCount),
+      ),
+    );
+  }
+
+  Future<void> deletePendingMediaUpload(String id) {
+    return (delete(
+      pendingMediaUploads,
+    )..where((draft) => draft.id.equals(id))).go();
+  }
+
   Future<void> markSynced(String eventId) {
-    return (update(pendingEvents)..where((e) => e.id.equals(eventId)))
-        .write(const PendingEventsCompanion(syncStatus: Value('synced')));
+    return (update(pendingEvents)..where((e) => e.id.equals(eventId))).write(
+      const PendingEventsCompanion(syncStatus: Value('synced')),
+    );
   }
 
   Future<void> markFailed(String eventId, String error, int retryCount) {
@@ -80,9 +169,9 @@ class LocalDatabase extends _$LocalDatabase {
   }
 
   Future<void> cleanSynced() {
-    return (delete(pendingEvents)
-          ..where((e) => e.syncStatus.equals('synced')))
-        .go();
+    return (delete(
+      pendingEvents,
+    )..where((e) => e.syncStatus.equals('synced'))).go();
   }
 
   int _exponentialBackoff(int retryCount) {

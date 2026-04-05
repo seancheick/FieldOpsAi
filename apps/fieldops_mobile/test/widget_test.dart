@@ -7,6 +7,12 @@ import 'package:fieldops_mobile/features/clock/domain/clock_repository.dart';
 import 'package:fieldops_mobile/features/jobs/data/jobs_repository_provider.dart';
 import 'package:fieldops_mobile/features/jobs/domain/job_summary.dart';
 import 'package:fieldops_mobile/features/jobs/domain/jobs_repository.dart';
+import 'package:fieldops_mobile/features/home/data/worker_hours_repository_provider.dart';
+import 'package:fieldops_mobile/features/home/domain/worker_hours_repository.dart';
+import 'package:fieldops_mobile/features/home/domain/worker_hours_snapshot.dart';
+import 'package:fieldops_mobile/features/schedule/data/schedule_repository_provider.dart';
+import 'package:fieldops_mobile/features/schedule/domain/schedule_repository.dart';
+import 'package:fieldops_mobile/features/schedule/domain/worker_schedule_shift.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -116,13 +122,47 @@ void main() {
         ),
       ),
     );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pumpAndSettle();
 
     expect(find.text('Assigned jobs'), findsOneWidget);
     expect(find.text('Grid Restoration'), findsOneWidget);
     expect(find.text('Substation Audit'), findsOneWidget);
     expect(find.textContaining('2 tasks'), findsOneWidget);
+  });
+
+  testWidgets('signed-in worker sees live hour totals', (tester) async {
+    _usePhoneViewport(tester);
+    await tester.pumpWidget(
+      _buildTestApp(
+        environment: const FieldOpsEnvironment(
+          supabaseUrl: 'http://127.0.0.1:54321',
+          supabaseAnonKey: 'anon-key',
+        ),
+        repository: FakeAuthRepository(initialEmail: 'worker@test.com'),
+        jobsRepository: FakeJobsRepository(
+          jobs: const [
+            JobSummary(
+              jobId: 'job-1',
+              jobName: 'Grid Restoration',
+              geofenceRadiusM: 150,
+              taskCount: 2,
+            ),
+          ],
+        ),
+        workerHoursRepository: FakeWorkerHoursRepository(
+          snapshot: const WorkerHoursSnapshot(
+            hoursToday: 3.0,
+            hoursThisWeek: 18.5,
+            hoursThisMonth: 64.0,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('3.0h'), findsOneWidget);
+    expect(find.text('18.5h'), findsOneWidget);
+    expect(find.text('64.0h'), findsOneWidget);
   });
 
   testWidgets('offline jobs failure shows retryable state', (tester) async {
@@ -264,7 +304,10 @@ void main() {
 
     expect(clockRepository.lastClockOutJobId, 'job-1');
     expect(find.text('Ready to clock in'), findsOneWidget);
-    expect(find.textContaining('Clocked out of Grid Restoration'), findsOneWidget);
+    expect(
+      find.textContaining('Clocked out of Grid Restoration'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('clock in failure surfaces an inline message', (tester) async {
@@ -316,6 +359,8 @@ Widget _buildTestApp({
   required AuthRepository repository,
   JobsRepository? jobsRepository,
   ClockRepository? clockRepository,
+  WorkerHoursRepository? workerHoursRepository,
+  ScheduleRepository? scheduleRepository,
 }) {
   return ProviderScope(
     overrides: [
@@ -325,6 +370,10 @@ Widget _buildTestApp({
         jobsRepositoryProvider.overrideWithValue(jobsRepository),
       if (clockRepository != null)
         clockRepositoryProvider.overrideWithValue(clockRepository),
+      if (workerHoursRepository != null)
+        workerHoursRepositoryProvider.overrideWithValue(workerHoursRepository),
+      if (scheduleRepository != null)
+        scheduleRepositoryProvider.overrideWithValue(scheduleRepository),
     ],
     child: const FieldOpsApp(),
   );
@@ -437,5 +486,34 @@ class FakeClockRepository implements ClockRepository {
       eventId: 'break-end-1',
       occurredAt: DateTime.utc(2026, 4, 3, 14, 30),
     );
+  }
+}
+
+class FakeWorkerHoursRepository implements WorkerHoursRepository {
+  FakeWorkerHoursRepository({required this.snapshot, this.failure});
+
+  final WorkerHoursSnapshot snapshot;
+  final WorkerHoursRepositoryException? failure;
+
+  @override
+  Future<WorkerHoursSnapshot> fetchSummary() async {
+    if (failure != null) {
+      throw failure!;
+    }
+    return snapshot;
+  }
+}
+
+class FakeScheduleRepository implements ScheduleRepository {
+  FakeScheduleRepository({this.shifts = const []});
+
+  final List<WorkerScheduleShift> shifts;
+
+  @override
+  Future<List<WorkerScheduleShift>> fetchMySchedule({
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    return shifts;
   }
 }

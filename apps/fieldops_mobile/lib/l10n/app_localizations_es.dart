@@ -133,4 +133,27 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get reasonForOvertime => 'Razón de las horas extra';
+
+  @override
+  String get mySchedule => 'Mi horario';
+
+  @override
+  String get upcomingShifts => 'Próximos turnos';
+
+  @override
+  String get scheduleHelp =>
+      'Turnos publicados para las próximas dos semanas. Desliza para actualizar si un supervisor cambia tu horario.';
+
+  @override
+  String get updated => 'Actualizado';
+
+  @override
+  String get noScheduledShiftsYet => 'Todavía no hay turnos programados';
+
+  @override
+  String get scheduleWillAppear =>
+      'Los turnos publicados aparecerán aquí cuando tu supervisor envíe el horario.';
+
+  @override
+  String get scheduleUnavailable => 'Horario no disponible';
 }

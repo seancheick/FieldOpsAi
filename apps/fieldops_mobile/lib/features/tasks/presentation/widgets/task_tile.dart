@@ -1,4 +1,5 @@
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
+import 'package:fieldops_mobile/features/camera/domain/photo_capture_result.dart';
 import 'package:fieldops_mobile/features/camera/presentation/camera_capture_screen.dart';
 import 'package:fieldops_mobile/features/tasks/domain/task_item.dart';
 import 'package:fieldops_mobile/features/tasks/domain/tasks_repository.dart';
@@ -7,11 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class TaskTile extends ConsumerStatefulWidget {
-  const TaskTile({
-    super.key,
-    required this.task,
-    required this.jobId,
-  });
+  const TaskTile({super.key, required this.task, required this.jobId});
 
   final TaskItem task;
   final String jobId;
@@ -34,8 +31,8 @@ class _TaskTileState extends ConsumerState<TaskTile> {
       // If completing a photo-required task, open camera first
       if (action == 'complete' && widget.task.requiresPhoto) {
         if (!mounted) return;
-        final result = await Navigator.of(context).push<String?>(
-          MaterialPageRoute<String?>(
+        final result = await Navigator.of(context).push<PhotoCaptureResult?>(
+          MaterialPageRoute<PhotoCaptureResult?>(
             builder: (_) => CameraCaptureScreen(
               jobId: widget.jobId,
               jobName: 'Photo for: ${widget.task.name}',
@@ -43,7 +40,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
           ),
         );
 
-        if (result == null || !mounted) {
+        if (result == null || !result.isUploaded || !mounted) {
           setState(() => _isUpdating = false);
           return;
         }
@@ -52,7 +49,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
             .updateStatus(
               taskId: widget.task.taskId,
               action: action,
-              mediaAssetId: result,
+              mediaAssetId: result.mediaAssetId,
             );
         return;
       }
@@ -99,7 +96,8 @@ class _TaskTileState extends ConsumerState<TaskTile> {
     }
 
     return Semantics(
-      label: '${task.name}. Status: ${task.status}${task.requiresPhoto ? '. Photo required' : ''}',
+      label:
+          '${task.name}. Status: ${task.status}${task.requiresPhoto ? '. Photo required' : ''}',
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(16),

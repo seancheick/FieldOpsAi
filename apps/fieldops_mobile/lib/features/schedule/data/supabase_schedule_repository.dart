@@ -1,0 +1,58 @@
+import 'dart:io';
+
+import 'package:fieldops_mobile/features/schedule/domain/schedule_repository.dart';
+import 'package:fieldops_mobile/features/schedule/domain/worker_schedule_shift.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class SupabaseScheduleRepository implements ScheduleRepository {
+  const SupabaseScheduleRepository(this._client);
+
+  final SupabaseClient _client;
+
+  @override
+  Future<List<WorkerScheduleShift>> fetchMySchedule({
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final start = from ?? DateTime.now().toUtc();
+    final end = to ?? start.add(const Duration(days: 13));
+
+    try {
+      final response = await _client.functions.invoke(
+        'schedule',
+        method: HttpMethod.get,
+        queryParameters: {
+          'date_from': _asDate(start),
+          'date_to': _asDate(end),
+        },
+        headers: const {'X-Client-Version': 'fieldops-mobile'},
+      );
+
+      final payload = response.data;
+      if (payload is! Map<String, dynamic>) {
+        throw const ScheduleRepositoryException.unknown(
+          'Schedule response was malformed.',
+        );
+      }
+
+      final shifts = payload['shifts'] as List<dynamic>? ?? const [];
+      return shifts
+          .whereType<Map<String, dynamic>>()
+          .map(WorkerScheduleShift.fromJson)
+          .toList(growable: false);
+    } on SocketException {
+      throw const ScheduleRepositoryException.offline();
+    } on HttpException {
+      throw const ScheduleRepositoryException.offline();
+    } on FunctionException catch (error) {
+      if (error.status == 0) {
+        throw const ScheduleRepositoryException.offline();
+      }
+      throw ScheduleRepositoryException.unknown(
+        'Schedule request failed (${error.status}).',
+      );
+    }
+  }
+
+  String _asDate(DateTime value) => value.toUtc().toIso8601String().split('T').first;
+}

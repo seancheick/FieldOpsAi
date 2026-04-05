@@ -135,6 +135,66 @@ def wait_for_single_row(path, params, predicate, timeout_seconds=10, interval_se
     fail(f"timed out waiting for {path} to reach expected state", last_rows)
 
 
+def create_uploaded_media_asset(
+    token,
+    job_id,
+    *,
+    task_id=None,
+    captured_at=None,
+    gps=None,
+    upload_bytes=UPLOAD_BYTES,
+):
+    captured_at = captured_at or datetime.datetime.now(datetime.timezone.utc).isoformat()
+    gps = gps or {"lat": 37.7749, "lng": -122.4194, "accuracy_m": 6.0}
+
+    presign_payload = {
+        "job_id": job_id,
+        "mime_type": "image/jpeg",
+        "file_size_bytes": len(upload_bytes),
+        "captured_at": captured_at,
+        "gps": gps,
+    }
+    if task_id:
+        presign_payload["task_id"] = task_id
+
+    presign_resp = requests.post(
+        f"{SUPABASE_URL}/functions/v1/media_presign",
+        headers=mobile_headers(token, str(uuid.uuid4())),
+        json=presign_payload,
+        timeout=15,
+    )
+    expect(presign_resp.status_code == 201, "media presign helper failed", presign_resp.text)
+    presign_body = presign_resp.json()
+
+    upload_response = requests.put(
+        presign_body["upload_url"],
+        headers=presign_body["upload_headers"],
+        data=upload_bytes,
+        timeout=15,
+    )
+    expect(upload_response.status_code in (200, 201), "media helper direct upload failed", upload_response.text)
+
+    checksum = hashlib.sha256(upload_bytes).hexdigest()
+    finalize_resp = requests.post(
+        f"{SUPABASE_URL}/functions/v1/media_finalize",
+        headers=mobile_headers(token, str(uuid.uuid4())),
+        json={
+            "media_asset_id": presign_body["media_asset_id"],
+            "checksum_sha256": checksum,
+        },
+        timeout=15,
+    )
+    expect(finalize_resp.status_code == 200, "media helper finalize failed", finalize_resp.text)
+    finalize_body = finalize_resp.json()
+
+    return {
+        "media_asset_id": presign_body["media_asset_id"],
+        "storage_path": presign_body["storage_path"],
+        "checksum": checksum,
+        "finalize_body": finalize_body,
+    }
+
+
 print("========================================")
 print("🚀 SPRINT 1 VALIDATION TESTS")
 print("========================================\n")
@@ -144,6 +204,17 @@ worker_1_token = authenticate("worker@test.com")
 worker_2_token = authenticate("worker2@test.com")
 supervisor_token = authenticate("supervisor@test.com")
 print("✅ SUCCESS: Authentication passed for worker1, worker2, and supervisor\n")
+
+admin_sql(
+    """
+    delete from api_request_logs
+    where user_id in (
+      '22222222-2222-2222-2222-222222222222',
+      '55555555-5555-5555-5555-555555555555',
+      '66666666-6666-6666-6666-666666666666'
+    );
+    """
+)
 
 # 0. Verify realtime publication is configured for partitioned timeline event sources
 print("🔹 Verifying: Supabase Realtime publication wiring")
@@ -317,8 +388,126 @@ geofence_body = sync_geofence.json()
 expect(geofence_body["rejected"][0]["reason"] == "invalid_geofence", "invalid geofence should be rejected", geofence_body)
 print("✅ SUCCESS: geofence validation rejected invalid GPS\n")
 
-# 2b. Expenses flow
+# 2b. Worker hours summary
+print("🔹 Testing: GET /worker_hours summary")
+worker_hours_before = requests.get(
+    f"{SUPABASE_URL}/functions/v1/worker_hours",
+    headers=mobile_headers(worker_2_token),
+    timeout=15,
+)
+expect(worker_hours_before.status_code == 200, "initial /worker_hours failed", worker_hours_before.text)
+baseline_summary = worker_hours_before.json()["summary"]
+
+worker_hours_now = datetime.datetime.now(datetime.timezone.utc).replace(second=0, microsecond=0)
+worker_hours_events = {
+    "batch_id": str(uuid.uuid4()),
+    "clock_events": [
+        {
+            "id": str(uuid.uuid4()),
+            "job_id": WORKER_2_JOB_ID,
+            "event_subtype": "clock_in",
+            "occurred_at": (worker_hours_now - datetime.timedelta(minutes=45)).isoformat(),
+            "gps": {
+                "lat": 40.7128,
+                "lng": -74.0060,
+                "accuracy_m": 5.0,
+            },
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "job_id": WORKER_2_JOB_ID,
+            "event_subtype": "break_start",
+            "occurred_at": (worker_hours_now - datetime.timedelta(minutes=25)).isoformat(),
+            "gps": {
+                "lat": 40.7128,
+                "lng": -74.0060,
+                "accuracy_m": 5.0,
+            },
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "job_id": WORKER_2_JOB_ID,
+            "event_subtype": "break_end",
+            "occurred_at": (worker_hours_now - datetime.timedelta(minutes=15)).isoformat(),
+            "gps": {
+                "lat": 40.7128,
+                "lng": -74.0060,
+                "accuracy_m": 5.0,
+            },
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "job_id": WORKER_2_JOB_ID,
+            "event_subtype": "clock_out",
+            "occurred_at": (worker_hours_now - datetime.timedelta(minutes=5)).isoformat(),
+            "gps": {
+                "lat": 40.7128,
+                "lng": -74.0060,
+                "accuracy_m": 5.0,
+            },
+        },
+    ],
+}
+worker_hours_seed = requests.post(
+    f"{SUPABASE_URL}/functions/v1/sync_events",
+    headers=mobile_headers(worker_2_token, str(uuid.uuid4())),
+    json=worker_hours_events,
+    timeout=15,
+)
+expect(worker_hours_seed.status_code == 200, "worker hour seed sync failed", worker_hours_seed.text)
+worker_hours_seed_body = worker_hours_seed.json()
+expect(len(worker_hours_seed_body["accepted"]) == 4, "worker hour events should all be accepted", worker_hours_seed_body)
+
+worker_hours_response = requests.get(
+    f"{SUPABASE_URL}/functions/v1/worker_hours",
+    headers=mobile_headers(worker_2_token),
+    timeout=15,
+)
+expect(worker_hours_response.status_code == 200, "/worker_hours failed", worker_hours_response.text)
+require_rate_limit_headers(worker_hours_response, 30)
+worker_hours_body = worker_hours_response.json()
+expect(worker_hours_body["status"] == "success", "worker hours missing success status", worker_hours_body)
+
+summary = worker_hours_body["summary"]
+expect(
+    abs((summary["hours_today"] - baseline_summary["hours_today"]) - 0.5) <= 0.02,
+    "hours_today should increase by 30 worked minutes",
+    {"before": baseline_summary, "after": summary},
+)
+expect(
+    abs((summary["hours_this_week"] - baseline_summary["hours_this_week"]) - 0.5) <= 0.02,
+    "hours_this_week should increase by 30 worked minutes",
+    {"before": baseline_summary, "after": summary},
+)
+expect(
+    abs((summary["hours_this_month"] - baseline_summary["hours_this_month"]) - 0.5) <= 0.02,
+    "hours_this_month should increase by 30 worked minutes",
+    {"before": baseline_summary, "after": summary},
+)
+print("✅ SUCCESS: worker hours summary returns live totals with break handling\n")
+
+# 2c. Expenses flow
 print("🔹 Testing: POST /expenses submit + GET /expenses review")
+expense_without_receipt = requests.post(
+    f"{SUPABASE_URL}/functions/v1/expenses",
+    headers=mobile_headers(worker_1_token, str(uuid.uuid4())),
+    json={
+        "action": "submit",
+        "job_id": WORKER_1_JOB_ID,
+        "category": "materials",
+        "amount": 12.25,
+    },
+    timeout=15,
+)
+expect(expense_without_receipt.status_code == 400, "expense without receipt should fail", expense_without_receipt.text)
+
+receipt_media = create_uploaded_media_asset(
+    worker_1_token,
+    WORKER_1_JOB_ID,
+    captured_at=occurred_at,
+    gps={"lat": 37.7749, "lng": -122.4194, "accuracy_m": 4.0},
+)
+
 expense_idempotency_key = str(uuid.uuid4())
 expense_payload = {
     "action": "submit",
@@ -327,6 +516,7 @@ expense_payload = {
     "amount": 42.75,
     "vendor": "FieldOps Supply",
     "notes": "Fasteners and anchors",
+    "media_asset_id": receipt_media["media_asset_id"],
 }
 expense_submit = requests.post(
     f"{SUPABASE_URL}/functions/v1/expenses",
@@ -379,6 +569,21 @@ expense_decide_body = expense_decide.json()
 expect(expense_decide_body["status"] == "success", "expense decide missing success status", expense_decide_body)
 expect(expense_decide_body["decision"] == "approved", "expense decision should be approved", expense_decide_body)
 
+expense_reimburse = requests.post(
+    f"{SUPABASE_URL}/functions/v1/expenses",
+    headers=mobile_headers(supervisor_token, str(uuid.uuid4())),
+    json={
+        "action": "reimburse",
+        "expense_id": expense_body["expense_id"],
+        "reference": "ACH-0426",
+        "notes": "Paid in payroll batch",
+    },
+    timeout=15,
+)
+expect(expense_reimburse.status_code == 200, "/expenses reimburse failed", expense_reimburse.text)
+expense_reimburse_body = expense_reimburse.json()
+expect(expense_reimburse_body["status"] == "success", "expense reimburse missing success status", expense_reimburse_body)
+
 approved_expense_list = requests.get(
     f"{SUPABASE_URL}/functions/v1/expenses?job_id={WORKER_1_JOB_ID}&status=approved",
     headers=mobile_headers(supervisor_token),
@@ -391,6 +596,10 @@ expect(
     "approved expense should be visible after supervisor decision",
     approved_expense_list_body,
 )
+approved_expense = next(expense for expense in approved_expense_list_body["expenses"] if expense["id"] == expense_body["expense_id"])
+expect(approved_expense["media_asset_id"] == receipt_media["media_asset_id"], "expense should retain receipt media asset", approved_expense)
+expect(approved_expense["reimbursed_at"], "approved expense should be marked reimbursed", approved_expense)
+expect(approved_expense["reimbursement_reference"] == "ACH-0426", "reimbursement reference missing", approved_expense)
 print("✅ SUCCESS: expenses submit and review list behave correctly\n")
 
 # 3. Media flow with authorization, idempotency, upload, finalize, and timeline event

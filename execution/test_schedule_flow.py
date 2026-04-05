@@ -12,6 +12,7 @@ SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 SUPERVISOR_ID = "66666666-6666-6666-6666-666666666666"
 WORKER_1_ID = "22222222-2222-2222-2222-222222222222"
+WORKER_2_ID = "77777777-7777-7777-7777-777777777777"
 WORKER_1_JOB_ID = "33333333-3333-3333-3333-333333333333"
 
 
@@ -64,6 +65,8 @@ print("🗓️  SCHEDULE FLOW TESTS")
 print("========================================\n")
 
 supervisor_token = authenticate("supervisor@test.com")
+worker_1_token = authenticate("worker@test.com")
+worker_2_token = authenticate("worker2@test.com")
 print("✅ SUCCESS: supervisor authenticated\n")
 
 create_payload = {
@@ -101,6 +104,39 @@ expect(
 )
 print("✅ SUCCESS: draft shift visible in weekly schedule")
 
+update_response = requests.post(
+    f"{SUPABASE_URL}/functions/v1/schedule",
+    headers=headers(supervisor_token, str(uuid.uuid4())),
+    json={
+        "action": "update",
+        "shift_id": shift_id,
+        "shift_date": (shift_date + datetime.timedelta(days=1)).isoformat(),
+        "start_time": "08:00",
+        "end_time": "16:00",
+        "notes": "Updated by test flow",
+    },
+    timeout=15,
+)
+expect(update_response.status_code == 200, "schedule update failed", update_response.text)
+update_body = update_response.json()
+expect(update_body.get("shift", {}).get("start_time") == "08:00", "updated shift start time missing", update_body)
+expect(update_body.get("shift", {}).get("date") == (shift_date + datetime.timedelta(days=1)).isoformat(), "updated shift date missing", update_body)
+print("✅ SUCCESS: draft shift edited")
+
+worker_draft_list_response = requests.get(
+    f"{SUPABASE_URL}/functions/v1/schedule?week_start={week_start.isoformat()}",
+    headers=headers(worker_1_token),
+    timeout=15,
+)
+expect(worker_draft_list_response.status_code == 200, "worker draft schedule list failed", worker_draft_list_response.text)
+worker_draft_list = worker_draft_list_response.json()
+expect(
+    not any(shift["id"] == shift_id for shift in worker_draft_list.get("shifts", [])),
+    "worker should not see unpublished draft shift",
+    worker_draft_list,
+)
+print("✅ SUCCESS: draft shift hidden from worker view")
+
 publish_response = requests.post(
     f"{SUPABASE_URL}/functions/v1/schedule",
     headers=headers(supervisor_token, str(uuid.uuid4())),
@@ -133,6 +169,40 @@ expect(
     published_list,
 )
 print("✅ SUCCESS: published shift visible in weekly schedule\n")
+
+worker_schedule_response = requests.get(
+    f"{SUPABASE_URL}/functions/v1/schedule?week_start={week_start.isoformat()}",
+    headers=headers(worker_1_token),
+    timeout=15,
+)
+expect(worker_schedule_response.status_code == 200, "worker published schedule list failed", worker_schedule_response.text)
+worker_schedule = worker_schedule_response.json()
+expect(
+    any(
+        shift["id"] == shift_id
+        and shift["status"] == "published"
+        and shift["worker_id"] == WORKER_1_ID
+        and shift.get("published_at")
+        for shift in worker_schedule.get("shifts", [])
+    ),
+    "worker should see own published shift",
+    worker_schedule,
+)
+print("✅ SUCCESS: worker can see own published schedule")
+
+other_worker_schedule_response = requests.get(
+    f"{SUPABASE_URL}/functions/v1/schedule?week_start={week_start.isoformat()}",
+    headers=headers(worker_2_token),
+    timeout=15,
+)
+expect(other_worker_schedule_response.status_code == 200, "other worker published schedule list failed", other_worker_schedule_response.text)
+other_worker_schedule = other_worker_schedule_response.json()
+expect(
+    not any(shift["id"] == shift_id for shift in other_worker_schedule.get("shifts", [])),
+    "other worker should not see another worker's published shift",
+    other_worker_schedule,
+)
+print("✅ SUCCESS: worker view is assignment-scoped\n")
 
 print("========================================")
 print("🏁 SCHEDULE TESTS COMPLETE")

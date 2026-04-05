@@ -47,5 +47,12 @@
   "submitOTRequest": "Submit OT Request",
   "overtimeAlert": "You are entering overtime",
   "hoursWorked": "Hours worked so far",
-  "reasonForOvertime": "Reason for overtime"
+  "reasonForOvertime": "Reason for overtime",
+  "mySchedule": "My schedule",
+  "upcomingShifts": "Upcoming shifts",
+  "scheduleHelp": "Published shifts for the next two weeks. Pull to refresh if a supervisor updates your schedule.",
+  "updated": "Updated",
+  "noScheduledShiftsYet": "No scheduled shifts yet",
+  "scheduleWillAppear": "Published shifts will appear here when your supervisor sends the schedule.",
+  "scheduleUnavailable": "Schedule unavailable"
 }
