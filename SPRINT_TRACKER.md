@@ -419,75 +419,76 @@ Full research: `.claude/plans/rosy-puzzling-clover-agent-a5ebd4159a6e7ee7e.md`
 
 #### Phase 1: Database + Storage Foundation
 
-- [-] Admin system migration (20260406000000_admin_system.sql)
+- [x] Admin system migration (20260406000000_admin_system.sql)
   - Type: Database | Priority: HIGH
   - Definition of Done: companies table extended (industry, address, phone, email, stripe_customer_id, payment_status, logo_data_uri, settings_version). platform_admins table created. platform_admin_invites table created. admin_audit_log table (SOC2/GDPR: ip_address, user_agent). company_summary view. is_platform_admin() function. company-logos storage bucket with RLS. Default company settings populated.
+  - Evidence: `infra/supabase/migrations/20260406000000_admin_system.sql` — committed `5b02058`
 
 #### Phase 2: Edge Functions
 
-- [ ] Company logo edge function (/company_logo)
+- [x] Company logo edge function (/company_logo)
   - Type: Backend | Priority: HIGH
   - Definition of Done: POST generates presigned URL, uploads to company-logos bucket, resizes to 120x120 PNG, stores logo_data_uri for stamp. DELETE clears logo. Rate limited (5/5min per company). Admin-only.
 
-- [ ] Settings helper (_shared/settings.ts)
+- [x] Settings helper (_shared/settings.ts)
   - Type: Backend | Priority: CRITICAL
   - Definition of Done: DEFAULT_COMPANY_SETTINGS constant. deepMerge() (not shallow spread). getCompanySettings() returns typed, guaranteed-complete object. validateCompanySettings() rejects malformed JSONB server-side (400). All edge functions use this instead of raw JSONB.
 
-- [ ] Audit trail helper (logAdminAction in _shared/api.ts)
+- [x] Audit trail helper (logAdminAction in _shared/api.ts)
   - Type: Backend | Priority: HIGH
   - Definition of Done: Extracts IP (cf-connecting-ip → x-real-ip → x-forwarded-for fallback) + user-agent. Writes to admin_audit_log. Called by invites, settings save, staff role changes, suspension.
 
-- [ ] Company status check (checkCompanyActive in _shared/api.ts)
+- [x] Company status check (checkCompanyActive in _shared/api.ts)
   - Type: Backend | Priority: CRITICAL
   - Definition of Done: Returns 403 if companies.status = 'suspended' or deleted_at IS NOT NULL. Called at top of every authenticated edge function.
 
-- [ ] Modify invites (admin can invite supervisors)
+- [x] Modify invites (admin can invite supervisors)
   - Type: Backend | Priority: HIGH
   - Definition of Done: Line 72 allows supervisor role when caller is admin. Logs to audit trail.
 
-- [ ] Modify media_stamp (company logo on stamp)
+- [x] Modify media_stamp (company logo on stamp)
   - Type: Backend | Priority: HIGH
   - Definition of Done: Reads logo_data_uri directly (no download/conversion). If settings.stamp_branding=logo AND logo_data_uri exists → embed SVG image. Else → company name text only.
 
-- [ ] Role change session sync
+- [x] Role change session sync
   - Type: Backend | Priority: HIGH
   - Definition of Done: After role change, call supabase.auth.admin.updateUserById() with app_metadata.role. Return requires_session_refresh to client. Log before/after in audit trail.
 
-- [ ] Platform admin invite claim (/platform_admin/claim)
+- [x] Platform admin invite claim (/platform_admin/claim)
   - Type: Backend | Priority: HIGH
   - Definition of Done: Validates invite_token + expiry. Handles existing email (409). Creates auth user + platform_admins row. Marks invite claimed.
 
-- [ ] Platform admin API (/platform_admin)
+- [x] Platform admin API (/platform_admin)
   - Type: Backend | Priority: HIGH
   - Definition of Done: GET /companies (from company_summary). POST /companies (create + initial admin, idempotent). PATCH /companies/:id (activate/deactivate via GoTrue ban/unban). GET /companies/:id/users. POST /invites (generate token). GET /audit?limit=50&before=timestamp (cursor paginated).
 
-- [ ] Server-side settings validation
+- [x] Server-side settings validation
   - Type: Backend | Priority: HIGH
   - Definition of Done: validateCompanySettings() rejects malformed JSONB. Edge functions that write settings return 400 INVALID_SETTINGS. Client-side Zod is convenience; server-side is enforcement.
 
 #### Phase 3: Web Dashboard Enhancements
 
-- [ ] use-role.ts hook (reusable)
+- [x] use-role.ts hook (reusable)
   - Type: Web | Priority: HIGH
   - Definition of Done: useCurrentUser() returns userId, email, role, companyId, companyLogoUrl, loading. Replaces duplicate useEffect role-check blocks in sidebar, staff page, settings.
 
-- [ ] Settings page — complete rewrite
+- [x] Settings page — complete rewrite
   - Type: Web | Priority: HIGH
   - Definition of Done: Admin-only role gate. 4 tabbed sections: General (name, industry, address), Branding (logo upload + stamp toggle), Time & Attendance (pay period, OT, rounding, GPS, breaks), Notifications (toggles). Toast feedback on save. Saving... disabled state. Settings written to companies.settings JSONB + explicit columns. settings_version incremented.
 
-- [ ] Logo upload component (logo-upload.tsx)
+- [x] Logo upload component (logo-upload.tsx)
   - Type: Web | Priority: HIGH
   - Definition of Done: Drag-and-drop or file picker. Client-side validation (2MB, image/png|jpeg|webp). Calls company_logo edge function. Shows current logo or placeholder. Used in settings branding tab.
 
-- [ ] Sidebar logo display
+- [x] Sidebar logo display
   - Type: Web | Priority: HIGH
   - Definition of Done: Company logo (32x32) renders bottom-left next to user email. Fetched via useCurrentUser() hook. Fallback to no image if no logo_url.
 
-- [ ] Staff page invite wiring
+- [x] Staff page invite wiring
   - Type: Web | Priority: HIGH
   - Definition of Done: "Add Staff" form calls /invites edge function. Admin callers can invite supervisor role. Existing staff edit calls supabase.from('users').update(). Toast on success/failure.
 
-- [ ] First-run setup checklist
+- [x] First-run setup checklist
   - Type: Web | Priority: MEDIUM
   - Definition of Done: 3-step checklist on /settings: Upload Logo → Configure Pay Period → Add First Staff. Tracked in settings.onboarding_steps. Dismiss when all complete.
 
@@ -497,27 +498,27 @@ Full research: `.claude/plans/rosy-puzzling-clover-agent-a5ebd4159a6e7ee7e.md`
 
 #### Phase 4: Super-Admin App (separate Next.js at apps/fieldops_admin/)
 
-- [ ] Scaffold admin app
+- [x] Scaffold admin app
   - Type: Infra | Priority: HIGH
   - Definition of Done: Next.js 15 App Router + Tailwind + Supabase. Separate package.json, env vars, CI workflow. Auth against platform_admins table.
 
-- [ ] Platform admin login + auth guard
+- [x] Platform admin login + auth guard
   - Type: Web | Priority: HIGH
   - Definition of Done: Email/password login. Server-side check against platform_admins. Non-platform-admin → deny + sign out.
 
-- [ ] Company list page (/companies)
+- [x] Company list page (/companies)
   - Type: Web | Priority: HIGH
   - Definition of Done: Shows all companies from company_summary view. Columns: name, status, payment_status, user count, created date. Filter by status. Action buttons.
 
-- [ ] Company detail page (/companies/[id])
+- [x] Company detail page (/companies/[id])
   - Type: Web | Priority: HIGH
   - Definition of Done: Full company data. User list. Activate/deactivate toggle (bans/unbans all users via GoTrue). Audit log viewer for that company.
 
-- [ ] Create company page (/companies/new)
+- [x] Create company page (/companies/new)
   - Type: Web | Priority: HIGH
   - Definition of Done: Form: company name, slug, industry, timezone, initial admin email. Creates company + admin user via auth.admin.createUser(). Idempotent.
 
-- [ ] Platform admin management (/admins)
+- [x] Platform admin management (/admins)
   - Type: Web | Priority: MEDIUM
   - Definition of Done: List platform admins. Generate invite links. Deactivate admins.
 
@@ -608,34 +609,118 @@ They don't affect production safety but improve robustness and maintainability.
 - [ ] Crew clock-in (foreman clocks for crew)
 - [ ] Shift wrap-up form (clock-out questions)
 - [ ] GPS breadcrumb trail (shift route replay)
+  - Notes: Lightweight polyline stored in DB. Extends clock/break model. Used for shift route replay and dispute resolution.
 - [ ] Equipment tracking (GPS + machine hours)
+  - Notes: Track idle equipment, machine hours. Top fraud/compliance pain point per dev review.
 - [ ] Safety sign-off questions (pre-shift checklist)
+  - Notes: Industry-specific checklists. Pre-shift safety forms. OSHA compliance.
 - [ ] Budgeting / budget vs actual
 - [ ] Manual time entry override (with audit trail)
 - [ ] Email/SMS worker invites (deep link activation)
 - [ ] Photo annotation & markup (draw on photos)
 
-## Sprint 8 — Billing + Integrations + Templates
+### Scalability Foundations (from dev review — 2026-04-05)
+
+- [ ] RLS performance hardening
+  - Type: Database | Priority: HIGH
+  - Definition of Done: Indexes on every company_id/job_id column used in RLS policies. Test with 10k+ rows per company. Never use RLS for business filtering — query first, then RLS protects.
+
+- [ ] Background jobs / queuing
+  - Type: Infra | Priority: HIGH
+  - Definition of Done: Move heavy work (photo stamping v2, report PDF, AI inference) to a queue. Options: Supabase pg_cron + DB triggers, or Inngest. Edge functions stay lightweight.
+
+- [ ] Photo optimization (auto-compress + WebP)
+  - Type: Backend | Priority: MEDIUM
+  - Definition of Done: Auto-compress uploaded photos. Convert to WebP for storage efficiency. Non-negotiable for cost control at scale.
+
+### Maintainability (from dev review — 2026-04-05)
+
+- [ ] Feature flags system
+  - Type: Infra | Priority: MEDIUM
+  - Definition of Done: Simple DB table or LaunchDarkly free tier. Roll out AI/schedule changes safely. Company-level and global toggles.
+
+- [ ] Shared types & codegen (Supabase → Flutter models)
+  - Type: Tooling | Priority: MEDIUM
+  - Definition of Done: Generate Flutter/Dart models from Supabase schema. Backend changes can't silently break mobile.
+
+- [ ] E2E tests (Playwright)
+  - Type: Testing | Priority: HIGH
+  - Definition of Done: Critical worker → supervisor flows. Settings save, invite flow, suspend/reactivate. Run in CI.
+
+## Sprint 8 — Billing + Integrations + SOC 2
+
+### Billing
 
 - [ ] Stripe billing (Starter/Pro/Business plans)
+  - Notes: companies.stripe_customer_id column ready. Use WorkOS Entitlements pattern.
+- [ ] Feature entitlements tied to billing
+  - Type: Backend | Priority: HIGH
+  - Definition of Done: Features unlock on upgrade without code deploy. companies.settings.features JSONB key.
+
+### Integrations
+
 - [ ] QuickBooks direct API sync
+- [ ] ADP / Gusto payroll export
+  - Type: Backend | Priority: HIGH — dev review: "the real wins for mid-market"
+- [ ] Procore sync
+  - Type: Backend | Priority: MEDIUM — construction companies already use Procore
 - [ ] Webhooks / Zapier
 - [ ] Kiosk mode
+
+### Compliance & Trust
+
+- [ ] SOC 2 Type II certification
+  - Type: Process | Priority: HIGH — dev review: "audit trail + admin system is 80% there. Get SOC 2 early — opens mid-market doors."
+  - Definition of Done: Audit trail in place (done). Admin action logging (done). Formal assessment started. Certification achieved.
 - [ ] Smart industry checklists (template library)
 - [ ] HSEC / QC export (OSHA-compatible)
-- [ ] Admin granular permissions
+- [ ] Admin granular permissions / custom role builder
+
+### Customer Success (from dev review)
+
+- [ ] Onboarding: picture-based tasks + 5-min foreman setup wizard
+  - Type: Mobile | Priority: HIGH
+  - Definition of Done: Visual onboarding flow with screenshots. Foreman productive in 5 minutes. 2-min Loom videos per role.
+
+- [ ] Usage analytics & feedback loop
+  - Type: Infra | Priority: MEDIUM
+  - Definition of Done: PostHog/Mixpanel: settings_saved, logo_uploaded, staff_invited, suspension_triggered. In-app "Was this useful?" on key flows. Weekly crew adoption metrics.
 
 ## Sprint 9 — AI + Production Hardening
 
-- [ ] AI daily report writing (structured data → summary)
-- [ ] Voice-to-log (dictation → timeline)
+### Practical AI (dev review: "prioritize facial rec + AI anomaly detection first")
+
 - [ ] AI anomaly detection (GPS drift, buddy punching, patterns)
+  - Type: Backend | Priority: CRITICAL — dev review: "#1 X/Reddit complaint about existing tools"
+  - Definition of Done: Detect GPS spoofing, unusual clock patterns, buddy punching. Alert supervisors. Measurable: "reduced payroll disputes by X%".
+  - Notes: Build on event store. pgvector embeddings or cheap LLM (Groq/Claude). Never ship hype — tie every AI feature to a measurable outcome.
+
 - [ ] Facial recognition (anti buddy punch, integrity monitoring)
+  - Type: Mobile | Priority: HIGH — dev review: "SmartBarrel/Workyard lead here"
+  - Definition of Done: Leverage camera flow + media_stamp pipeline. Flutter ML Kit on-device + server verification. Store only hashes for privacy.
+
+- [ ] AI daily report writing (structured data → summary)
+  - Type: Backend | Priority: HIGH
+  - Definition of Done: One-tap foreman daily summary from structured event data → LLM → report.
+
+- [ ] Voice-to-log (dictation → timeline)
+  - Type: Mobile | Priority: MEDIUM
+  - Definition of Done: Foreman dictates → transcription → timeline event.
+
+### Production Hardening
+
+- [ ] Observability & cost monitoring
+  - Type: Infra | Priority: HIGH
+  - Definition of Done: Structured logs (done). Storage cost alerts. Function invocation monitoring. Sentry DSN activated on all 3 apps.
+  - Notes: Sentry already integrated in Flutter + Next.js — just needs DSN env var.
+
+- [ ] Read replicas for reports/dashboard
+  - Type: Database | Priority: MEDIUM
+  - Definition of Done: Reports and dashboard queries hit Supabase read replica.
+
 - [ ] White-label / custom branding
 - [ ] Subcontractor management
-- [ ] Monitoring + observability
 - [ ] Performance optimization
-- [ ] Security hardening + audit logs
 
 ## Sprint 10 — Scale & Growth
 
@@ -645,21 +730,42 @@ They don't affect production safety but improve robustness and maintainability.
 - [ ] Certification tracking
 - [ ] Fuel tracking
 - [ ] Client portal (shareable job links)
+  - Type: Web | Priority: HIGH — dev review: "Clients want live proof without begging for photos"
+  - Definition of Done: Public read-only Next.js page. Job timeline + stamped photos + verification codes. Magic link access. No new auth complexity.
 
 ---
 
+## Dev Assessment (2026-04-05)
+
+> "You're already in the top 10-15% of indie/small-team builds in this space. You're 70-80% there to top-tier. The gaps above are deliberate, high-leverage, and fit your 'easy to maintain' philosophy — no rewrite required."
+
+**Key differentiators already built:**
+- Photo pipeline (verification codes + pixel-burned stamps)
+- Offline-first Flutter + Drift queue
+- Task photo enforcement
+- Expense capture with receipts
+- Multi-language support (EN/ES/FR/AR)
+- Foreman-specific flows
+
+**Path to top-tier:**
+- Sprint 6: Finish compliance (signatures + state OT) → legally defensible
+- Sprint 7: Equipment + safety + GPS breadcrumbs → "smartest crew tool"
+- Sprint 8-9: Billing + integrations + AI → enterprise-viable
+- **Pilot with 3-5 real crews NOW** → biggest missing piece
+
 ## What's Next
 
-**Sprint 6 is nearly complete.** Remaining Sprint 6 work:
-- `[-]` RLS validation: needs actual 2-company data isolation test (highest priority)
+**Sprint 6 is nearly complete.** Remaining work:
 - `[-]` Job costing: worker-side cost code selection at clock-in + report/export integration
-- `[ ]` Time off / PTO requests: scaffold exists (domain model), needs backend + UI
 - `[ ]` Time card signatures: not started
 - `[ ]` State-specific OT rules (CA daily OT): not started
 
-**Code review hardening (2 rounds on 2026-04-05)** fixed 47 issues across P0/P1/P2 in 2 commits:
-- `a65adeb` — Round 1: CORS, RLS migration, test creds, bang operators (24 files), sync idempotency, error handling
-- `7feab4e` — Round 2: Staff page role gate, foreman regression, CI pipeline, DRY refactor, reports rate limiting, stale closures, i18n fixes
-- P3 items deferred to Sprint 7 code quality section above
+**Completed this session (2026-04-05):**
+- ✅ Logging system (all 12 edge functions)
+- ✅ RLS 2-company isolation test
+- ✅ PTO request system (full stack)
+- ✅ Admin system (4 phases: DB → edge functions → web dashboard → super-admin app)
+- ✅ Code review rounds 1+2 (47 P0/P1/P2 issues fixed)
+- ✅ CI pipeline fixed (Gitleaks + lint, Docker tests deferred)
 
-**After Sprint 6 closes:** Sprint 7 combines field intelligence features with deferred code quality hardening.
+**After Sprint 6:** Sprint 7 = field intelligence + code quality + scalability foundations.
