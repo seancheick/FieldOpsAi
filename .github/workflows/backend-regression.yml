@@ -30,7 +30,7 @@ jobs:
       contents: read
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0  # full history for Gitleaks
 
@@ -46,10 +46,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: "3.13"
           cache: "pip"
@@ -63,5 +63,36 @@ jobs:
         with:
           version: 2.20.3
 
-      - name: Run backend regression suite
-        run: python3 execution/run_backend_regression_suite.py
+      - name: Start Supabase
+        working-directory: infra
+        run: supabase start
+
+      - name: Wait for Supabase health
+        run: |
+          echo "Waiting for Supabase API to be ready..."
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:54321/rest/v1/ -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0" > /dev/null 2>&1; then
+              echo "Supabase is ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Supabase failed to start within 30s"
+          exit 1
+
+      - name: Seed test data
+        run: python3 execution/seed_backend_test_data.py
+
+      - name: Run Sprint 1 tests
+        run: python3 execution/test_sprint_1.py
+
+      - name: Run Schedule tests
+        run: python3 execution/test_schedule_flow.py
+
+      - name: Run RLS validation
+        run: python3 execution/test_rls_validation.py
+
+      - name: Stop Supabase
+        if: always()
+        working-directory: infra
+        run: supabase stop --no-backup
