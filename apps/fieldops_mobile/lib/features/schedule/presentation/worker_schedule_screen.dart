@@ -35,30 +35,43 @@ class WorkerScheduleScreen extends ConsumerWidget {
                   _ScheduleEmptyState(),
                 ],
               );
-            }
-
-            return ListView.separated(
+            return CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(20),
-              itemCount: shifts.length + 1,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(l10n.upcomingShifts, style: textTheme.headlineMedium),
-                      const SizedBox(height: 8),
-                      Text(
-                        l10n.scheduleHelp,
-                        style: textTheme.bodyMedium,
-                      ),
-                    ],
-                  );
-                }
-                final shift = shifts[index - 1];
-                return _ScheduleCard(shift: shift, palette: palette);
-              },
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(l10n.upcomingShifts, style: textTheme.headlineMedium),
+                        const SizedBox(height: 8),
+                        Text(
+                          l10n.scheduleHelp,
+                          style: textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  sliver: SliverReorderableList(
+                    itemCount: shifts.length,
+                    itemBuilder: (context, index) {
+                      final shift = shifts[index];
+                      return Padding(
+                        key: ValueKey(shift.id),
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _ScheduleCard(shift: shift, palette: palette),
+                      );
+                    },
+                    onReorder: (oldIndex, newIndex) {
+                      ref.read(workerScheduleControllerProvider.notifier).reorderShifts(oldIndex, newIndex);
+                    },
+                  ),
+                ),
+              ],
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),

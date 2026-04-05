@@ -107,7 +107,7 @@ ON note_events
 FOR INSERT
 WITH CHECK (
   company_id = public.current_company_id()
-  AND user_id = auth.uid()
+  AND author_id = auth.uid()
 );
 
 -- ========================================================

@@ -25,3 +25,4 @@ execution/__pycache__/
 # Docs / binaries not suited for git
 FieldOps_AI_Complete_Plan_2026_v5.docx
 OldAgentoberemoved.md
+.gstack/

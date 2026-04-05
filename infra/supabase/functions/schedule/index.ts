@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
 import {
   applyRateLimit,
   CORS_HEADERS,
+  corsHeaders,
   errorResponse,
   jsonResponse,
   logRequestError,
@@ -52,7 +53,7 @@ function dateRange(dateFrom: string | null, dateTo: string | null) {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS_HEADERS })
+    return new Response("ok", { headers: corsHeaders(req) })
   }
 
   const requestId = makeRequestId(req)
@@ -124,7 +125,15 @@ serve(async (req) => {
         .order("shift_date", { ascending: true })
         .order("start_time", { ascending: true })
 
-      if (error) throw error
+      const { data: ptoData, error: ptoError } = await supabaseAdmin
+        .from("pto_requests")
+        .select("id, user_id, pto_type, start_date, end_date, status")
+        .eq("company_id", userRecord.company_id)
+        .in("status", ["approved", "pending"])
+        .lte("start_date", range.end)
+        .gte("end_date", range.start)
+
+      if (ptoError) throw ptoError
 
       const shifts = (data || []).map((shift: Record<string, unknown>) => ({
         id: shift.id,
@@ -151,6 +160,7 @@ serve(async (req) => {
         week_start: range.start,
         week_end: range.end,
         shifts,
+        pto_requests: ptoData || [],
         request_id: requestId,
       }, 200, requestId)
     }
@@ -436,6 +446,66 @@ serve(async (req) => {
         published_count: (published || []).length,
       })
       return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
+    }
+
+    if (action === "copy_week") {
+      const { source_start, source_end, target_start } = payload
+      if (!source_start || !source_end || !target_start) {
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "source_start, source_end, target_start are required")
+      }
+
+      const srcStartMs = new Date(`${source_start}T12:00:00Z`).getTime()
+      const tgtStartMs = new Date(`${target_start}T12:00:00Z`).getTime()
+      const diffDays = Math.round((tgtStartMs - srcStartMs) / 86400000)
+
+      const { data: sourceShifts, error: fetchError } = await supabaseAdmin
+        .from("schedule_shifts")
+        .select("*")
+        .eq("company_id", userRecord.company_id)
+        .gte("shift_date", source_start)
+        .lte("shift_date", source_end)
+
+      if (fetchError) throw fetchError
+
+      if (!sourceShifts || sourceShifts.length === 0) {
+        const responseBody = { status: "success", copied_count: 0, request_id: requestId }
+        await storeIdempotency(supabaseAdmin, user.id, ENDPOINT, idempotencyKey, requestHash, 200, responseBody, requestId)
+        logRequestResult(ENDPOINT, requestId, 200, { user_id: user.id, action: "copy_week", copied_count: 0 })
+        return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
+      }
+
+      const newShifts = sourceShifts.map((shift) => {
+        const d = new Date(`${shift.shift_date}T12:00:00Z`)
+        d.setUTCDate(d.getUTCDate() + diffDays)
+        const newDateStr = d.toISOString().slice(0, 10)
+        return {
+          id: crypto.randomUUID(),
+          company_id: userRecord.company_id,
+          worker_id: shift.worker_id,
+          job_id: shift.job_id,
+          shift_date: newDateStr,
+          start_time: shift.start_time,
+          end_time: shift.end_time,
+          notes: shift.notes,
+          status: "draft",
+          created_by: user.id
+        }
+      })
+
+      const { error: insertError } = await supabaseAdmin
+        .from("schedule_shifts")
+        .insert(newShifts)
+
+      if (insertError) throw insertError
+
+      const responseBody = { status: "success", copied_count: newShifts.length, request_id: requestId }
+      await storeIdempotency(supabaseAdmin, user.id, ENDPOINT, idempotencyKey, requestHash, 201, responseBody, requestId)
+      logRequestResult(ENDPOINT, requestId, 201, {
+        user_id: user.id,
+        action: "copy_week",
+        copied_count: newShifts.length,
+      })
+      return jsonResponse(responseBody, 201, requestId, rateLimit.headers)
     }
 
     return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Unsupported action")

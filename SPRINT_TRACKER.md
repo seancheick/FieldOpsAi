@@ -561,15 +561,15 @@ Full research: `.claude/plans/rosy-puzzling-clover-agent-a5ebd4159a6e7ee7e.md`
   - Type: Backend | Priority: HIGH
   - Definition of Done: POST generates presigned URL, uploads to company-logos bucket, resizes to 120x120 PNG, stores logo_data_uri for stamp. DELETE clears logo. Rate limited (5/5min per company). Admin-only.
 
-- [x] Settings helper (_shared/settings.ts)
+- [x] Settings helper (\_shared/settings.ts)
   - Type: Backend | Priority: CRITICAL
   - Definition of Done: DEFAULT_COMPANY_SETTINGS constant. deepMerge() (not shallow spread). getCompanySettings() returns typed, guaranteed-complete object. validateCompanySettings() rejects malformed JSONB server-side (400). All edge functions use this instead of raw JSONB.
 
-- [x] Audit trail helper (logAdminAction in _shared/api.ts)
+- [x] Audit trail helper (logAdminAction in \_shared/api.ts)
   - Type: Backend | Priority: HIGH
   - Definition of Done: Extracts IP (cf-connecting-ip → x-real-ip → x-forwarded-for fallback) + user-agent. Writes to admin_audit_log. Called by invites, settings save, staff role changes, suspension.
 
-- [x] Company status check (checkCompanyActive in _shared/api.ts)
+- [x] Company status check (checkCompanyActive in \_shared/api.ts)
   - Type: Backend | Priority: CRITICAL
   - Definition of Done: Returns 403 if companies.status = 'suspended' or deleted_at IS NOT NULL. Called at top of every authenticated edge function.
 
@@ -871,6 +871,7 @@ They don't affect production safety but improve robustness and maintainability.
 > "You're already in the top 10-15% of indie/small-team builds in this space. You're 70-80% there to top-tier. The gaps above are deliberate, high-leverage, and fit your 'easy to maintain' philosophy — no rewrite required."
 
 **Key differentiators already built:**
+
 - Photo pipeline (verification codes + pixel-burned stamps)
 - Offline-first Flutter + Drift queue
 - Task photo enforcement
@@ -879,6 +880,7 @@ They don't affect production safety but improve robustness and maintainability.
 - Foreman-specific flows
 
 **Path to top-tier:**
+
 - Sprint 6: Finish compliance (signatures + state OT) → legally defensible
 - Sprint 7: Equipment + safety + GPS breadcrumbs → "smartest crew tool"
 - Sprint 8-9: Billing + integrations + AI → enterprise-viable
@@ -887,11 +889,13 @@ They don't affect production safety but improve robustness and maintainability.
 ## What's Next
 
 **Sprint 6 is nearly complete.** Remaining work:
+
 - `[-]` Job costing: worker-side cost code selection at clock-in + report/export integration
 - `[ ]` Time card signatures: not started
 - `[ ]` State-specific OT rules (CA daily OT): not started
 
 **Completed this session (2026-04-05):**
+
 - ✅ Logging system (all 12 edge functions)
 - ✅ RLS 2-company isolation test
 - ✅ PTO request system (full stack)
