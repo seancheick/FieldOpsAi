@@ -40,6 +40,7 @@ export default function StaffPage() {
   const [editing, setEditing] = useState<EditingStaff | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
 
   // Role gate: only admin users can access staff management
@@ -122,14 +123,95 @@ export default function StaffPage() {
 
   async function saveStaff() {
     if (!editing) return;
+    setInviteError(null);
 
-    setSaved(true);
-    setTimeout(() => {
-      setSaved(false);
-      setEditing(null);
-      setShowAdd(false);
-      loadStaff();
-    }, 1500);
+    if (showAdd) {
+      // New staff: call invites edge function
+      try {
+        const supabase = getSupabase();
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (!token) {
+          setInviteError("Not authenticated.");
+          return;
+        }
+
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/invites`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "create",
+              email: editing.email,
+              full_name: editing.fullName,
+              role: editing.role,
+            }),
+          },
+        );
+
+        if (!response.ok) {
+          const body = await response.text();
+          let message = "Failed to send invite.";
+          try {
+            const parsed = JSON.parse(body);
+            if (parsed.error) message = parsed.error;
+          } catch {
+            // use default message
+          }
+          setInviteError(message);
+          return;
+        }
+
+        setSaved(true);
+        setTimeout(() => {
+          setSaved(false);
+          setEditing(null);
+          setShowAdd(false);
+          loadStaff();
+        }, 1500);
+      } catch {
+        setInviteError("Failed to send invite. Please try again.");
+      }
+    } else {
+      // Edit existing staff: update via supabase
+      try {
+        const supabase = getSupabase();
+        const { error } = await supabase
+          .from("users")
+          .update({
+            full_name: editing.fullName,
+            email: editing.email || null,
+            phone: editing.phone || null,
+            role: editing.role,
+            is_active: editing.isActive,
+            metadata: {
+              driver_license: editing.driverLicense || undefined,
+              address: editing.address || undefined,
+              notes: editing.notes || undefined,
+            },
+          })
+          .eq("id", editing.id);
+
+        if (error) {
+          setInviteError("Failed to update staff member.");
+          return;
+        }
+
+        setSaved(true);
+        setTimeout(() => {
+          setSaved(false);
+          setEditing(null);
+          setShowAdd(false);
+          loadStaff();
+        }, 1500);
+      } catch {
+        setInviteError("Failed to update. Please try again.");
+      }
+    }
   }
 
   const activeCount = staff.filter((member) => member.is_active).length;
@@ -339,9 +421,16 @@ export default function StaffPage() {
                 )}
 
                 <div className="pt-2">
+                  {inviteError && (
+                    <p className="mb-2 text-center text-sm font-medium text-red-500">
+                      {inviteError}
+                    </p>
+                  )}
                   {saved && (
                     <p className="mb-2 text-center text-sm font-medium text-green-600">
-                      {t("staffPage.saved")}
+                      {showAdd
+                        ? `Invite sent to ${editing.email}`
+                        : t("staffPage.saved")}
                     </p>
                   )}
                   <button

@@ -34,6 +34,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
   const { locale, setLocale, t } = useI18n();
 
   useEffect(() => {
@@ -44,10 +45,18 @@ export function Sidebar() {
         if (data.session?.user?.id) {
           const { data: user } = await supabase
             .from("users")
-            .select("role")
+            .select("role, company_id")
             .eq("id", data.session.user.id)
             .maybeSingle();
           setUserRole(user?.role ?? null);
+          if (user?.company_id) {
+            const { data: company } = await supabase
+              .from("companies")
+              .select("logo_url")
+              .eq("id", user.company_id)
+              .maybeSingle();
+            setCompanyLogoUrl(company?.logo_url ?? null);
+          }
         }
       });
       const { data: listener } = supabase.auth.onAuthStateChange(
@@ -126,6 +135,13 @@ export function Sidebar() {
           <option value="en">{t("shell.english")}</option>
           <option value="es">{t("shell.spanish")}</option>
         </select>
+        {companyLogoUrl && (
+          <img
+            src={companyLogoUrl}
+            alt=""
+            className="mb-2 h-8 w-8 rounded-lg object-contain"
+          />
+        )}
         {userEmail && (
           <div className="mb-2 truncate text-[11px] text-slate-400">
             {userEmail}

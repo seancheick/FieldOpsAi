@@ -1,7 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useI18n } from "@/lib/i18n";
+import { useCallback, useEffect, useState } from "react";
+import { getSupabase } from "@/lib/supabase";
+import { useCurrentUser } from "@/lib/use-role";
+import { LogoUpload } from "@/components/logo-upload";
+
+/* ── Constants ─────────────────────────────────────────────── */
+
+const TABS = ["General", "Branding", "Time & Attendance", "Notifications"] as const;
+type Tab = (typeof TABS)[number];
 
 const INDUSTRY_VALUES = [
   "electrical",
@@ -14,159 +21,542 @@ const INDUSTRY_VALUES = [
   "other",
 ] as const;
 
+const INDUSTRY_LABELS: Record<string, string> = {
+  electrical: "Electrical",
+  construction: "General Construction",
+  plumbing: "Plumbing",
+  hvac: "HVAC",
+  telecom: "Telecom / Infrastructure",
+  solar: "Solar / Renewable",
+  landscaping: "Landscaping",
+  other: "Other",
+};
+
 const TIMEZONE_VALUES = [
   "America/New_York",
   "America/Chicago",
   "America/Denver",
   "America/Los_Angeles",
+  "America/Anchorage",
+  "Pacific/Honolulu",
   "Europe/London",
   "Europe/Paris",
   "Africa/Abidjan",
   "Asia/Bangkok",
   "Asia/Shanghai",
+  "Asia/Dubai",
 ] as const;
 
+const TIMEZONE_LABELS: Record<string, string> = {
+  "America/New_York": "Eastern Time (ET)",
+  "America/Chicago": "Central Time (CT)",
+  "America/Denver": "Mountain Time (MT)",
+  "America/Los_Angeles": "Pacific Time (PT)",
+  "America/Anchorage": "Alaska (AKT)",
+  "Pacific/Honolulu": "Hawaii (HST)",
+  "Europe/London": "London (GMT)",
+  "Europe/Paris": "Paris (CET)",
+  "Africa/Abidjan": "West Africa (WAT)",
+  "Asia/Bangkok": "Bangkok (ICT)",
+  "Asia/Shanghai": "Shanghai (CST)",
+  "Asia/Dubai": "Dubai (GST)",
+};
+
+const PAY_PERIOD_OPTIONS = [
+  { value: "weekly", label: "Weekly" },
+  { value: "biweekly", label: "Biweekly" },
+  { value: "semimonthly", label: "Semi-monthly" },
+  { value: "monthly", label: "Monthly" },
+];
+
+const ROUNDING_OPTIONS = [
+  { value: "off", label: "Off" },
+  { value: "5min", label: "5 minutes" },
+  { value: "15min", label: "15 minutes" },
+];
+
+/* ── Settings shape ────────────────────────────────────────── */
+
+interface CompanySettings {
+  pay_period: string;
+  ot_threshold_weekly: number;
+  time_rounding: string;
+  gps_required: boolean;
+  geofence_radius: number;
+  break_alerts: boolean;
+  break_duration: number;
+  photo_on_clockin: boolean;
+  stamp_mode: "logo" | "name";
+  ot_approach_alert: boolean;
+  missed_clockin_alert: boolean;
+  shift_reminder: boolean;
+  onboarding_steps?: {
+    upload_logo: boolean;
+    set_pay_period: boolean;
+    invite_first_staff: boolean;
+  };
+}
+
+const DEFAULT_SETTINGS: CompanySettings = {
+  pay_period: "weekly",
+  ot_threshold_weekly: 40,
+  time_rounding: "off",
+  gps_required: false,
+  geofence_radius: 150,
+  break_alerts: false,
+  break_duration: 30,
+  photo_on_clockin: false,
+  stamp_mode: "logo",
+  ot_approach_alert: true,
+  missed_clockin_alert: true,
+  shift_reminder: true,
+  onboarding_steps: {
+    upload_logo: false,
+    set_pay_period: false,
+    invite_first_staff: false,
+  },
+};
+
+/* ── Page ──────────────────────────────────────────────────── */
+
 export default function CompanySettingsPage() {
-  const { t } = useI18n();
-  const [companyName, setCompanyName] = useState("Test Company");
-  const [logoUrl, setLogoUrl] = useState("");
-  const [timezone, setTimezone] = useState("America/New_York");
+  const currentUser = useCurrentUser();
+
+  const [activeTab, setActiveTab] = useState<Tab>("General");
+
+  // Company fields
+  const [companyName, setCompanyName] = useState("");
   const [industry, setIndustry] = useState("electrical");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [saved, setSaved] = useState(false);
+  const [timezone, setTimezone] = useState("America/New_York");
+  const [defaultLocale, setDefaultLocale] = useState("en");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
-  function handleSave() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  // Settings fields
+  const [settings, setSettings] = useState<CompanySettings>(DEFAULT_SETTINGS);
+  const [settingsVersion, setSettingsVersion] = useState(0);
+
+  // UI state
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  /* ── Load company data ───────────────────────────────────── */
+
+  const loadCompany = useCallback(async (companyId: string) => {
+    try {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("id", companyId)
+        .single();
+
+      if (error || !data) return;
+
+      setCompanyName(data.name ?? "");
+      setIndustry(data.industry ?? "electrical");
+      setAddress(data.address ?? "");
+      setPhone(data.phone ?? "");
+      setEmail(data.email ?? "");
+      setTimezone(data.timezone ?? "America/New_York");
+      setDefaultLocale(data.default_locale ?? "en");
+      setLogoUrl(data.logo_url ?? null);
+      setSettingsVersion(data.settings_version ?? 0);
+
+      // Merge loaded settings with defaults
+      const loaded = data.settings ?? {};
+      setSettings({ ...DEFAULT_SETTINGS, ...loaded });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentUser.companyId && !currentUser.loading) {
+      loadCompany(currentUser.companyId);
+    } else if (!currentUser.loading) {
+      setLoading(false);
+    }
+  }, [currentUser.companyId, currentUser.loading, loadCompany]);
+
+  /* ── Save ────────────────────────────────────────────────── */
+
+  async function handleSave() {
+    if (!currentUser.companyId) return;
+
+    // Basic validation
+    if (!companyName.trim()) {
+      setToast({ type: "error", message: "Company name is required." });
+      return;
+    }
+
+    setSaving(true);
+    setToast(null);
+
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase
+        .from("companies")
+        .update({
+          name: companyName.trim(),
+          industry,
+          address: address.trim(),
+          phone: phone.trim(),
+          email: email.trim(),
+          timezone,
+          default_locale: defaultLocale,
+          settings: { ...settings },
+          settings_version: settingsVersion + 1,
+        })
+        .eq("id", currentUser.companyId);
+
+      if (error) throw error;
+
+      setSettingsVersion((prev) => prev + 1);
+      setToast({ type: "success", message: "Settings saved" });
+    } catch {
+      setToast({ type: "error", message: "Failed to save settings" });
+    } finally {
+      setSaving(false);
+      setTimeout(() => setToast(null), 4000);
+    }
   }
+
+  /* ── Helpers ─────────────────────────────────────────────── */
+
+  function updateSetting<K extends keyof CompanySettings>(key: K, value: CompanySettings[K]) {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  }
+
+  /* ── Access denied ───────────────────────────────────────── */
+
+  if (!currentUser.loading && currentUser.role !== "admin") {
+    return (
+      <div className="mt-20 text-center">
+        <h2 className="text-xl font-bold text-slate-900">Access Denied</h2>
+        <p className="mt-2 text-sm text-slate-500">
+          Only administrators can access company settings.
+        </p>
+        <a
+          href="/"
+          className="mt-4 inline-block text-sm font-medium text-amber-600 hover:text-amber-700"
+        >
+          &larr; Back to dashboard
+        </a>
+      </div>
+    );
+  }
+
+  /* ── Loading ─────────────────────────────────────────────── */
+
+  if (loading || currentUser.loading) {
+    return (
+      <div className="flex items-center gap-2 pt-20 text-sm text-slate-400">
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-stone-200 border-t-slate-900" />
+        Loading...
+      </div>
+    );
+  }
+
+  /* ── Onboarding checklist ────────────────────────────────── */
+
+  const onboarding = settings.onboarding_steps;
+  const hasIncompleteOnboarding =
+    onboarding &&
+    (!onboarding.upload_logo || !onboarding.set_pay_period || !onboarding.invite_first_staff);
+
+  /* ── Render ──────────────────────────────────────────────── */
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-        {t("settingsPage.title")}
-      </h1>
-      <p className="mt-1 text-sm text-slate-400">{t("settingsPage.subtitle")}</p>
+      <h1 className="text-2xl font-bold tracking-tight text-slate-900">Company Settings</h1>
+      <p className="mt-1 text-sm text-slate-400">Manage your company configuration and preferences</p>
 
-      <div className="mt-8 space-y-6">
-        <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-5 text-sm font-bold uppercase tracking-wider text-slate-400">
-            {t("settingsPage.companyInformation")}
-          </h2>
-
-          <div className="space-y-4">
-            <Field
-              label={t("settingsPage.companyName")}
-              value={companyName}
-              onChange={setCompanyName}
-              required
-            />
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">
-                  {t("settingsPage.industry")}
-                </label>
-                <select
-                  value={industry}
-                  onChange={(event) => setIndustry(event.target.value)}
-                  className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
-                >
-                  {INDUSTRY_VALUES.map((value) => (
-                    <option key={value} value={value}>
-                      {t(`commonOptions.industries.${value}`)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">
-                  {t("settingsPage.timezone")}
-                </label>
-                <select
-                  value={timezone}
-                  onChange={(event) => setTimezone(event.target.value)}
-                  className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
-                >
-                  {TIMEZONE_VALUES.map((value) => (
-                    <option key={value} value={value}>
-                      {t(`commonOptions.timezones.${value}`)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <Field
-              label={t("settingsPage.companyAddress")}
-              value={address}
-              onChange={setAddress}
-              placeholder={t("settingsPage.placeholders.address")}
-            />
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                label={t("settingsPage.companyPhone")}
-                value={phone}
-                onChange={setPhone}
-                placeholder={t("settingsPage.placeholders.phone")}
-                type="tel"
-              />
-              <Field
-                label={t("settingsPage.companyEmail")}
-                value={email}
-                onChange={setEmail}
-                placeholder={t("settingsPage.placeholders.email")}
-                type="email"
-              />
-            </div>
+      {/* First-run checklist */}
+      {hasIncompleteOnboarding && (
+        <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <h3 className="text-sm font-bold text-amber-800">Getting Started</h3>
+          <div className="mt-2 flex flex-wrap gap-3">
+            <ChecklistItem done={onboarding?.upload_logo ?? false} label="Upload Logo" />
+            <ChecklistItem done={onboarding?.set_pay_period ?? false} label="Set Pay Period" />
+            <ChecklistItem done={onboarding?.invite_first_staff ?? false} label="Invite First Staff" />
           </div>
         </div>
+      )}
 
-        <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-5 text-sm font-bold uppercase tracking-wider text-slate-400">
-            {t("settingsPage.branding")}
-          </h2>
-
-          <div className="space-y-4">
-            <Field
-              label={t("settingsPage.logoUrl")}
-              value={logoUrl}
-              onChange={setLogoUrl}
-              placeholder={t("settingsPage.placeholders.logoUrl")}
-              hint={t("settingsPage.logoHint")}
-            />
-
-            {logoUrl && (
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl border border-stone-200 bg-stone-50">
-                  <img
-                    src={logoUrl}
-                    alt={t("settingsPage.logoPreviewAlt")}
-                    className="h-full w-full object-contain"
-                    onError={(event) => {
-                      (event.target as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                </div>
-                <span className="text-xs text-slate-400">{t("settingsPage.logoPreview")}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between">
-          {saved && <span className="text-sm font-medium text-green-600">{t("settingsPage.saved")}</span>}
+      {/* Tabs */}
+      <div className="mt-6 flex gap-1 rounded-xl bg-stone-100 p-1">
+        {TABS.map((tab) => (
           <button
-            onClick={handleSave}
-            className="ml-auto rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+              activeTab === tab
+                ? "bg-white text-slate-900 shadow-sm"
+                : "text-slate-400 hover:text-slate-600"
+            }`}
           >
-            {t("settingsPage.saveChanges")}
+            {tab}
           </button>
-        </div>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div className="mt-6">
+        {activeTab === "General" && (
+          <Card title="Company Information">
+            <div className="space-y-4">
+              <Field
+                label="Company Name"
+                value={companyName}
+                onChange={setCompanyName}
+                required
+              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <SelectField
+                  label="Industry"
+                  value={industry}
+                  onChange={setIndustry}
+                  options={INDUSTRY_VALUES.map((v) => ({ value: v, label: INDUSTRY_LABELS[v] ?? v }))}
+                />
+                <SelectField
+                  label="Timezone"
+                  value={timezone}
+                  onChange={setTimezone}
+                  options={TIMEZONE_VALUES.map((v) => ({ value: v, label: TIMEZONE_LABELS[v] ?? v }))}
+                />
+              </div>
+              <Field label="Address" value={address} onChange={setAddress} placeholder="123 Main St, City, State" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Phone" value={phone} onChange={setPhone} placeholder="(555) 123-4567" type="tel" />
+                <Field label="Email" value={email} onChange={setEmail} placeholder="office@company.com" type="email" />
+              </div>
+              <SelectField
+                label="Default Locale"
+                value={defaultLocale}
+                onChange={setDefaultLocale}
+                options={[
+                  { value: "en", label: "English" },
+                  { value: "es", label: "Spanish" },
+                ]}
+              />
+            </div>
+          </Card>
+        )}
+
+        {activeTab === "Branding" && (
+          <Card title="Branding">
+            <div className="space-y-5">
+              <div>
+                <label className="mb-2 block text-xs font-semibold text-slate-600">
+                  Company Logo
+                </label>
+                <LogoUpload
+                  currentLogoUrl={logoUrl}
+                  onLogoChanged={(url) => setLogoUrl(url)}
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-semibold text-slate-600">
+                  Photo stamp includes:
+                </label>
+                <div className="flex gap-3">
+                  <label
+                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-all ${
+                      settings.stamp_mode === "logo"
+                        ? "border-slate-900 bg-slate-50 text-slate-900"
+                        : "border-stone-200 text-slate-500 hover:border-stone-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="stamp_mode"
+                      value="logo"
+                      checked={settings.stamp_mode === "logo"}
+                      onChange={() => updateSetting("stamp_mode", "logo")}
+                      className="sr-only"
+                    />
+                    Company Logo
+                  </label>
+                  <label
+                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-all ${
+                      settings.stamp_mode === "name"
+                        ? "border-slate-900 bg-slate-50 text-slate-900"
+                        : "border-stone-200 text-slate-500 hover:border-stone-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="stamp_mode"
+                      value="name"
+                      checked={settings.stamp_mode === "name"}
+                      onChange={() => updateSetting("stamp_mode", "name")}
+                      className="sr-only"
+                    />
+                    Company Name Only
+                  </label>
+                </div>
+                <p className="mt-2 text-[11px] text-slate-400">
+                  Preview: {settings.stamp_mode === "logo" && logoUrl
+                    ? "Photos will include your logo watermark"
+                    : `Photos will show "${companyName || "Company Name"}"`}
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {activeTab === "Time & Attendance" && (
+          <Card title="Time & Attendance">
+            <div className="space-y-5">
+              <SelectField
+                label="Pay Period"
+                value={settings.pay_period}
+                onChange={(v) => updateSetting("pay_period", v)}
+                options={PAY_PERIOD_OPTIONS}
+              />
+              <NumberField
+                label="OT Threshold (weekly hours)"
+                value={settings.ot_threshold_weekly}
+                onChange={(v) => updateSetting("ot_threshold_weekly", v)}
+                min={0}
+                max={168}
+              />
+              <SelectField
+                label="Time Rounding"
+                value={settings.time_rounding}
+                onChange={(v) => updateSetting("time_rounding", v)}
+                options={ROUNDING_OPTIONS}
+              />
+              <ToggleField
+                label="GPS Required on Clock-in"
+                description="Workers must enable GPS when clocking in"
+                checked={settings.gps_required}
+                onChange={(v) => updateSetting("gps_required", v)}
+              />
+
+              {settings.gps_required && (
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">
+                    Default Geofence Radius: {settings.geofence_radius}m
+                  </label>
+                  <input
+                    type="range"
+                    min={50}
+                    max={500}
+                    step={10}
+                    value={settings.geofence_radius}
+                    onChange={(e) => updateSetting("geofence_radius", Number(e.target.value))}
+                    className="w-full accent-amber-500"
+                  />
+                  <div className="mt-1 flex justify-between text-[10px] text-slate-400">
+                    <span>50m</span>
+                    <span>500m</span>
+                  </div>
+                </div>
+              )}
+
+              <ToggleField
+                label="Break Alerts"
+                description="Remind workers to take mandatory breaks"
+                checked={settings.break_alerts}
+                onChange={(v) => updateSetting("break_alerts", v)}
+              />
+
+              {settings.break_alerts && (
+                <NumberField
+                  label="Break Duration (minutes)"
+                  value={settings.break_duration}
+                  onChange={(v) => updateSetting("break_duration", v)}
+                  min={5}
+                  max={120}
+                />
+              )}
+
+              <ToggleField
+                label="Photo on Clock-in"
+                description="Require a photo when clocking in"
+                checked={settings.photo_on_clockin}
+                onChange={(v) => updateSetting("photo_on_clockin", v)}
+              />
+            </div>
+          </Card>
+        )}
+
+        {activeTab === "Notifications" && (
+          <Card title="Notifications">
+            <div className="space-y-4">
+              <ToggleField
+                label="OT Approach Alert"
+                description="Notify when workers near overtime threshold"
+                checked={settings.ot_approach_alert}
+                onChange={(v) => updateSetting("ot_approach_alert", v)}
+              />
+              <ToggleField
+                label="Missed Clock-in Alert"
+                description="Alert when scheduled workers haven't clocked in"
+                checked={settings.missed_clockin_alert}
+                onChange={(v) => updateSetting("missed_clockin_alert", v)}
+              />
+              <ToggleField
+                label="Shift Reminder"
+                description="Remind workers before their shift starts"
+                checked={settings.shift_reminder}
+                onChange={(v) => updateSetting("shift_reminder", v)}
+              />
+            </div>
+          </Card>
+        )}
+      </div>
+
+      {/* Save button + toast */}
+      <div className="mt-6 flex items-center justify-between pb-8">
+        {toast && (
+          <span
+            className={`text-sm font-medium ${
+              toast.type === "success" ? "text-green-600" : "text-red-500"
+            }`}
+          >
+            {toast.message}
+          </span>
+        )}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="ml-auto rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
+        >
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
       </div>
     </div>
+  );
+}
+
+/* ── Shared sub-components ─────────────────────────────────── */
+
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+      <h2 className="mb-5 text-sm font-bold uppercase tracking-wider text-slate-400">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+function ChecklistItem({ done, label }: { done: boolean; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5 text-sm text-amber-800">
+      {done ? (
+        <span className="text-green-600">&#10003;</span>
+      ) : (
+        <span className="inline-block h-4 w-4 rounded border border-amber-300" />
+      )}
+      {label}
+    </span>
   );
 }
 
@@ -177,7 +567,6 @@ function Field({
   placeholder,
   type = "text",
   required = false,
-  hint,
 }: {
   label: string;
   value: string;
@@ -185,7 +574,6 @@ function Field({
   placeholder?: string;
   type?: string;
   required?: boolean;
-  hint?: string;
 }) {
   return (
     <div>
@@ -196,11 +584,101 @@ function Field({
       <input
         type={type}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm transition-colors focus:border-slate-900 focus:bg-white focus:outline-none"
       />
-      {hint && <p className="mt-1 text-[11px] text-slate-400">{hint}</p>}
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-semibold text-slate-600">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function NumberField({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-semibold text-slate-600">{label}</label>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        min={min}
+        max={max}
+        className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm transition-colors focus:border-slate-900 focus:bg-white focus:outline-none"
+      />
+    </div>
+  );
+}
+
+function ToggleField({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-stone-200 p-3">
+      <div>
+        <span className="text-sm font-medium text-slate-700">{label}</span>
+        <p className="text-[11px] text-slate-400">{description}</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${
+          checked ? "bg-amber-500" : "bg-stone-300"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+            checked ? "translate-x-5" : "translate-x-0.5"
+          }`}
+        />
+      </button>
     </div>
   );
 }
