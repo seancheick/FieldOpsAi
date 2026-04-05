@@ -878,6 +878,20 @@ export default function SchedulePage() {
                 </span>
               )}
               <button
+                onClick={askAiForSuggestions}
+                disabled={aiLoading || Boolean(busyAction)}
+                className="rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50"
+              >
+                {aiLoading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-300 border-t-indigo-700" />
+                    Thinking...
+                  </span>
+                ) : (
+                  "✦ AI Suggestions"
+                )}
+              </button>
+              <button
                 onClick={handleCopyPreviousWeek}
                 disabled={busyAction === "copy"}
                 className="rounded-xl border border-stone-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-stone-50 disabled:opacity-50"
