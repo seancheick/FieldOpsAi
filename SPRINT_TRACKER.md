@@ -354,9 +354,11 @@ Stripe billing deferred to Sprint 8 — run free during pilot to validate all fe
 
 ### Infrastructure
 
-- [ ] RLS validation
+- [-] RLS validation
   - Type: Backend | Priority: High
   - Definition of Done: Every tenant-owned table has RLS. Automated 2-company test. CI gate. Zero data leakage.
+  - Partial: `test_rls_validation.py` exists and runs in CI (added 2026-04-05). Checks RLS enabled + policy count on 14 tables. Missing: actual 2-company data isolation test (Company A cannot read Company B's data).
+  - Evidence: `execution/test_rls_validation.py`, `execution/run_backend_regression_suite.py`
 
 ### Worker Experience
 
@@ -409,7 +411,68 @@ Stripe billing deferred to Sprint 8 — run free during pilot to validate all fe
 
 ---
 
-## Sprint 7 — Field Intelligence
+## Sprint 7 — Field Intelligence + Code Quality Hardening
+
+### Code Quality (from Code Review Round 2 — deferred P3)
+
+These items were identified during the comprehensive code review on 2026-04-05.
+They don't affect production safety but improve robustness and maintainability.
+
+- [ ] Sync engine: distinguish `jsonDecode` (permanent) from network (transient) errors
+  - Type: Mobile | Priority: Medium
+  - File: `apps/fieldops_mobile/lib/core/data/sync_engine.dart:65`
+  - Fix: Wrap `jsonDecode` in separate try/catch for `FormatException` → mark permanently failed immediately
+
+- [ ] Expense screen: replace linear category search with Map lookup
+  - Type: Mobile | Priority: Low
+  - File: `apps/fieldops_mobile/lib/features/expenses/presentation/expense_capture_screen.dart:379`
+  - Fix: `static const Map<String, String> _categoryLabels = {...};`
+
+- [ ] Expense screen: add 300ms debounce to `_updateSuggestedCategory()`
+  - Type: Mobile | Priority: Low
+  - File: `apps/fieldops_mobile/lib/features/expenses/presentation/expense_capture_screen.dart:65`
+  - Fix: Add `Timer? _debounceTimer` with cancel in `dispose()`
+
+- [ ] Reports: replace `.findLast()` with `.slice().reverse().find()` — **DONE in round 2 commit**
+  - Status: Done (fixed in `7feab4e`)
+
+- [ ] OT endpoint: validate `total_hours` as number type
+  - Type: Backend | Priority: Medium
+  - File: `infra/supabase/functions/ot/index.ts:139`
+  - Fix: `if (total_hours && typeof total_hours !== 'number') return errorResponse(...)`
+
+- [ ] Schedule endpoint: add `start_time < end_time` validation
+  - Type: Backend | Priority: Medium
+  - File: `infra/supabase/functions/schedule/index.ts:188`
+  - Fix: `if (start_time >= end_time) return errorResponse(...)` in create + update actions
+
+- [ ] Sync events: use explicit reject marker instead of `crypto.randomUUID()` for malformed events
+  - Type: Backend | Priority: Low
+  - File: `infra/supabase/functions/sync_events/index.ts:121`
+
+- [ ] Test: add subprocess timeout to `admin_sql()` in test_sprint_1.py
+  - Type: Testing | Priority: Low
+  - File: `execution/test_sprint_1.py:93`
+  - Fix: Add `timeout=15` to `subprocess.run()`
+
+- [ ] Test: add post-suite cleanup or reset in regression runner
+  - Type: Testing | Priority: Low
+  - File: `execution/run_backend_regression_suite.py`
+
+- [ ] CI: pin Python version to patch level
+  - Type: CI | Priority: Low
+  - File: `.github/workflows/backend-regression.yml:54`
+  - Fix: `python-version: "3.13"` → `python-version: "3.13.0"`
+
+- [ ] RLS test: add actual 2-company data isolation test (cross-company reads must return 0 rows)
+  - Type: Testing | Priority: HIGH — blocks Sprint 6 RLS validation task
+  - File: `execution/test_rls_validation.py`
+
+- [ ] Dashboard/Photos/Overtime: add pagination or "Load More" for hardcoded query limits
+  - Type: Web | Priority: Medium
+  - Files: `apps/fieldops_web/src/app/page.tsx`, `photos/page.tsx`, `overtime/page.tsx`
+
+### Features
 
 - [ ] Crew clock-in (foreman clocks for crew)
 - [ ] Shift wrap-up form (clock-out questions)
@@ -456,10 +519,16 @@ Stripe billing deferred to Sprint 8 — run free during pilot to validate all fe
 
 ## What's Next
 
-Sprint 6 is the next sprint to execute. It closes every competitive gap identified from ClockShark and busybusy analysis, completes the worker/supervisor experience, and prepares the product for pilot deployment.
+**Sprint 6 is nearly complete.** Remaining Sprint 6 work:
+- `[-]` RLS validation: needs actual 2-company data isolation test (highest priority)
+- `[-]` Job costing: worker-side cost code selection at clock-in + report/export integration
+- `[ ]` Time off / PTO requests: scaffold exists (domain model), needs backend + UI
+- `[ ]` Time card signatures: not started
+- `[ ]` State-specific OT rules (CA daily OT): not started
 
-Sprint 3 depends on:
+**Code review hardening (2 rounds on 2026-04-05)** fixed 47 issues across P0/P1/P2 in 2 commits:
+- `a65adeb` — Round 1: CORS, RLS migration, test creds, bang operators (24 files), sync idempotency, error handling
+- `7feab4e` — Round 2: Staff page role gate, foreman regression, CI pipeline, DRY refactor, reports rate limiting, stale closures, i18n fixes
+- P3 items deferred to Sprint 7 code quality section above
 
-- Sprint 2 camera capture flow (done — in review)
-- Sprint 2 offline queue (done — in review)
-- Existing `tasks` and `task_events` tables in DATA_MODEL.md (schema ready)
+**After Sprint 6 closes:** Sprint 7 combines field intelligence features with deferred code quality hardening.

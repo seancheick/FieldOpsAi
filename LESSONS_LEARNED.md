@@ -1134,6 +1134,78 @@ Reusable rule:
 Reusable rule:
 - For append-only event models, prefer reset-based verification or delta assertions over destructive cleanup.
 
+### 36. A global sed/find-replace is not a substitute for verification — multi-line patterns and nested widgets will be missed
+
+What we learned:
+- We used `find ... -exec sed ...` to replace all `Theme.of(context).extension<FieldOpsPalette>()!` with `context.palette` across 24 widget files. It worked for 23 of them.
+- The 24th file (`foreman_home_screen.dart`) had the pattern split across 3 lines inside a nested `_QuickActionCard` widget builder, so the sed regex didn't match.
+- The regression was only caught in the second code review pass.
+
+What we fixed:
+- Manually fixed the remaining instance. Added `grep` verification step after every global replace.
+
+Why it mattered:
+- A crash in production from one missed bang operator would have been trivially preventable.
+- The fix took 10 seconds; finding it in production would take hours.
+
+Reusable rule:
+- After any global find-replace, ALWAYS grep for the old pattern to confirm zero remaining matches.
+- Never trust a sed command as proof of completion — run `grep -rn "old_pattern"` and verify zero results.
+
+### 37. Every test that exists must run in CI, or it's not a test — it's documentation
+
+What we learned:
+- `test_rls_validation.py` existed and was recently improved (new tables, env vars), but was NEVER included in `run_backend_regression_suite.py`.
+- This meant RLS policy changes could silently break tenant isolation without CI catching it.
+- The test was effectively dead code — it only ran when someone manually remembered to invoke it.
+
+What we fixed:
+- Added `test_rls_validation.py` to both code paths (normal and skip-reset) in the regression suite.
+
+Why it mattered:
+- RLS is the single most important security boundary in the product. A missing CI gate on it is a P0 process failure.
+
+Reusable rule:
+- When you create a new test file, the SAME PR must add it to the CI suite. Test files that aren't in CI don't protect anything.
+- Periodically `ls execution/test_*.py` and compare against the suite runner's step list.
+
+### 38. Authorization != Authentication — the auth guard is not a role gate
+
+What we learned:
+- The Next.js `AuthGuard` component in `layout.tsx` wraps all pages and checks if a session exists (authentication).
+- But it does NOT check the user's role (authorization). Any authenticated worker could navigate directly to `/settings/staff` and promote themselves to admin.
+- The Sidebar showed the "Staff" link to all users without role filtering.
+
+What we fixed:
+- Added a `useEffect` in `StaffPage` that queries the user's role from the `users` table and shows "Access denied" for non-admins.
+- Added `adminOnly: true` flag to nav items and filtered the sidebar based on user role.
+
+Why it mattered:
+- This is a privilege escalation vulnerability. A worker promoting themselves to admin can access all company data, modify all users, generate all reports.
+
+Reusable rule:
+- Authentication (who are you?) and authorization (what can you do?) are separate concerns. Never assume one implies the other.
+- Every admin-only page needs its own server-side role check, not just a hidden nav link. Hiding a link is not security.
+- When adding a new settings/admin page, the PR checklist must include: "Does this page have a role gate?"
+
+### 39. Idempotency must cover the ENTIRE request, not just the header — batch_id and body fields matter
+
+What we learned:
+- We fixed the sync engine's `Idempotency-Key` header to use a stable `local-event-${event.id}` instead of `_uuid.v4()`.
+- But the request body still contained `batch_id: _uuid.v4()` — a fresh random UUID on every retry.
+- This meant the server received the same idempotency header but a DIFFERENT request body, which could confuse server-side dedup logic.
+
+What we fixed:
+- Changed `batch_id` to `batch-${event.id}` so the entire request (header + body) is deterministic across retries.
+- Also removed the now-unused `Uuid` dependency from `SyncEngine`.
+
+Why it mattered:
+- Partial idempotency is worse than no idempotency — it gives false confidence while still allowing duplicates.
+
+Reusable rule:
+- When implementing idempotency, ensure EVERY part of the request (headers, body, query params) is deterministic for retries.
+- After fixing idempotency, grep for any remaining `uuid.v4()` or `randomUUID()` calls in the same function — they're likely also generating per-retry randomness.
+
 ---
 
 ## Cross-Project Rules Worth Reusing
@@ -1147,3 +1219,7 @@ Reusable rule:
 - `.env.example` = structure only. Real values only in gitignored `.env`.
 - ROADMAP.md describes architecture. SPRINT_TRACKER.md describes reality. Always use the tracker for status claims.
 - The first commit is the most important gitignore audit. Verify `git status` before staging anything.
+- After any global find-replace, grep for the old pattern to confirm zero matches. sed is not proof. (Lesson 36)
+- Every test file must be in the CI suite, or it's dead code. When you create `test_*.py`, add it to the runner in the same PR. (Lesson 37)
+- Authentication ≠ authorization. Every admin page needs a server-side role check, not just a hidden nav link. (Lesson 38)
+- Idempotency must cover the full request (header + body + params), not just the key header. Grep for random UUID calls after fixing idempotency. (Lesson 39)
