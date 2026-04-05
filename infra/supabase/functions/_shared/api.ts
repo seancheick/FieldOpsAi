@@ -292,3 +292,83 @@ export function haversineDistanceMeters(
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   return earthRadiusM * c
 }
+
+// ─── Company Status Check ───────────────────────────────────
+
+/**
+ * Checks that a company is active. Returns a 403 error response if
+ * the company is suspended or deleted. Call at the top of every
+ * authenticated edge function handler after resolving the user record.
+ */
+export async function checkCompanyActive(
+  supabaseAdmin: any,
+  companyId: string,
+  requestId: string,
+): Promise<Response | null> {
+  const { data: company } = await supabaseAdmin
+    .from("companies")
+    .select("status, deleted_at")
+    .eq("id", companyId)
+    .single()
+
+  if (!company) {
+    return errorResponse(requestId, 403, "FORBIDDEN", "Company not found")
+  }
+
+  if (company.deleted_at) {
+    return errorResponse(requestId, 403, "FORBIDDEN", "Company has been deactivated")
+  }
+
+  if (company.status === "suspended") {
+    return errorResponse(requestId, 403, "FORBIDDEN", "Company account is suspended. Contact support.")
+  }
+
+  return null // company is active
+}
+
+// ─── Admin Audit Logging ────────────────────────────────────
+
+/**
+ * Logs an admin action to the admin_audit_log table.
+ * Captures IP address and user-agent for SOC2/GDPR compliance.
+ */
+export async function logAdminAction(
+  supabaseAdmin: any,
+  req: Request,
+  params: {
+    company_id?: string
+    actor_id: string
+    action: string
+    target_type?: string
+    target_id?: string
+    before?: Record<string, unknown>
+    after?: Record<string, unknown>
+    settings_version?: number
+  },
+) {
+  const ipAddress =
+    req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-real-ip") ||
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown"
+
+  const userAgent = req.headers.get("user-agent") || "unknown"
+
+  const { error } = await supabaseAdmin.from("admin_audit_log").insert({
+    company_id: params.company_id || null,
+    actor_id: params.actor_id,
+    action: params.action,
+    target_type: params.target_type || null,
+    target_id: params.target_id || null,
+    before_json: params.before || null,
+    after_json: params.after || null,
+    settings_version: params.settings_version || null,
+    ip_address: ipAddress,
+    user_agent: userAgent,
+  })
+
+  if (error) {
+    // Audit log failure is non-fatal — log to console but don't crash the request
+    console.error("[audit] Failed to write audit log:", error.message)
+  }
+}
