@@ -24,6 +24,7 @@ aliases:
 | [[architecture]] | Tech stack, system design, and infrastructure |
 | [[DATA_MODEL]] | Database schema, events, and RLS model |
 | [[OPENAPI]] | API contract documentation |
+| [[FieldOps_AI_Complete_Plan_2026_v5]] | Complete product plan with competitor analysis |
 
 ---
 
@@ -54,11 +55,11 @@ aliases:
 | Sprint 3 | Structured tasks with photo enforcement | ✅ Done |
 | Sprint 4 | Overtime verification | ✅ Done |
 | Sprint 5 | Reporting engine | ✅ Done |
-| Sprint 6 | Competitive parity + pilot readiness | 🔄 In Progress (~50%) |
-| Sprint 7 | Field intelligence | ⬜ Backlog |
-| Sprint 8 | Billing + integrations | ⬜ Backlog |
-| Sprint 9 | AI layer | ⬜ Backlog |
-| Sprint 10 | Scale + platform | ⬜ Backlog |
+| Sprint 6 | Competitive parity + admin system + pilot readiness | 🔄 ~90% (signatures + state OT remaining) |
+| Sprint 7 | Field intelligence + scalability foundations | ⬜ Backlog |
+| Sprint 8 | Billing + integrations + SOC 2 | ⬜ Backlog |
+| Sprint 9 | AI + production hardening | ⬜ Backlog |
+| Sprint 10 | Scale + client portal | ⬜ Backlog |
 
 ---
 
@@ -67,10 +68,12 @@ aliases:
 | Component | Path | Stack |
 |-----------|------|-------|
 | Mobile app | `apps/fieldops_mobile/` | Flutter + Riverpod + Drift |
-| Web dashboard | `apps/fieldops_web/` | Next.js + React + Tailwind |
-| Edge functions | `infra/supabase/functions/` | Deno + TypeScript |
+| Web dashboard | `apps/fieldops_web/` | Next.js 15 + React + Tailwind |
+| Super-admin panel | `apps/fieldops_admin/` | Next.js 15 (port 3001) |
+| Edge functions | `infra/supabase/functions/` | Deno + TypeScript (16 functions) |
+| Shared helpers | `infra/supabase/functions/_shared/` | api.ts + settings.ts |
 | Backend tests | `execution/` | Python |
-| CI/CD | `.github/workflows/` | GitHub Actions |
+| CI/CD | `.github/workflows/` | GitHub Actions (Gitleaks + lint) |
 
 ---
 
@@ -86,7 +89,23 @@ cd apps/fieldops_mobile
 flutter analyze && flutter test
 flutter run -d macos --dart-define=SUPABASE_URL=http://127.0.0.1:54321 --dart-define=SUPABASE_ANON_KEY=<key>
 
-# Web
+# Web dashboard
 cd apps/fieldops_web
-npm run dev
+npm run dev        # port 3000
+
+# Super-admin panel
+cd apps/fieldops_admin
+npm run dev        # port 3001
 ```
+
+---
+
+## Key Session Log (2026-04-05)
+
+- Code review: 47 P0/P1/P2 issues fixed across 2 rounds
+- CI pipeline: fixed (Gitleaks + lint; Docker tests deferred Sprint 7)
+- Completed: logging, RLS isolation test, PTO system, admin system (4 phases)
+- Notion synced: Sprint groups 6-10 added, 35 new tasks, 24 tasks marked Done
+- Competitive research: ClockShark, Busybusy, Connecteam, Jobber, ServiceTitan, Procore
+- Dev review feedback: integrated into Sprints 7-10
+- Lessons 36-39 added to [[LESSONS_LEARNED]]
