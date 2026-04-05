@@ -85,9 +85,19 @@ function DraggableWorker({
           }
         />
       </div>
-      <div className="flex items-center justify-between mt-1 text-xs text-slate-500">
-        <span>{worker.role}</span>
-        <span className="font-medium">{currentHours}h</span>
+      <div className="mt-2 space-y-1">
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <span>{worker.role}</span>
+          <span className={`font-semibold tabular-nums ${currentHours >= 40 ? "text-red-600" : currentHours >= 32 ? "text-amber-600" : "text-slate-600"}`}>
+            {currentHours}h / 40h
+          </span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+          <div
+            className={`h-full rounded-full transition-all ${currentHours >= 40 ? "bg-red-500" : currentHours >= 32 ? "bg-amber-400" : "bg-green-400"}`}
+            style={{ width: `${Math.min((currentHours / 40) * 100, 100)}%` }}
+          />
+        </div>
       </div>
     </div>
   );
@@ -907,6 +917,11 @@ export default function SchedulePage() {
     }
   }
 
+  const copySourceLabel = useMemo(() => {
+    const srcMonday = parseDate(previousAnchor(rangeStart, "week"));
+    return srcMonday.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }, [rangeStart]);
+
   const rangeLabel = useMemo(() => {
     if (viewMode === "day") {
       return parseDate(anchorDate).toLocaleDateString(undefined, {
@@ -995,7 +1010,7 @@ export default function SchedulePage() {
                 disabled={busyAction === "copy"}
                 className="rounded-xl border border-stone-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-stone-50 disabled:opacity-50"
               >
-                {busyAction === "copy" ? "Copying..." : "Copy Previous Week"}
+                {busyAction === "copy" ? "Copying..." : `Copy Week of ${copySourceLabel}`}
               </button>
               {showTemplateInput ? (
                 <div className="flex items-center gap-2">
@@ -1251,6 +1266,12 @@ export default function SchedulePage() {
 
         <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
           <aside className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-800">Workers</h3>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                {filteredWorkers.length}
+              </span>
+            </div>
             <div className="mb-4">
               <label className="mb-2 block text-sm font-medium text-slate-700">
                 {t("schedulePage.searchWorkers")}
@@ -1304,6 +1325,20 @@ export default function SchedulePage() {
             </div>
           </aside>
 
+          <div className="flex items-center gap-4 px-1 pb-2 text-xs font-medium text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" />
+              Draft
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-400" />
+              Published
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-violet-400" />
+              AI Suggestion
+            </span>
+          </div>
           <div className="relative min-w-0 overflow-x-auto rounded-2xl border border-stone-200 bg-white">
               <div className="min-w-[800px]">
                 <FullCalendar
@@ -1333,6 +1368,15 @@ export default function SchedulePage() {
                 />
               </div>
 
+            {!loading && entries.length === 0 && ghostShifts.length === 0 && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 text-slate-400 pointer-events-none">
+                <svg className="h-10 w-10 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+                <p className="text-sm font-medium">No shifts scheduled</p>
+                <p className="text-xs">Drag a worker from the left panel to get started</p>
+              </div>
+            )}
             {loading && (
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 text-sm font-medium text-slate-500">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500 mb-2"></div>
@@ -1361,15 +1405,18 @@ export default function SchedulePage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 pt-2">
-              <Label htmlFor="overrideReason" className="text-slate-700">Override Reason (Required)</Label>
+              <Label htmlFor="overrideReason" className="text-slate-700">
+                Override Reason <span className="text-rose-600">*</span>
+              </Label>
               <Input
                 id="overrideReason"
                 type="text"
                 placeholder="e.g. Critical site coverage needed"
                 value={overrideReason}
                 onChange={(e) => setOverrideReason(e.target.value)}
-                className="w-full"
+                className={`w-full ${!overrideReason.trim() ? "border-rose-300 focus-visible:ring-rose-300" : ""}`}
               />
+              <p className="mt-1 text-xs text-slate-400">Reason is logged with the shift for audit trail.</p>
             </div>
             <DialogFooter className="mt-6 flex gap-2 sm:justify-end">
               <button
@@ -1429,7 +1476,16 @@ export default function SchedulePage() {
                 This shift is recommended based on historical skills and job requirements. 
                 <br /><br />
                 <span className="font-semibold text-slate-900 block">{workers.find(w => w.id === reviewGhostShift?.worker_id)?.full_name}</span>
-                <span className="block">{reviewGhostShift?.date} - {reviewGhostShift?.start_time} to {reviewGhostShift?.end_time}</span>
+                <span className="block">
+                  {reviewGhostShift?.date
+                    ? parseDate(reviewGhostShift.date).toLocaleDateString(undefined, {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })
+                    : ""}{" "}
+                  · {reviewGhostShift?.start_time} – {reviewGhostShift?.end_time}
+                </span>
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="mt-6 flex justify-between">
