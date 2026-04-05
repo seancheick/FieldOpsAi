@@ -464,6 +464,11 @@ They don't affect production safety but improve robustness and maintainability.
   - File: `.github/workflows/backend-regression.yml:54`
   - Fix: `python-version: "3.13"` → `python-version: "3.13.0"`
 
+- [ ] CI: stabilize backend regression pipeline if `supabase start` remains flaky
+  - Type: CI | Priority: Medium
+  - Definition of Done: Backend regression tests pass reliably in CI on every push. If `supabase start` with Docker continues to fail, migrate to Supabase hosted test project or self-hosted runner.
+  - Notes: Fixed `supabase stop` abort + Gitleaks false positive + outdated CLI version on 2026-04-05. Excluded studio/imgproxy/inbucket/logflare/vector/supavisor/realtime/pg_meta to reduce container surface. If still flaky, consider Supabase branching (hosted CI database).
+
 - [ ] RLS test: add actual 2-company data isolation test (cross-company reads must return 0 rows)
   - Type: Testing | Priority: HIGH — blocks Sprint 6 RLS validation task
   - File: `execution/test_rls_validation.py`

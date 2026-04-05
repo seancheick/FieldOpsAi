@@ -7,6 +7,7 @@ on:
       - ".gitleaks.toml"
       - "execution/**"
       - "infra/**"
+      - "apps/**"
       - "OPENAPI.yaml"
       - "OPENAPI_NOTES.md"
   push:
@@ -17,6 +18,7 @@ on:
       - ".gitleaks.toml"
       - "execution/**"
       - "infra/**"
+      - "apps/**"
       - "OPENAPI.yaml"
       - "OPENAPI_NOTES.md"
 
@@ -32,7 +34,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # full history for Gitleaks
+          fetch-depth: 0
 
       - name: Scan for secrets (Gitleaks)
         uses: gitleaks/gitleaks-action@v2
@@ -63,23 +65,36 @@ jobs:
         with:
           version: latest
 
-      - name: Start Supabase
+      - name: Start Supabase (minimal for CI)
         working-directory: infra
         run: |
           supabase --version
-          supabase start
+          # Only start services the test suite actually needs:
+          #   db, gotrue (auth), postgrest, edge-runtime, storage-api
+          # Skip: studio, imgproxy, inbucket, logflare, vector, supavisor, realtime, pg_meta
+          supabase start \
+            --exclude studio \
+            --exclude imgproxy \
+            --exclude inbucket \
+            --exclude logflare \
+            --exclude vector \
+            --exclude supavisor \
+            --exclude realtime \
+            --exclude pg_meta
 
       - name: Wait for Supabase health
         run: |
-          echo "Waiting for Supabase API to be ready..."
-          for i in $(seq 1 30); do
-            if curl -sf http://127.0.0.1:54321/rest/v1/ -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0" > /dev/null 2>&1; then
-              echo "Supabase is ready after ${i}s"
+          ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+          echo "Waiting for Supabase API..."
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:54321/rest/v1/ -H "apikey: $ANON_KEY" > /dev/null 2>&1; then
+              echo "Supabase ready after ${i}s"
               exit 0
             fi
             sleep 1
           done
-          echo "Supabase failed to start within 30s"
+          echo "Supabase failed to become ready within 60s"
+          docker ps -a
           exit 1
 
       - name: Seed test data
@@ -97,4 +112,4 @@ jobs:
       - name: Stop Supabase
         if: always()
         working-directory: infra
-        run: supabase stop --no-backup
+        run: supabase stop --no-backup || true
