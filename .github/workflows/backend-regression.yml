@@ -4,21 +4,21 @@ on:
   pull_request:
     paths:
       - ".github/workflows/backend-regression.yml"
+      - ".gitleaks.toml"
       - "execution/**"
       - "infra/**"
       - "OPENAPI.yaml"
       - "OPENAPI_NOTES.md"
-      - "SPRINT_1.md"
   push:
     branches:
       - main
     paths:
       - ".github/workflows/backend-regression.yml"
+      - ".gitleaks.toml"
       - "execution/**"
       - "infra/**"
       - "OPENAPI.yaml"
       - "OPENAPI_NOTES.md"
-      - "SPRINT_1.md"
 
 permissions:
   contents: read
