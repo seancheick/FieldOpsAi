@@ -50,7 +50,7 @@ class _PhotoDraftsScreenState extends ConsumerState<PhotoDraftsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = Theme.of(context).extension<FieldOpsPalette>()!;
+    final palette = context.palette;
     final draftsAsync = ref.watch(photoDraftsForJobProvider(widget.jobId));
 
     return Scaffold(

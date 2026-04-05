@@ -7,12 +7,14 @@ Verifies that Company A cannot read/write Company B's data
 across all tenant-owned tables.
 """
 
-import json
+import os
 import subprocess
 import sys
-from datetime import datetime
 
-SUPABASE_URL = "http://127.0.0.1:54321"
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "http://127.0.0.1:54321")
+
+# All tenant-owned tables that must have RLS enabled and at least one policy.
+# Add new tables here whenever a migration creates a new tenant-owned table.
 TABLES_TO_TEST = [
     "jobs",
     "tasks",
@@ -20,11 +22,15 @@ TABLES_TO_TEST = [
     "clock_events",
     "photo_events",
     "task_events",
+    "note_events",
     "media_assets",
     "ot_requests",
     "ot_approval_events",
     "alert_events",
     "shift_report_events",
+    # Added: tables introduced in Sprint 5/6 migrations
+    "expense_events",
+    "schedule_shifts",
 ]
 
 

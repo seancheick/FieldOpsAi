@@ -138,7 +138,7 @@ class _CameraCaptureScreenState extends ConsumerState<CameraCaptureScreen> {
   @override
   Widget build(BuildContext context) {
     final captureState = ref.watch(captureControllerProvider);
-    final palette = Theme.of(context).extension<FieldOpsPalette>()!;
+    final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(

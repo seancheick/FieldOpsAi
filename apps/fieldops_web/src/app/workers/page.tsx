@@ -18,9 +18,11 @@ export default function WorkersPage() {
   const { t } = useI18n();
   const [workers, setWorkers] = useState<WorkerStatus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
 
   const loadWorkers = useCallback(async () => {
+    setLoadError(null);
     try {
       const supabase = getSupabase();
 
@@ -101,6 +103,8 @@ export default function WorkersPage() {
       result.sort((a, b) => order[a.status] - order[b.status]);
 
       setWorkers(result);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to load workers");
     } finally {
       setLoading(false);
     }
@@ -163,6 +167,12 @@ export default function WorkersPage() {
           {t("workers.subtitle")}
         </p>
       </div>
+
+      {loadError && (
+        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          {loadError}
+        </div>
+      )}
 
       {/* Status filter tabs */}
       <div className="mb-6 flex flex-wrap gap-2">

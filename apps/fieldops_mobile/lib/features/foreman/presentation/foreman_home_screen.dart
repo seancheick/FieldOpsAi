@@ -20,7 +20,7 @@ class ForemanHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = Theme.of(context).textTheme;
-    final palette = Theme.of(context).extension<FieldOpsPalette>()!;
+    final palette = context.palette;
 
     return Scaffold(
       appBar: AppBar(

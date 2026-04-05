@@ -43,7 +43,7 @@ class _OTRequestScreenState extends ConsumerState<OTRequestScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(otRequestControllerProvider);
-    final palette = Theme.of(context).extension<FieldOpsPalette>()!;
+    final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
 
     ref.listen(otRequestControllerProvider, (_, next) {

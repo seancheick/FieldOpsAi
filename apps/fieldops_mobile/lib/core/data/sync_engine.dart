@@ -97,7 +97,9 @@ class SyncEngine {
     final response = await supabaseClient.functions.invoke(
       'sync_events',
       headers: {
-        'Idempotency-Key': _uuid.v4(),
+        // Use the stable local row ID so retries replay the same request
+        // rather than creating duplicate events on the server.
+        'Idempotency-Key': 'local-event-${event.id}',
         'X-Client-Version': 'fieldops-mobile',
       },
       body: {
@@ -147,7 +149,7 @@ class SyncEngine {
     final response = await supabaseClient.functions.invoke(
       'media_presign',
       headers: {
-        'Idempotency-Key': _uuid.v4(),
+        'Idempotency-Key': 'local-event-${event.id}',
         'X-Client-Version': 'fieldops-mobile',
       },
       body: payload,
@@ -168,7 +170,7 @@ class SyncEngine {
     final response = await supabaseClient.functions.invoke(
       'media_finalize',
       headers: {
-        'Idempotency-Key': _uuid.v4(),
+        'Idempotency-Key': 'local-event-${event.id}',
         'X-Client-Version': 'fieldops-mobile',
       },
       body: payload,

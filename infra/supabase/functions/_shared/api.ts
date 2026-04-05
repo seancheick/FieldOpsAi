@@ -7,8 +7,9 @@ export function corsOrigin(req: Request): string {
   return ALLOWED_ORIGINS[0] || ""
 }
 
+// CORS_HEADERS does not include Access-Control-Allow-Origin — it is set dynamically
+// by corsHeaders(req) for preflight and responseHeaders() for actual responses.
 export const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, idempotency-key, x-request-id, x-client-version",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 }
@@ -85,8 +86,12 @@ export function logRequestError(endpoint: string, requestId: string, error: unkn
 }
 
 export function responseHeaders(requestId: string, extra: Record<string, string> = {}) {
+  // Use the configured allowed origin (not a hardcoded wildcard).
+  // In production, set the ALLOWED_ORIGINS env var to your domain(s).
+  const origin = ALLOWED_ORIGINS.includes("*") ? "*" : (ALLOWED_ORIGINS[0] || "")
   return {
     ...CORS_HEADERS,
+    "Access-Control-Allow-Origin": origin,
     "Content-Type": "application/json",
     "X-Request-ID": requestId,
     ...extra,

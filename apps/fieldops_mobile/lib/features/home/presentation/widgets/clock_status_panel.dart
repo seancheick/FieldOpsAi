@@ -17,7 +17,7 @@ class ClockStatusPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = Theme.of(context).extension<FieldOpsPalette>()!;
+    final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
     final isClockedIn = state.isClockedIn;
     final isClockingOut = state.activeRequestJobId != null && isClockedIn;
@@ -139,16 +139,18 @@ class ClockStatusPanel extends StatelessWidget {
                             borderRadius: BorderRadius.circular(20),
                           ),
                         ),
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<bool>(
-                              builder: (_) => OTRequestScreen(
-                                jobId: state.activeJobId!,
-                                jobName: state.activeJobName!,
-                              ),
-                            ),
-                          );
-                        },
+                        onPressed: state.activeJobId == null
+                            ? null
+                            : () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<bool>(
+                                    builder: (_) => OTRequestScreen(
+                                      jobId: state.activeJobId!,
+                                      jobName: state.activeJobName ?? '',
+                                    ),
+                                  ),
+                                );
+                              },
                         icon: const Icon(Icons.more_time_rounded),
                         label: const Text('Request OT'),
                       ),

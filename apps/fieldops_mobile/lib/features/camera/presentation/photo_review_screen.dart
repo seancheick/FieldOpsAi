@@ -84,7 +84,7 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = Theme.of(context).extension<FieldOpsPalette>()!;
+    final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
     final captureState = ref.watch(captureControllerProvider);
     final hasUploadError = captureState is CaptureError;

@@ -11,7 +11,7 @@ class WorkerHistoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final palette = Theme.of(context).extension<FieldOpsPalette>()!;
+    final palette = context.palette;
 
     return Scaffold(
       appBar: AppBar(

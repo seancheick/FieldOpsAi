@@ -70,7 +70,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = Theme.of(context).extension<FieldOpsPalette>()!;
+    final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
     final task = widget.task;
 

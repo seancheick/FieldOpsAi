@@ -16,20 +16,29 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
 
   useEffect(() => {
+    let mounted = true;
     const supabase = getSupabase();
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    supabase.auth.getSession().then(({ data, error: sessionError }) => {
+      if (!mounted) return; // component unmounted before promise resolved
+      if (sessionError) {
+        setError(sessionError.message);
+      } else {
+        setSession(data.session);
+      }
       setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setSession(session);
+        if (mounted) setSession(session);
       },
     );
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   async function handleSignIn(e: React.FormEvent) {

@@ -426,6 +426,15 @@ ThemeData buildFieldOpsDarkTheme() {
 
 // ─── Theme Extension ─────────────────────────────────────────
 
+// ignore_for_file: avoid_extension_on_build_context
+extension FieldOpsPaletteContext on BuildContext {
+  /// Returns the [FieldOpsPalette] from the active theme.
+  /// Falls back to [FieldOpsPalette.light()] instead of throwing,
+  /// so widgets never crash due to a missing theme extension.
+  FieldOpsPalette get palette =>
+      Theme.of(this).extension<FieldOpsPalette>() ?? FieldOpsPalette.light();
+}
+
 class FieldOpsPalette extends ThemeExtension<FieldOpsPalette> {
   const FieldOpsPalette({
     required this.canvas,
@@ -439,6 +448,22 @@ class FieldOpsPalette extends ThemeExtension<FieldOpsPalette> {
     required this.border,
     required this.surfaceWhite,
   });
+
+  /// Fallback palette used when [FieldOpsPalette] is not registered in the
+  /// active theme (e.g. in tests, isolated widgets, or misconfigured themes).
+  /// Values mirror the light theme tokens so the UI remains usable.
+  static FieldOpsPalette light() => const FieldOpsPalette(
+        canvas: Color(0xFFFAFAFA),
+        slate: Color(0xFF0F172A),
+        steel: Color(0xFF64748B),
+        signal: Color(0xFFF38B2A),
+        signalDark: Color(0xFFE07B1A),
+        success: Color(0xFF16A34A),
+        danger: Color(0xFFDC2626),
+        muted: Color(0xFFF1F5F9),
+        border: Color(0xFFE2E8F0),
+        surfaceWhite: Color(0xFFFFFFFF),
+      );
 
   final Color canvas;
   final Color slate;

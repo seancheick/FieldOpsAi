@@ -17,7 +17,7 @@ class OTPromptBanner extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    final palette = Theme.of(context).extension<FieldOpsPalette>()!;
+    final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
     final hours = otState.currentHours.toStringAsFixed(1);
 

@@ -8,7 +8,7 @@ class ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = Theme.of(context).extension<FieldOpsPalette>()!;
+    final palette = context.palette;
     return Semantics(
       liveRegion: true,
       label: 'Error: $message',

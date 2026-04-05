@@ -115,11 +115,18 @@ class HomeScreen extends ConsumerWidget {
                       data: (jobs) => _JobsList(
                         jobs: jobs,
                         onRefresh: () async {
+                          // catchError per-future so one failure doesn't
+                          // cancel the other. Errors surface via each
+                          // provider's AsyncValue.error state in the UI.
                           await Future.wait([
-                            ref.read(jobsControllerProvider.notifier).reload(),
+                            ref
+                                .read(jobsControllerProvider.notifier)
+                                .reload()
+                                .catchError((_) {}),
                             ref
                                 .read(workerHoursControllerProvider.notifier)
-                                .reload(),
+                                .reload()
+                                .catchError((_) {}),
                           ]);
                         },
                         clockState: clockState,
@@ -182,7 +189,7 @@ class _WorkerHoursStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = Theme.of(context).extension<FieldOpsPalette>()!;
+    final palette = context.palette;
     final labelColor = isError ? palette.danger : palette.signal;
     return Stack(
       children: [
