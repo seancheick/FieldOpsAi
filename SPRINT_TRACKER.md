@@ -397,6 +397,49 @@ Stripe billing deferred to Sprint 8 — run free during pilot to validate all fe
   - Definition of Done: Drag-and-drop calendar (day/week/2-week/month). Assign workers to jobs/shifts. Draft mode → edit → publish with notification. Workers see schedule in mobile app. Optional — workers can just clock in without schedule.
   - Agent findings: Completed on 2026-04-05. The `schedule` edge function now supports draft update, worker-scoped published schedule reads, and flexible date ranges. The supervisor web planner now supports day/week/2-week/month views, drag-and-drop day reassignment for drafts, full draft edit, assign worker/job/time/notes, and publish. Workers can open `My schedule` in the mobile app, see published shifts for the next two weeks, and get an in-app `Updated` badge from `published_at` after supervisors publish changes. Verified with `python3 execution/test_schedule_flow.py`, `python3 execution/run_backend_regression_suite.py`, `flutter test test/schedule_screen_test.dart`, `flutter analyze`, `cd apps/fieldops_web && npm run lint`, and `cd apps/fieldops_web && npm run build`.
 
+### Scheduler Enhancement (from dev review — on demand)
+
+Tech stack: @dnd-kit (headless drag-and-drop) + FullCalendar (resource timeline).
+Pattern: Workers list on left → drag onto calendar slots. Same UX as ClockShark but workers-first.
+Backend already done: schedule edge function with drafts, worker-scoped reads, publish.
+
+#### Sprint 6 scope (easy — 1-2 days each)
+
+- [ ] Workers list sidebar + drag-to-calendar (@dnd-kit + FullCalendar)
+  - Type: Web | Priority: HIGH — on demand
+  - Definition of Done: Left panel shows available workers (filterable). Drag worker onto calendar day/slot. Creates draft shift via /schedule endpoint. @dnd-kit for external drags, FullCalendar resourceTimeline for calendar grid. Bidirectional drag (workers ↔ jobs, drag between days).
+  - Notes: `npm install @dnd-kit/core @fullcalendar/react @fullcalendar/resource-timeline`. Replaces current simple grid with pro-grade calendar.
+
+- [ ] Templates + recurring shifts (one-click apply)
+  - Type: Web | Priority: HIGH
+  - Definition of Done: Save current week as template. Apply template to future weeks with one click. Saves hours of manual scheduling per week.
+
+- [ ] Availability heatmap / worker preferences
+  - Type: Web | Priority: MEDIUM
+  - Definition of Done: Pull PTO + history data. Show availability badges on worker cards in sidebar. Green = available, amber = partial, red = PTO/conflict.
+
+- [ ] Cost code preview on drag
+  - Type: Web | Priority: LOW
+  - Definition of Done: When dragging worker onto a job slot, show cost code + estimated cost. Ties into existing profitability reports.
+
+#### Sprint 7 scope (medium effort)
+
+- [ ] Live conflict detection (PTO, OT rules, geofence overlap, crew size)
+  - Type: Web | Priority: HIGH
+  - Definition of Done: Red/yellow highlights on drop when conflicts detected. No overbooking. Checks PTO calendar, OT threshold, crew size limits. Warns but allows override with reason.
+
+- [ ] AI smart schedule suggestions
+  - Type: Backend | Priority: HIGH — dev review: "2026 differentiator most competitors still lack"
+  - Definition of Done: "Fill this week like last week" button. "Recommended crew for this job" based on skills + past performance. Uses event store + simple LLM call. Suggestions displayed as ghost shifts user can accept/dismiss.
+
+- [ ] Foreman mobile schedule drag (simplified list view)
+  - Type: Mobile | Priority: MEDIUM
+  - Definition of Done: Foreman can adjust schedule on-site from mobile. Simple list reorder (not full calendar). Web publish approval still required.
+
+- [ ] Gantt-style timeline overlay for multi-day jobs
+  - Type: Web | Priority: LOW
+  - Definition of Done: Visual bar spanning multiple days for long jobs. FullCalendar resourceTimeline supports this natively. Construction sweet spot.
+
 ### Payroll & Compliance
 
 - [-] Job costing / cost codes
