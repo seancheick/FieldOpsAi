@@ -787,7 +787,8 @@ export default function SchedulePage() {
       const supabase = getSupabase();
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      
+      if (!token) throw new Error("Missing session");
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/schedule_ai`,
         {
@@ -869,6 +870,11 @@ export default function SchedulePage() {
         };
       });
 
+    if (templateShifts.length === 0) {
+      setError("No shifts in the current range to save as a template.");
+      return;
+    }
+
     const newTemplate: ScheduleTemplate = {
       name,
       createdAt: new Date().toISOString(),
@@ -890,7 +896,7 @@ export default function SchedulePage() {
     setBusyAction("copy");
     setError(null);
     setSuccessMessage(null);
-    const weekStart = parseDate(rangeStart);
+    const weekStart = startOfWeek(parseDate(rangeStart));
 
     try {
       await Promise.all(
