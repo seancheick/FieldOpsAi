@@ -3,12 +3,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 
 const MAPTILER_KEY =
   process.env.NEXT_PUBLIC_MAPTILER_KEY || "3EVTjBsPJIuw0UVfaNvL";
-
-const REFRESH_MS = 15000;
 
 interface WorkerPin {
   user_id: string;
@@ -30,6 +29,7 @@ interface JobSite {
 }
 
 export default function MapPage() {
+  const { t } = useI18n();
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -56,12 +56,12 @@ export default function MapPage() {
         if (ce.gps_lat && ce.gps_lng && !latestByWorker.has(ce.user_id as string)) {
           latestByWorker.set(ce.user_id as string, {
             user_id: ce.user_id as string,
-            full_name: (ce.users as any)?.full_name ?? "Unknown",
+            full_name: (ce.users as any)?.full_name ?? t("mapPage.unknownWorker"),
             gps_lat: ce.gps_lat as number,
             gps_lng: ce.gps_lng as number,
             event_subtype: ce.event_subtype as string,
             occurred_at: ce.occurred_at as string,
-            job_name: (ce.jobs as any)?.name ?? "Unknown job",
+            job_name: (ce.jobs as any)?.name ?? t("mapPage.unknownJob"),
           });
         }
       }
@@ -79,14 +79,14 @@ export default function MapPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   // Load MapTiler SDK (MapLibre-based, free)
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://cdn.maptiler.com/maptiler-sdk-js/v2.3.0/maptiler-sdk.umd.min.js";
     script.onerror = () => {
-      setMapError("Could not load map library. Check your internet connection.");
+      setMapError(t("mapPage.failedToLoadLibrary"));
       setLoading(false);
     };
     script.onload = () => {
@@ -97,7 +97,7 @@ export default function MapPage() {
       setMapReady(true);
     };
     document.head.appendChild(script);
-  }, []);
+  }, [t]);
 
   // Init map with error handling
   useEffect(() => {
@@ -106,7 +106,7 @@ export default function MapPage() {
     try {
       const maptiler = (window as any).maptilersdk;
       if (!maptiler) {
-        setMapError("MapTiler SDK not available.");
+        setMapError(t("mapPage.sdkUnavailable"));
         return;
       }
 
@@ -135,7 +135,7 @@ export default function MapPage() {
         mapRef.current = null;
       }
     };
-  }, [mapReady, loadData]);
+  }, [mapReady, loadData, t]);
 
   // Update markers
   useEffect(() => {
@@ -168,12 +168,12 @@ export default function MapPage() {
 
         const el = document.createElement("div");
         el.style.cssText = `width:28px;height:28px;background:${color};border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);cursor:pointer;`;
-        el.title = `${w.full_name} — ${isClockedIn ? "Clocked in" : "Clocked out"}`;
+        el.title = `${w.full_name} — ${isClockedIn ? t("mapPage.clockedInTitle") : t("mapPage.clockedOutTitle")}`;
 
         const marker = new mt.Marker({ element: el })
           .setLngLat([w.gps_lng, w.gps_lat])
           .setPopup(new mt.Popup({ offset: 16 }).setHTML(
-            `<div style="font-family:system-ui;padding:4px"><strong>${w.full_name}</strong><br/><span style="color:${color};font-weight:600">${isClockedIn ? "● Clocked In" : "○ Clocked Out"}</span><br/><span style="color:#64748B;font-size:12px">${w.job_name}<br/>${new Date(w.occurred_at).toLocaleTimeString()}</span></div>`,
+            `<div style="font-family:system-ui;padding:4px"><strong>${w.full_name}</strong><br/><span style="color:${color};font-weight:600">${isClockedIn ? `● ${t("mapPage.clockedInTitle")}` : `○ ${t("mapPage.clockedOutTitle")}`}</span><br/><span style="color:#64748B;font-size:12px">${w.job_name}<br/>${new Date(w.occurred_at).toLocaleTimeString()}</span></div>`,
           ))
           .addTo(map);
         markersRef.current.push(marker);
@@ -194,12 +194,35 @@ export default function MapPage() {
     } catch {
       // Marker error — non-fatal
     }
-  }, [workers, jobSites, mapReady, mapError]);
+  }, [workers, jobSites, mapReady, mapError, t]);
 
-  // Auto-refresh
   useEffect(() => {
-    const id = setInterval(loadData, REFRESH_MS);
-    return () => clearInterval(id);
+    const supabase = getSupabase();
+    const channel = supabase
+      .channel("map-live")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "clock_events",
+        },
+        () => loadData()
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "jobs",
+        },
+        () => loadData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [loadData]);
 
   const clockedIn = workers.filter((w) => w.event_subtype === "clock_in").length;
@@ -208,21 +231,21 @@ export default function MapPage() {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Live Map</h1>
-          <p className="mt-0.5 text-sm text-slate-400">Real-time worker positions and job sites</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("mapPage.title")}</h1>
+          <p className="mt-0.5 text-sm text-slate-400">{t("mapPage.subtitle")}</p>
         </div>
         <div className="flex gap-4 text-xs">
           <div className="flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
-            <span className="text-slate-500">In ({clockedIn})</span>
+            <span className="text-slate-500">{t("mapPage.in", { count: clockedIn })}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-400" />
-            <span className="text-slate-500">Out ({workers.length - clockedIn})</span>
+            <span className="text-slate-500">{t("mapPage.out", { count: workers.length - clockedIn })}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />
-            <span className="text-slate-500">Sites ({jobSites.length})</span>
+            <span className="text-slate-500">{t("mapPage.sites", { count: jobSites.length })}</span>
           </div>
         </div>
       </div>
@@ -231,10 +254,10 @@ export default function MapPage() {
       {mapError && (
         <div className="rounded-2xl border border-red-100 bg-red-50 p-8 text-center">
           <div className="text-3xl text-red-300">🗺️</div>
-          <h3 className="mt-3 font-bold text-red-800">Map unavailable</h3>
+          <h3 className="mt-3 font-bold text-red-800">{t("mapPage.mapUnavailable")}</h3>
           <p className="mt-1 text-sm text-red-600">{mapError}</p>
           <p className="mt-3 text-xs text-red-400">
-            Get a free key at{" "}
+            {t("mapPage.getFreeKeyAt")}{" "}
             <a
               href="https://cloud.maptiler.com/account/keys/"
               target="_blank"
@@ -243,27 +266,27 @@ export default function MapPage() {
             >
               cloud.maptiler.com
             </a>{" "}
-            and add it to{" "}
+            {t("mapPage.addItToEnv")}{" "}
             <code className="rounded bg-red-100 px-1 py-0.5">
               .env.local
             </code>{" "}
-            as <code className="rounded bg-red-100 px-1 py-0.5">NEXT_PUBLIC_MAPTILER_KEY</code>
+            {t("mapPage.asEnvKey")} <code className="rounded bg-red-100 px-1 py-0.5">NEXT_PUBLIC_MAPTILER_KEY</code>
           </p>
 
           {/* Fallback: show worker data as table */}
           {workers.length > 0 && (
             <div className="mx-auto mt-6 max-w-lg text-left">
               <p className="mb-2 text-xs font-semibold text-slate-500">
-                Worker positions (from GPS data):
+                {t("mapPage.workerPositions")}
               </p>
               <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b bg-stone-50 text-left text-slate-400">
-                      <th className="px-3 py-2">Worker</th>
-                      <th className="px-3 py-2">Status</th>
-                      <th className="px-3 py-2">Job</th>
-                      <th className="px-3 py-2">GPS</th>
+                      <th className="px-3 py-2">{t("mapPage.worker")}</th>
+                      <th className="px-3 py-2">{t("mapPage.status")}</th>
+                      <th className="px-3 py-2">{t("mapPage.job")}</th>
+                      <th className="px-3 py-2">{t("mapPage.gps")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -280,7 +303,9 @@ export default function MapPage() {
                                 : "text-slate-400"
                             }
                           >
-                            {w.event_subtype === "clock_in" ? "● In" : "○ Out"}
+                            {w.event_subtype === "clock_in"
+                              ? `● ${t("mapPage.clockedInTitle")}`
+                              : `○ ${t("mapPage.clockedOutTitle")}`}
                           </span>
                         </td>
                         <td className="px-3 py-2 text-slate-500">{w.job_name}</td>
@@ -300,7 +325,7 @@ export default function MapPage() {
       {loading && !mapError && (
         <div className="flex h-96 items-center justify-center text-slate-400">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-stone-200 border-t-slate-900" />
-          <span className="ml-3 text-sm">Loading map...</span>
+          <span className="ml-3 text-sm">{t("mapPage.loadingMap")}</span>
         </div>
       )}
 

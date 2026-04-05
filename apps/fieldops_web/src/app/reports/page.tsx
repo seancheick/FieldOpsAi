@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 
 interface Job {
@@ -10,6 +11,7 @@ interface Job {
 }
 
 export default function ReportsPage() {
+  const { t } = useI18n();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState("");
   const [dateFrom, setDateFrom] = useState(() => {
@@ -70,7 +72,7 @@ export default function ReportsPage() {
       );
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Report generation failed");
+      if (!res.ok) throw new Error(data.message || t("reports.generationFailed"));
 
       if (reportType === "job_report") {
         setReportData(data.report);
@@ -79,7 +81,7 @@ export default function ReportsPage() {
         setReportData(data);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to generate report");
+      setError(e instanceof Error ? e.message : t("reports.failedToGenerate"));
     } finally {
       setGenerating(false);
     }
@@ -103,12 +105,10 @@ export default function ReportsPage() {
           href="/"
           className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900"
         >
-          <span>&larr;</span> Back to Dashboard
+          <span>&larr;</span> {t("common.backToDashboard")}
         </a>
-        <h2 className="text-2xl font-bold text-slate-900">Reports</h2>
-        <p className="mt-1 text-slate-600">
-          Generate job reports and timesheet exports.
-        </p>
+        <h2 className="text-2xl font-bold text-slate-900">{t("reports.title")}</h2>
+        <p className="mt-1 text-slate-600">{t("reports.subtitle")}</p>
       </div>
 
       {/* Controls */}
@@ -116,14 +116,14 @@ export default function ReportsPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              Job
+              {t("reports.job")}
             </label>
             <select
               value={selectedJob}
               onChange={(e) => setSelectedJob(e.target.value)}
               className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
             >
-              <option value="">All jobs</option>
+              <option value="">{t("reports.allJobs")}</option>
               {jobs.map((j) => (
                 <option key={j.id} value={j.id}>
                   {j.name} ({j.code})
@@ -133,7 +133,7 @@ export default function ReportsPage() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              From
+              {t("reports.from")}
             </label>
             <input
               type="date"
@@ -144,7 +144,7 @@ export default function ReportsPage() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              To
+              {t("reports.to")}
             </label>
             <input
               type="date"
@@ -159,14 +159,14 @@ export default function ReportsPage() {
               disabled={generating || !selectedJob}
               className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
             >
-              {generating ? "Generating..." : "Job Report"}
+              {generating ? t("reports.generating") : t("reports.jobReport")}
             </button>
             <button
               onClick={() => generateReport("timesheet")}
               disabled={generating}
               className="rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-50"
             >
-              {generating ? "..." : "Timesheet"}
+              {generating ? "..." : t("reports.timesheet")}
             </button>
           </div>
         </div>
@@ -183,17 +183,20 @@ export default function ReportsPage() {
         <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 p-5">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-green-900">Timesheet Ready</h3>
+              <h3 className="font-bold text-green-900">{t("reports.timesheetReady")}</h3>
               <p className="text-sm text-green-700">
-                {(reportData as Record<string, unknown>)?.row_count as number ?? 0} rows
-                from {dateFrom} to {dateTo}
+                {t("reports.timesheetSummary", {
+                  rows: (reportData as Record<string, unknown>)?.row_count as number ?? 0,
+                  from: dateFrom,
+                  to: dateTo,
+                })}
               </p>
             </div>
             <button
               onClick={downloadCsv}
               className="rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
             >
-              Download CSV
+              {t("reports.downloadCsv")}
             </button>
           </div>
         </div>
@@ -201,13 +204,19 @@ export default function ReportsPage() {
 
       {/* Job Report Display */}
       {reportData && (reportData as Record<string, unknown>).report_type === "job_report" && (
-        <JobReportView report={reportData} />
+        <JobReportView report={reportData} t={t} />
       )}
     </div>
   );
 }
 
-function JobReportView({ report }: { report: Record<string, unknown> }) {
+function JobReportView({
+  report,
+  t,
+}: {
+  report: Record<string, unknown>;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+}) {
   const job = report.job as Record<string, string>;
   const summary = report.summary as Record<string, number>;
   const workerHours = report.worker_hours as Array<Record<string, unknown>>;
@@ -224,11 +233,13 @@ function JobReportView({ report }: { report: Record<string, unknown> }) {
               {job.name}
             </h3>
             <p className="text-sm text-slate-500">
-              {job.code} &middot; {job.status} &middot; {job.site_name || "No site"}
+              {job.code} &middot; {job.status} &middot; {job.site_name || t("reports.noSite")}
             </p>
           </div>
           <span className="text-xs text-slate-400">
-            Generated {new Date(report.generated_at as string).toLocaleString()}
+            {t("reports.generated", {
+              time: new Date(report.generated_at as string).toLocaleString(),
+            })}
           </span>
         </div>
       </div>
@@ -236,10 +247,10 @@ function JobReportView({ report }: { report: Record<string, unknown> }) {
       {/* Summary stats */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {[
-          { label: "Clock Events", value: summary.total_clock_events },
-          { label: "Photos", value: summary.total_photos },
-          { label: "Tasks", value: `${summary.completed_tasks}/${summary.total_tasks}` },
-          { label: "OT Decisions", value: summary.total_ot_decisions },
+          { label: t("reports.clockEvents"), value: summary.total_clock_events },
+          { label: t("reports.photos"), value: summary.total_photos },
+          { label: t("reports.tasks"), value: `${summary.completed_tasks}/${summary.total_tasks}` },
+          { label: t("reports.otDecisions"), value: summary.total_ot_decisions },
         ].map((stat) => (
           <div
             key={stat.label}
@@ -256,15 +267,15 @@ function JobReportView({ report }: { report: Record<string, unknown> }) {
       {/* Worker hours */}
       {workerHours && workerHours.length > 0 && (
         <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <h4 className="mb-4 font-bold text-slate-900">Worker Hours</h4>
+          <h4 className="mb-4 font-bold text-slate-900">{t("reports.workerHours")}</h4>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-slate-500">
-                <th className="pb-2">Worker</th>
-                <th className="pb-2">Sessions</th>
-                <th className="pb-2">Regular</th>
-                <th className="pb-2">OT</th>
-                <th className="pb-2">Total</th>
+                <th className="pb-2">{t("reports.worker")}</th>
+                <th className="pb-2">{t("reports.sessions")}</th>
+                <th className="pb-2">{t("reports.regular")}</th>
+                <th className="pb-2">{t("reports.ot")}</th>
+                <th className="pb-2">{t("reports.total")}</th>
               </tr>
             </thead>
             <tbody>
@@ -291,7 +302,7 @@ function JobReportView({ report }: { report: Record<string, unknown> }) {
       {/* Tasks */}
       {tasks && tasks.length > 0 && (
         <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <h4 className="mb-4 font-bold text-slate-900">Tasks</h4>
+          <h4 className="mb-4 font-bold text-slate-900">{t("reports.tasks")}</h4>
           <div className="space-y-2">
             {tasks.map((t, i) => (
               <div
@@ -328,7 +339,7 @@ function JobReportView({ report }: { report: Record<string, unknown> }) {
       {photos && photos.length > 0 && (
         <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
           <h4 className="mb-4 font-bold text-slate-900">
-            Photo Proof ({photos.length})
+            {t("reports.photoProof", { count: photos.length })}
           </h4>
           <div className="space-y-2">
             {photos.map((p, i) => (
@@ -338,7 +349,7 @@ function JobReportView({ report }: { report: Record<string, unknown> }) {
               >
                 <span className="text-slate-600">
                   {new Date(p.occurred_at as string).toLocaleString()}
-                  {(p.is_checkpoint as boolean) && " (checkpoint)"}
+                  {(p.is_checkpoint as boolean) && ` ${t("reports.checkpoint")}`}
                 </span>
                 {(p.verification_code as string | null) && (
                   <code className="rounded bg-slate-200 px-2 py-0.5 text-xs font-mono text-slate-700">

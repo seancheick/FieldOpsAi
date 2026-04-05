@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 
 interface PhotoEntry {
@@ -14,22 +15,48 @@ interface PhotoEntry {
   task_id: string | null;
   tasks: { name: string } | null;
   media_assets: {
+    id: string;
     verification_code: string | null;
     storage_path: string;
     bucket_name: string;
     sha256_hash: string | null;
     kind: string;
+    stamped_media_id: string | null;
     metadata: Record<string, unknown>;
   } | null;
 }
 
+type DisplayAsset = NonNullable<PhotoEntry["media_assets"]>;
+type ResolvedPhotoEntry = PhotoEntry & {
+  displayAsset: DisplayAsset | null;
+};
+
+function buildSignedUrlCacheKey(photoId: string, asset: DisplayAsset | null) {
+  return `${photoId}:${asset?.bucket_name ?? ""}:${asset?.storage_path ?? ""}`;
+}
+
+function getDisplayAsset(
+  photo: PhotoEntry,
+  stampedAssetsById: Map<string, DisplayAsset>,
+): DisplayAsset | null {
+  const originalAsset = photo.media_assets;
+  if (!originalAsset) return null;
+
+  if (originalAsset.stamped_media_id) {
+    return stampedAssetsById.get(originalAsset.stamped_media_id) ?? originalAsset;
+  }
+
+  return originalAsset;
+}
+
 export default function PhotosPage() {
+  const { t } = useI18n();
   return (
     <Suspense
       fallback={
         <div className="flex items-center gap-2 text-slate-500">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
-          Loading...
+          {t("photos.loading")}
         </div>
       }
     >
@@ -39,10 +66,11 @@ export default function PhotosPage() {
 }
 
 function PhotoFeedContent() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const jobId = searchParams.get("job_id");
 
-  const [photos, setPhotos] = useState<PhotoEntry[]>([]);
+  const [photos, setPhotos] = useState<ResolvedPhotoEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jobName, setJobName] = useState<string | null>(null);
@@ -81,11 +109,13 @@ function PhotoFeedContent() {
           users!photo_events_user_id_fkey ( full_name ),
           tasks ( name ),
           media_assets!photo_events_media_asset_id_fkey (
+            id,
             verification_code,
             storage_path,
             bucket_name,
             sha256_hash,
             kind,
+            stamped_media_id,
             metadata
           )
         `)
@@ -94,30 +124,73 @@ function PhotoFeedContent() {
         .limit(200);
 
       if (err) throw err;
-      setPhotos((data as unknown as PhotoEntry[]) ?? []);
-
-      // Generate signed URLs only for photos not already cached (avoids re-generating on Realtime updates)
       const photoData = (data as unknown as PhotoEntry[]) ?? [];
-      const newPhotos = photoData.filter((p) => !urlCacheRef.current[p.id]);
+
+      const stampedIds = photoData
+        .map((photo) => photo.media_assets?.stamped_media_id)
+        .filter((id): id is string => Boolean(id));
+
+      let stampedAssetsById = new Map<string, DisplayAsset>();
+      if (stampedIds.length > 0) {
+        const { data: stampedAssets, error: stampedErr } = await supabase
+          .from("media_assets")
+          .select(`
+            id,
+            verification_code,
+            storage_path,
+            bucket_name,
+            sha256_hash,
+            kind,
+            stamped_media_id,
+            metadata
+          `)
+          .in("id", stampedIds);
+
+        if (stampedErr) throw stampedErr;
+
+        stampedAssetsById = new Map(
+          ((stampedAssets as DisplayAsset[] | null) ?? []).map((asset) => [asset.id, asset]),
+        );
+      }
+
+      const resolvedPhotos = photoData.map((photo) => ({
+        ...photo,
+        displayAsset: getDisplayAsset(photo, stampedAssetsById),
+      }));
+      setPhotos(resolvedPhotos);
+
+      // Generate signed URLs only for display assets not already cached.
+      const nextSignedUrls: Record<string, string> = {};
+      const newPhotos = resolvedPhotos.filter((photo) => {
+        const cacheKey = buildSignedUrlCacheKey(photo.id, photo.displayAsset);
+        return !urlCacheRef.current[cacheKey];
+      });
       await Promise.allSettled(
         newPhotos.map(async (photo) => {
-          const asset = photo.media_assets;
+          const asset = photo.displayAsset;
           if (!asset?.storage_path || !asset?.bucket_name) return;
           const { data: urlData } = await supabase.storage
             .from(asset.bucket_name)
             .createSignedUrl(asset.storage_path, 3600);
           if (urlData?.signedUrl) {
-            urlCacheRef.current[photo.id] = urlData.signedUrl;
+            const cacheKey = buildSignedUrlCacheKey(photo.id, asset);
+            urlCacheRef.current[cacheKey] = urlData.signedUrl;
           }
         })
       );
-      setSignedUrls({ ...urlCacheRef.current });
+      resolvedPhotos.forEach((photo) => {
+        const cacheKey = buildSignedUrlCacheKey(photo.id, photo.displayAsset);
+        if (urlCacheRef.current[cacheKey]) {
+          nextSignedUrls[photo.id] = urlCacheRef.current[cacheKey];
+        }
+      });
+      setSignedUrls(nextSignedUrls);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load photos");
+      setError(e instanceof Error ? e.message : t("photos.failedToLoad"));
     } finally {
       setLoading(false);
     }
-  }, [jobId]);
+  }, [jobId, t]);
 
   useEffect(() => {
     if (!jobId) return;
@@ -133,6 +206,18 @@ function PhotoFeedContent() {
           event: "INSERT",
           schema: "public",
           table: "photo_events",
+          filter: `job_id=eq.${jobId}`,
+        },
+        () => {
+          loadPhotos();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "media_assets",
           filter: `job_id=eq.${jobId}`,
         },
         () => {
@@ -163,31 +248,27 @@ function PhotoFeedContent() {
           href="/"
           className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900"
         >
-          <span>&larr;</span> Back to Dashboard
+          <span>&larr;</span> {t("common.backToDashboard")}
         </a>
         <h2 className="text-2xl font-bold text-slate-900">
-          {jobName ? `Photo Feed: ${jobName}` : "Project Photo Feed"}
+          {jobName ? t("photos.titleWithJob", { jobName }) : t("photos.title")}
         </h2>
-        <p className="mt-1 text-slate-600">
-          Real-time evidence wall — all proof photos from the crew.
-        </p>
+        <p className="mt-1 text-slate-600">{t("photos.subtitle")}</p>
         {photos.length > 0 && (
           <p className="mt-1 text-sm text-slate-400">
-            {photos.length} photos · Live updates enabled
+            {t("photos.liveUpdates", { count: photos.length })}
           </p>
         )}
       </div>
 
       {error === "no_job" && (
         <div className="rounded-xl border border-stone-200 bg-white p-8 text-center">
-          <p className="text-slate-500">
-            Select a job from the dashboard to view its photo feed.
-          </p>
+          <p className="text-slate-500">{t("photos.noJob")}</p>
           <a
             href="/"
             className="mt-4 inline-block rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600"
           >
-            Go to Dashboard
+            {t("timeline.goToDashboard")}
           </a>
         </div>
       )}
@@ -199,7 +280,7 @@ function PhotoFeedContent() {
             onClick={loadPhotos}
             className="ml-3 font-semibold underline"
           >
-            Retry
+            {t("common.retry")}
           </button>
         </div>
       )}
@@ -207,13 +288,13 @@ function PhotoFeedContent() {
       {loading && (
         <div className="flex items-center gap-2 text-slate-500">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
-          Loading photos...
+          {t("photos.loading")}
         </div>
       )}
 
       {!loading && !error && photos.length === 0 && (
         <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-slate-500">
-          No photos submitted yet for this job.
+          {t("photos.noPhotos")}
         </div>
       )}
 
@@ -222,12 +303,15 @@ function PhotoFeedContent() {
         {photos.map((photo) => {
           const workerName =
             (photo.users as { full_name: string } | null)?.full_name ??
-            "Unknown";
+            t("photos.unknownWorker");
           const taskName =
             (photo.tasks as { name: string } | null)?.name ?? null;
-          const asset = photo.media_assets as PhotoEntry["media_assets"];
-          const verificationCode = asset?.verification_code;
-          const stampData = (asset?.metadata as Record<string, Record<string, unknown>>)?.proof_stamp;
+          const originalAsset = photo.media_assets as PhotoEntry["media_assets"];
+          const asset = photo.displayAsset ?? originalAsset;
+          const verificationCode = asset?.verification_code ?? originalAsset?.verification_code;
+          const stampData =
+            ((asset?.metadata as Record<string, Record<string, unknown>>)?.proof_stamp) ??
+            ((originalAsset?.metadata as Record<string, Record<string, unknown>>)?.proof_stamp);
           const stampLines = (stampData?.lines as string[]) ?? [];
 
           return (
@@ -240,7 +324,7 @@ function PhotoFeedContent() {
                 {signedUrls[photo.id] ? (
                   <img
                     src={signedUrls[photo.id]}
-                    alt={`Photo by ${workerName}`}
+                    alt={`${t("photos.captured")}: ${workerName}`}
                     className="h-48 w-full object-cover"
                     loading="lazy"
                   />
@@ -264,7 +348,7 @@ function PhotoFeedContent() {
                 )}
                 {(photo.is_checkpoint as boolean) && (
                   <span className="absolute right-2 top-2 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
-                    CHECKPOINT
+                    {t("photos.checkpoint")}
                   </span>
                 )}
               </div>
@@ -281,7 +365,7 @@ function PhotoFeedContent() {
                 </div>
                 {taskName && (
                   <p className="mt-1 text-sm text-slate-500">
-                    Task: {taskName}
+                    {t("photos.task", { taskName })}
                   </p>
                 )}
                 {verificationCode && (

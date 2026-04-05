@@ -57,9 +57,9 @@ serve(async (req) => {
       return errorResponse(requestId, 401, "UNAUTHORIZED", "Invalid auth token")
     }
 
-    const { data: userRecord, error: userError } = await supabase
+    const { data: userRecord, error: userError } = await supabaseAdmin
       .from("users")
-      .select("id, company_id, is_active")
+      .select("id, company_id, is_active, role")
       .eq("id", user.id)
       .single()
 
@@ -223,7 +223,7 @@ serve(async (req) => {
       fetch(stampUrl, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${supabaseServiceKey}`,
+          "Authorization": authHeader,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ media_asset_id }),

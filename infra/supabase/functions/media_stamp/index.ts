@@ -59,6 +59,19 @@ serve(async (req) => {
       return errorResponse(requestId, 401, "UNAUTHORIZED", "Invalid auth token")
     }
 
+    const { data: userRecord, error: userError } = await supabaseAdmin
+      .from("users")
+      .select("id, company_id, is_active, role")
+      .eq("id", user.id)
+      .single()
+
+    if (userError || !userRecord) {
+      return errorResponse(requestId, 401, "UNAUTHORIZED", "User record not found")
+    }
+    if (!userRecord.is_active) {
+      return errorResponse(requestId, 403, "FORBIDDEN", "User is inactive")
+    }
+
     // Fetch the media asset with worker and job info for stamp
     const { data: asset, error: assetError } = await supabaseAdmin
       .from("media_assets")
@@ -69,6 +82,37 @@ serve(async (req) => {
     if (assetError) throw assetError
     if (!asset) {
       return errorResponse(requestId, 404, "NOT_FOUND", "Media asset not found")
+    }
+    if (asset.company_id !== userRecord.company_id) {
+      return errorResponse(requestId, 403, "FORBIDDEN", "Media asset belongs to a different company")
+    }
+    if (
+      asset.uploaded_by !== user.id &&
+      !["admin", "supervisor", "foreman"].includes(userRecord.role)
+    ) {
+      return errorResponse(requestId, 403, "FORBIDDEN", "User is not allowed to process this media asset")
+    }
+
+    if (asset.stamped_media_id && asset.sync_status === "processed") {
+      const { data: existingStampedAsset, error: existingStampedAssetError } = await supabaseAdmin
+        .from("media_assets")
+        .select("id, sha256_hash, verification_code, metadata")
+        .eq("id", asset.stamped_media_id)
+        .maybeSingle()
+
+      if (existingStampedAssetError) throw existingStampedAssetError
+
+      return jsonResponse({
+        status: "success",
+        media_asset_id,
+        stamped_media_id: asset.stamped_media_id,
+        sha256_hash: existingStampedAsset?.sha256_hash ?? asset.sha256_hash,
+        verification_code: existingStampedAsset?.verification_code ?? asset.verification_code,
+        stamp_version: "pixel-burn-v2",
+        stamp_svg_path: existingStampedAsset?.metadata?.proof_stamp?.stamp_svg_path ?? null,
+        stamp_lines: existingStampedAsset?.metadata?.proof_stamp?.lines ?? [],
+        request_id: requestId,
+      }, 200, requestId)
     }
 
     if (asset.sync_status !== "uploaded") {
@@ -166,15 +210,24 @@ serve(async (req) => {
       // Non-fatal — continue with metadata stamp
     }
 
-    // Update original with hash
-    await supabaseAdmin
-      .from("media_assets")
-      .update({ sha256_hash: hashHex, verification_code: verificationCode })
-      .eq("id", media_asset_id)
-
     // Create stamped derivative record
     const stampedId = crypto.randomUUID()
     const stampedPath = asset.storage_path.replace(/\.(\w+)$/, `_stamped.$1`)
+    const stampedBlob = new Blob([originalBytes], {
+      type: asset.mime_type || "application/octet-stream",
+    })
+
+    const { error: stampedUploadError } = await supabaseAdmin
+      .storage
+      .from(asset.bucket_name)
+      .upload(stampedPath, stampedBlob, {
+        contentType: asset.mime_type || "application/octet-stream",
+        upsert: true,
+      })
+
+    if (stampedUploadError) {
+      throw stampedUploadError
+    }
 
     const stampMetadata = {
       proof_stamp: {
@@ -195,6 +248,14 @@ serve(async (req) => {
         gps_accuracy_m: asset.gps_accuracy_m,
         captured_at: capturedAt,
       },
+    }
+
+    const originalMetadata = typeof asset.metadata === "object" && asset.metadata !== null
+      ? asset.metadata
+      : {}
+    const mergedOriginalMetadata = {
+      ...originalMetadata,
+      ...stampMetadata,
     }
 
     const { error: stampInsertError } = await supabaseAdmin
@@ -224,10 +285,19 @@ serve(async (req) => {
     if (stampInsertError) throw stampInsertError
 
     // Link original to stamped + mark processed
-    await supabaseAdmin
+    const { error: originalUpdateError } = await supabaseAdmin
       .from("media_assets")
-      .update({ stamped_media_id: stampedId, sync_status: "processed" })
+      .update({
+        sha256_hash: hashHex,
+        verification_code: verificationCode,
+        stamped_media_id: stampedId,
+        sync_status: "processed",
+        processed_at: new Date().toISOString(),
+        metadata: mergedOriginalMetadata,
+      })
       .eq("id", media_asset_id)
+
+    if (originalUpdateError) throw originalUpdateError
 
     return jsonResponse({
       status: "success",

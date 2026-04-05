@@ -34,8 +34,8 @@ class _TaskTileState extends ConsumerState<TaskTile> {
       // If completing a photo-required task, open camera first
       if (action == 'complete' && widget.task.requiresPhoto) {
         if (!mounted) return;
-        final result = await Navigator.of(context).push<bool>(
-          MaterialPageRoute<bool>(
+        final result = await Navigator.of(context).push<String?>(
+          MaterialPageRoute<String?>(
             builder: (_) => CameraCaptureScreen(
               jobId: widget.jobId,
               jobName: 'Photo for: ${widget.task.name}',
@@ -43,12 +43,18 @@ class _TaskTileState extends ConsumerState<TaskTile> {
           ),
         );
 
-        if (result != true || !mounted) {
+        if (result == null || !mounted) {
           setState(() => _isUpdating = false);
           return;
         }
-        // Photo was captured — the media_asset_id will be handled by the backend
-        // For now, complete without explicit ID (backend will link via timeline)
+        await ref
+            .read(tasksControllerProvider.notifier)
+            .updateStatus(
+              taskId: widget.task.taskId,
+              action: action,
+              mediaAssetId: result,
+            );
+        return;
       }
 
       await ref

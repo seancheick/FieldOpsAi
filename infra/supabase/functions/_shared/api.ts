@@ -22,9 +22,66 @@ export function corsHeaders(req: Request) {
 
 type JsonPrimitive = string | number | boolean | null
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
+type JsonObject = Record<string, JsonValue>
+
+function emitStructuredLog(level: "info" | "warn" | "error", payload: JsonObject) {
+  const line = JSON.stringify({
+    timestamp: new Date().toISOString(),
+    level,
+    ...payload,
+  })
+
+  if (level === "error") {
+    console.error(line)
+    return
+  }
+
+  if (level === "warn") {
+    console.warn(line)
+    return
+  }
+
+  console.log(line)
+}
 
 export function makeRequestId(req: Request) {
   return req.headers.get("x-request-id") || crypto.randomUUID()
+}
+
+export function logRequestStart(endpoint: string, requestId: string, req: Request, metadata: JsonObject = {}) {
+  emitStructuredLog("info", {
+    event: "request_start",
+    endpoint,
+    request_id: requestId,
+    method: req.method,
+    path: new URL(req.url).pathname,
+    ...metadata,
+  })
+}
+
+export function logRequestResult(
+  endpoint: string,
+  requestId: string,
+  status: number,
+  metadata: JsonObject = {},
+) {
+  emitStructuredLog(status >= 500 ? "error" : status >= 400 ? "warn" : "info", {
+    event: "request_finish",
+    endpoint,
+    request_id: requestId,
+    status,
+    ...metadata,
+  })
+}
+
+export function logRequestError(endpoint: string, requestId: string, error: unknown, metadata: JsonObject = {}) {
+  emitStructuredLog("error", {
+    event: "request_error",
+    endpoint,
+    request_id: requestId,
+    error: error instanceof Error ? error.message : String(error),
+    ...metadata,
+  })
 }
 
 export function responseHeaders(requestId: string, extra: Record<string, string> = {}) {

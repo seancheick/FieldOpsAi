@@ -109,7 +109,7 @@ class _CameraCaptureScreenState extends ConsumerState<CameraCaptureScreen> {
         _autoDismissTimer = Timer(const Duration(seconds: 2), () {
           if (mounted) {
             ref.read(captureControllerProvider.notifier).reset();
-            Navigator.of(context).pop(true);
+            Navigator.of(context).pop(next.mediaAssetId);
           }
         });
       }

@@ -6,6 +6,9 @@ import {
   CORS_HEADERS,
   errorResponse,
   jsonResponse,
+  logRequestError,
+  logRequestResult,
+  logRequestStart,
   lookupIdempotency,
   makeRequestId,
   sha256Hex,
@@ -21,6 +24,7 @@ serve(async (req) => {
   }
 
   const requestId = makeRequestId(req)
+  logRequestStart(ENDPOINT, requestId, req)
 
   try {
     const authHeader = req.headers.get("Authorization")
@@ -76,6 +80,10 @@ serve(async (req) => {
       const { data, error: fetchError } = await query
       if (fetchError) throw fetchError
 
+      logRequestResult(ENDPOINT, requestId, 200, {
+        user_id: user.id,
+        result_count: (data || []).length,
+      })
       return jsonResponse({ status: "success", expenses: data || [], request_id: requestId }, 200, requestId)
     }
 
@@ -149,6 +157,11 @@ serve(async (req) => {
 
         const responseBody = { status: "success", expense_id: expenseId, request_id: requestId }
         await storeIdempotency(supabaseAdmin, user.id, ENDPOINT, idempotencyKey, requestHash, 201, responseBody, requestId)
+        logRequestResult(ENDPOINT, requestId, 201, {
+          user_id: user.id,
+          action: "submit",
+          expense_id: expenseId,
+        })
         return jsonResponse(responseBody, 201, requestId, rateLimit.headers)
       }
 
@@ -178,6 +191,12 @@ serve(async (req) => {
 
         const responseBody = { status: "success", expense_id, decision, request_id: requestId }
         await storeIdempotency(supabaseAdmin, user.id, ENDPOINT, idempotencyKey, requestHash, 200, responseBody, requestId)
+        logRequestResult(ENDPOINT, requestId, 200, {
+          user_id: user.id,
+          action: "decide",
+          expense_id,
+          decision,
+        })
         return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
       }
 
@@ -186,7 +205,7 @@ serve(async (req) => {
 
     return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Use GET or POST")
   } catch (error) {
-    console.error("expenses error:", error)
+    logRequestError(ENDPOINT, requestId, error)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", error.message || "Internal server error")
   }
 })

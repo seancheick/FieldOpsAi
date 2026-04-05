@@ -4,31 +4,35 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { signOut } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", section: "overview" },
-  { href: "/map", label: "Live Map", section: "overview" },
-  { href: "/workers", label: "Workers", section: "overview" },
-  { href: "/schedule", label: "Schedule", section: "operations" },
-  { href: "/timeline", label: "Timeline", section: "operations" },
-  { href: "/photos", label: "Photo Feed", section: "operations" },
-  { href: "/overtime", label: "Overtime", section: "operations" },
-  { href: "/reports", label: "Reports", section: "reports" },
-  { href: "/settings", label: "Company", section: "settings" },
-  { href: "/settings/staff", label: "Staff", section: "settings" },
-  { href: "/onboarding", label: "Onboarding", section: "settings" },
+  { href: "/", labelKey: "shell.dashboard", section: "overview" },
+  { href: "/map", labelKey: "shell.map", section: "overview" },
+  { href: "/workers", labelKey: "shell.workers", section: "overview" },
+  { href: "/schedule", labelKey: "shell.schedule", section: "operations" },
+  { href: "/timeline", labelKey: "shell.timeline", section: "operations" },
+  { href: "/photos", labelKey: "shell.photos", section: "operations" },
+  { href: "/expenses", labelKey: "shell.expenses", section: "operations" },
+  { href: "/cost-codes", labelKey: "shell.costCodes", section: "operations" },
+  { href: "/overtime", labelKey: "shell.overtime", section: "operations" },
+  { href: "/reports", labelKey: "shell.reports", section: "reports" },
+  { href: "/settings", labelKey: "shell.company", section: "settings" },
+  { href: "/settings/staff", labelKey: "shell.staff", section: "settings" },
+  { href: "/onboarding", labelKey: "shell.onboarding", section: "settings" },
 ];
 
 const SECTIONS: Record<string, string> = {
-  overview: "Overview",
-  operations: "Operations",
-  reports: "Reports",
-  settings: "Settings",
+  overview: "shell.overview",
+  operations: "shell.operations",
+  reports: "shell.reports",
+  settings: "shell.settings",
 };
 
 export function Sidebar() {
   const pathname = usePathname();
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const { locale, setLocale, t } = useI18n();
 
   useEffect(() => {
     try {
@@ -46,7 +50,7 @@ export function Sidebar() {
   }, []);
 
   const grouped = Object.entries(SECTIONS).map(([key, label]) => ({
-    section: label,
+    section: t(label),
     items: NAV_ITEMS.filter((item) => item.section === key),
   }));
 
@@ -59,10 +63,10 @@ export function Sidebar() {
         </div>
         <div>
           <div className="text-sm font-bold tracking-tight text-slate-900">
-            FieldOps AI
+            {t("shell.appName")}
           </div>
           <div className="text-[10px] font-medium text-slate-400">
-            Command Center
+            {t("shell.commandCenter")}
           </div>
         </div>
       </div>
@@ -86,7 +90,7 @@ export function Sidebar() {
                       : "text-slate-500 hover:bg-stone-50 hover:text-slate-900"
                   }`}
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                   {isActive && (
                     <div className="ml-auto h-1.5 w-1.5 rounded-full bg-amber-400" />
                   )}
@@ -99,6 +103,17 @@ export function Sidebar() {
 
       {/* User */}
       <div className="border-t border-stone-100 px-4 py-4">
+        <label className="mb-2 block text-[11px] font-semibold uppercase tracking-widest text-slate-300">
+          {t("shell.language")}
+        </label>
+        <select
+          value={locale}
+          onChange={(event) => setLocale(event.target.value as "en" | "es")}
+          className="mb-3 w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-[12px] font-medium text-slate-500"
+        >
+          <option value="en">{t("shell.english")}</option>
+          <option value="es">{t("shell.spanish")}</option>
+        </select>
         {userEmail && (
           <div className="mb-2 truncate text-[11px] text-slate-400">
             {userEmail}
@@ -109,7 +124,7 @@ export function Sidebar() {
             onClick={() => signOut()}
             className="w-full rounded-lg py-1.5 text-[12px] font-medium text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
           >
-            Sign out
+            {t("shell.signOut")}
           </button>
         )}
       </div>

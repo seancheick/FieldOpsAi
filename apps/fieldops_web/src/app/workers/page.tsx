@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 
 interface WorkerStatus {
@@ -13,14 +14,8 @@ interface WorkerStatus {
   hours_today: number;
 }
 
-const STATUS_CONFIG = {
-  clocked_in: { label: "Clocked In", color: "bg-green-100 text-green-700", dot: "bg-green-500" },
-  on_break: { label: "On Break", color: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
-  clocked_out: { label: "Clocked Out", color: "bg-stone-100 text-stone-500", dot: "bg-stone-400" },
-  no_show: { label: "No Show", color: "bg-red-100 text-red-700", dot: "bg-red-500" },
-};
-
 export default function WorkersPage() {
+  const { t } = useI18n();
   const [workers, setWorkers] = useState<WorkerStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
@@ -53,7 +48,7 @@ export default function WorkersPage() {
           statusMap.set(uid, {
             subtype: ce.event_subtype as string,
             time: ce.occurred_at as string,
-            job: (ce.jobs as unknown as { name: string } | null)?.name ?? "Unknown",
+            job: (ce.jobs as unknown as { name: string } | null)?.name ?? t("workers.unknownJob"),
           });
         }
       }
@@ -109,15 +104,46 @@ export default function WorkersPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadWorkers();
-    const id = setInterval(loadWorkers, 10000);
-    return () => clearInterval(id);
+
+    const supabase = getSupabase();
+    const channel = supabase
+      .channel("workers-live")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "users",
+        },
+        () => loadWorkers()
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "clock_events",
+        },
+        () => loadWorkers()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [loadWorkers]);
 
   const filtered = filter === "all" ? workers : workers.filter((w) => w.status === filter);
+  const STATUS_CONFIG = {
+    clocked_in: { label: t("workers.clockedIn"), color: "bg-green-100 text-green-700", dot: "bg-green-500" },
+    on_break: { label: t("workers.onBreak"), color: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
+    clocked_out: { label: t("workers.clockedOut"), color: "bg-stone-100 text-stone-500", dot: "bg-stone-400" },
+    no_show: { label: t("workers.noShow"), color: "bg-red-100 text-red-700", dot: "bg-red-500" },
+  };
   const counts = {
     all: workers.length,
     clocked_in: workers.filter((w) => w.status === "clocked_in").length,
@@ -130,18 +156,18 @@ export default function WorkersPage() {
     <div>
       <div className="mb-6">
         <a href="/" className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900">
-          <span>&larr;</span> Back to Dashboard
+          <span>&larr;</span> {t("common.backToDashboard")}
         </a>
-        <h2 className="text-2xl font-bold text-slate-900">Who&apos;s Working Now</h2>
+        <h2 className="text-2xl font-bold text-slate-900">{t("workers.title")}</h2>
         <p className="mt-1 text-slate-600">
-          Real-time worker status · Auto-refreshes every 10s
+          {t("workers.subtitle")}
         </p>
       </div>
 
       {/* Status filter tabs */}
       <div className="mb-6 flex flex-wrap gap-2">
         {(["all", "clocked_in", "on_break", "clocked_out", "no_show"] as const).map((s) => {
-          const label = s === "all" ? "All" : STATUS_CONFIG[s as keyof typeof STATUS_CONFIG].label;
+          const label = s === "all" ? t("workers.all") : STATUS_CONFIG[s as keyof typeof STATUS_CONFIG].label;
           const count = counts[s as keyof typeof counts];
           return (
             <button
@@ -162,13 +188,13 @@ export default function WorkersPage() {
       {loading && (
         <div className="flex items-center gap-2 text-slate-500">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
-          Loading workers...
+          {t("common.loading")}
         </div>
       )}
 
       {!loading && filtered.length === 0 && (
         <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-slate-500">
-          No workers in this category.
+          {t("workers.noWorkers")}
         </div>
       )}
 
@@ -178,11 +204,11 @@ export default function WorkersPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-stone-50 text-left text-slate-500">
-                <th className="px-5 py-3">Worker</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3">Current Job</th>
-                <th className="px-5 py-3">Since</th>
-                <th className="px-5 py-3 text-right">Hours Today</th>
+                <th className="px-5 py-3">{t("workers.worker")}</th>
+                <th className="px-5 py-3">{t("workers.status")}</th>
+                <th className="px-5 py-3">{t("workers.currentJob")}</th>
+                <th className="px-5 py-3">{t("workers.since")}</th>
+                <th className="px-5 py-3 text-right">{t("workers.hoursToday")}</th>
               </tr>
             </thead>
             <tbody>

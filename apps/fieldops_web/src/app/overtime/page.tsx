@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 
 interface OTRequest {
@@ -17,12 +18,13 @@ interface OTRequest {
 }
 
 export default function OvertimePage() {
+  const { t } = useI18n();
   return (
     <Suspense
       fallback={
         <div className="flex items-center gap-2 text-slate-500">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
-          Loading...
+          {t("overtimePage.loading")}
         </div>
       }
     >
@@ -32,6 +34,7 @@ export default function OvertimePage() {
 }
 
 function OvertimeContent() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const filterStatus = searchParams.get("status") || "pending";
 
@@ -66,11 +69,11 @@ function OvertimeContent() {
       if (err) throw err;
       setRequests((data as unknown as OTRequest[]) ?? []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load OT requests");
+      setError(e instanceof Error ? e.message : t("overtimePage.failedToLoad"));
     } finally {
       setLoading(false);
     }
-  }, [filterStatus]);
+  }, [filterStatus, t]);
 
   useEffect(() => {
     loadRequests();
@@ -107,12 +110,12 @@ function OvertimeContent() {
 
       if (!res.ok) {
         const body = await res.json();
-        throw new Error(body.message || "Decision failed");
+        throw new Error(body.message || t("overtimePage.decisionFailed"));
       }
 
       await loadRequests();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Decision failed");
+      setError(e instanceof Error ? e.message : t("overtimePage.decisionFailed"));
     } finally {
       setDecidingId(null);
     }
@@ -134,14 +137,12 @@ function OvertimeContent() {
           href="/"
           className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900"
         >
-          <span>&larr;</span> Back to Dashboard
+          <span>&larr;</span> {t("common.backToDashboard")}
         </a>
         <h2 className="text-2xl font-bold text-slate-900">
-          Overtime Approvals
+          {t("overtimePage.title")}
         </h2>
-        <p className="mt-1 text-slate-600">
-          Review and approve worker overtime requests.
-        </p>
+        <p className="mt-1 text-slate-600">{t("overtimePage.subtitle")}</p>
 
         {/* Status filter tabs */}
         <div className="mt-4 flex gap-2">
@@ -155,7 +156,7 @@ function OvertimeContent() {
                   : "bg-stone-100 text-slate-600 hover:bg-stone-200"
               }`}
             >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
+              {t(`overtimePage.${s}`)}
             </a>
           ))}
         </div>
@@ -164,7 +165,7 @@ function OvertimeContent() {
       {loading && (
         <div className="flex items-center gap-2 text-slate-500">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
-          Loading requests...
+          {t("overtimePage.loading")}
         </div>
       )}
 
@@ -175,14 +176,14 @@ function OvertimeContent() {
             onClick={loadRequests}
             className="ml-3 font-semibold underline"
           >
-            Retry
+            {t("common.retry")}
           </button>
         </div>
       )}
 
       {!loading && !error && requests.length === 0 && (
         <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-slate-500">
-          No {filterStatus} overtime requests.
+          {t("overtimePage.noRequests", { status: t(`overtimePage.${filterStatus}`) })}
         </div>
       )}
 
@@ -195,6 +196,7 @@ function OvertimeContent() {
             isDeciding={decidingId === req.id}
             onDecision={handleDecision}
             formatTime={formatTime}
+            t={t}
           />
         ))}
       </div>
@@ -208,6 +210,7 @@ function OTRequestCard({
   isDeciding,
   onDecision,
   formatTime,
+  t,
 }: {
   request: OTRequest;
   isPending: boolean;
@@ -218,6 +221,7 @@ function OTRequestCard({
     reason: string,
   ) => void;
   formatTime: (iso: string) => string;
+  t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
   const [reason, setReason] = useState("");
   const [showReasonFor, setShowReasonFor] = useState<
@@ -225,9 +229,9 @@ function OTRequestCard({
   >(null);
 
   const workerName =
-    (request.users as { full_name: string } | null)?.full_name ?? "Unknown worker";
+    (request.users as { full_name: string } | null)?.full_name ?? t("overtimePage.unknownWorker");
   const jobName =
-    (request.jobs as { name: string; code: string } | null)?.name ?? "Unknown job";
+    (request.jobs as { name: string; code: string } | null)?.name ?? t("overtimePage.unknownJob");
   const jobCode =
     (request.jobs as { name: string; code: string } | null)?.code ?? "";
 
@@ -249,14 +253,14 @@ function OTRequestCard({
                 : "bg-red-100 text-red-700"
           }`}
         >
-          {request.status}
+          {t(`overtimePage.${request.status}`)}
         </span>
       </div>
 
       <div className="mt-3 flex gap-4 text-sm text-slate-600">
-        <span>Requested: {formatTime(request.requested_at)}</span>
+        <span>{t("overtimePage.requested", { time: formatTime(request.requested_at) })}</span>
         {request.total_hours_at_request != null && (
-          <span>Hours: {request.total_hours_at_request}h</span>
+          <span>{t("overtimePage.hours", { hours: request.total_hours_at_request })}</span>
         )}
       </div>
 
@@ -271,14 +275,16 @@ function OTRequestCard({
           {showReasonFor ? (
             <div className="space-y-3">
               <label className="block text-sm font-medium text-slate-700">
-                Reason for {showReasonFor === "approved" ? "approval" : "denial"}
+                {showReasonFor === "approved"
+                  ? t("overtimePage.reasonForApproval")
+                  : t("overtimePage.reasonForDenial")}
               </label>
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
                 rows={2}
-                placeholder="Required — explain your decision..."
+                placeholder={t("overtimePage.decisionPlaceholder")}
               />
               <div className="flex gap-2">
                 <button
@@ -295,8 +301,10 @@ function OTRequestCard({
                   }`}
                 >
                   {isDeciding
-                    ? "Submitting..."
-                    : `Confirm ${showReasonFor === "approved" ? "Approval" : "Denial"}`}
+                    ? t("overtimePage.submitting")
+                    : showReasonFor === "approved"
+                      ? t("overtimePage.confirmApproval")
+                      : t("overtimePage.confirmDenial")}
                 </button>
                 <button
                   onClick={() => {
@@ -305,7 +313,7 @@ function OTRequestCard({
                   }}
                   className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-stone-100"
                 >
-                  Cancel
+                  {t("overtimePage.cancel")}
                 </button>
               </div>
             </div>
@@ -315,13 +323,13 @@ function OTRequestCard({
                 onClick={() => setShowReasonFor("approved")}
                 className="rounded-xl bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700"
               >
-                Approve
+                {t("overtimePage.approve")}
               </button>
               <button
                 onClick={() => setShowReasonFor("denied")}
                 className="rounded-xl bg-red-50 px-5 py-2 text-sm font-semibold text-red-700 hover:bg-red-100"
               >
-                Deny
+                {t("overtimePage.deny")}
               </button>
             </div>
           )}

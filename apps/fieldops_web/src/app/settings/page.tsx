@@ -111,7 +111,6 @@ export default function CompanySettingsPage() {
             {logoUrl && (
               <div className="flex items-center gap-4">
                 <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl border border-stone-200 bg-stone-50">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={logoUrl}
                     alt="Company logo preview"

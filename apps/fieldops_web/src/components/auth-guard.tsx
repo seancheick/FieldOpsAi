@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabase";
 import { signIn } from "@/lib/auth";
 import type { Session } from "@supabase/supabase-js";
+import { useI18n } from "@/lib/i18n";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -12,6 +13,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [signingIn, setSigningIn] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -37,7 +39,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     try {
       await signIn(email, password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign-in failed");
+      setError(err instanceof Error ? err.message : t("auth.signInFailed"));
     } finally {
       setSigningIn(false);
     }
@@ -47,7 +49,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center text-slate-500">
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
-        <span className="ml-3">Loading...</span>
+        <span className="ml-3">{t("common.loading")}</span>
       </div>
     );
   }
@@ -57,10 +59,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       <div className="mx-auto mt-20 max-w-md">
         <div className="rounded-2xl border border-stone-200 bg-white p-8 shadow-sm">
           <h2 className="text-xl font-bold text-slate-900">
-            Supervisor Login
+            {t("auth.title")}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Sign in to view the dashboard.
+            {t("auth.subtitle")}
           </p>
 
           <form onSubmit={handleSignIn} className="mt-6 space-y-4">
@@ -69,7 +71,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                 htmlFor="email"
                 className="block text-sm font-medium text-slate-700"
               >
-                Email
+                {t("auth.email")}
               </label>
               <input
                 id="email"
@@ -85,7 +87,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                 htmlFor="password"
                 className="block text-sm font-medium text-slate-700"
               >
-                Password
+                {t("auth.password")}
               </label>
               <input
                 id="password"
@@ -108,7 +110,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               disabled={signingIn}
               className="w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
             >
-              {signingIn ? "Signing in..." : "Sign in"}
+              {signingIn ? t("auth.signingIn") : t("auth.signIn")}
             </button>
           </form>
         </div>

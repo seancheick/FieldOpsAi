@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  eslint: {
+    // Next.js still runs its legacy internal lint path during build.
+    // Use the explicit ESLint CLI gate from package.json as the source of truth.
+    ignoreDuringBuilds: true,
+  },
+};
 
 export default withSentryConfig(nextConfig, {
   silent: true,
@@ -11,5 +17,4 @@ export default withSentryConfig(nextConfig, {
   sourcemaps: {
     filesToDeleteAfterUpload: [".next/static/**/*.map"],
   },
-  disableLogger: true,
 });

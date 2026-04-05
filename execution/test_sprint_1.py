@@ -1,7 +1,9 @@
 import datetime
 import hashlib
 import json
+import subprocess
 import sys
+import time
 import uuid
 
 import requests
@@ -81,6 +83,58 @@ def admin_select(path, params):
     return response.json()
 
 
+def admin_sql(query):
+    result = subprocess.run(
+        [
+            "docker",
+            "exec",
+            "supabase_db_infra",
+            "psql",
+            "-U",
+            "postgres",
+            "-d",
+            "postgres",
+            "-t",
+            "-A",
+            "-F",
+            "\t",
+            "-c",
+            query,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    expect(result.returncode == 0, f"admin SQL failed: {query}", result.stderr.strip())
+    return [line for line in result.stdout.splitlines() if line.strip()]
+
+
+def storage_sign(path, token):
+    response = requests.post(
+        f"{SUPABASE_URL}/storage/v1/object/sign/fieldops-media/{path}",
+        headers={
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        json={"expiresIn": 3600},
+        timeout=15,
+    )
+    return response
+
+
+def wait_for_single_row(path, params, predicate, timeout_seconds=10, interval_seconds=0.5):
+    deadline = time.time() + timeout_seconds
+    last_rows = None
+    while time.time() < deadline:
+        rows = admin_select(path, params)
+        last_rows = rows
+        if len(rows) == 1 and predicate(rows[0]):
+            return rows[0]
+        time.sleep(interval_seconds)
+    fail(f"timed out waiting for {path} to reach expected state", last_rows)
+
+
 print("========================================")
 print("🚀 SPRINT 1 VALIDATION TESTS")
 print("========================================\n")
@@ -90,6 +144,41 @@ worker_1_token = authenticate("worker@test.com")
 worker_2_token = authenticate("worker2@test.com")
 supervisor_token = authenticate("supervisor@test.com")
 print("✅ SUCCESS: Authentication passed for worker1, worker2, and supervisor\n")
+
+# 0. Verify realtime publication is configured for partitioned timeline event sources
+print("🔹 Verifying: Supabase Realtime publication wiring")
+publication_root = admin_sql(
+    "select pubviaroot::text from pg_publication where pubname = 'supabase_realtime';"
+)
+expect(publication_root == ["true"], "supabase_realtime should publish via partition root", publication_root)
+
+published_tables = set(
+    admin_sql(
+        """
+        select tablename
+        from pg_publication_tables
+        where pubname = 'supabase_realtime'
+          and schemaname = 'public'
+        order by tablename;
+        """
+    )
+)
+expected_realtime_tables = {
+    "clock_events",
+    "photo_events",
+    "task_events",
+    "note_events",
+    "ot_approval_events",
+    "correction_events",
+    "jobs",
+    "users",
+}
+expect(
+    expected_realtime_tables.issubset(published_tables),
+    "supabase_realtime is missing required published tables",
+    {"expected": sorted(expected_realtime_tables), "actual": sorted(published_tables)},
+)
+print("✅ SUCCESS: realtime publication is configured for timeline/worker/map subscriptions\n")
 
 # 1. Test /jobs/active assignment scoping
 print("🔹 Testing: GET /jobs/active assignment scoping")
@@ -228,6 +317,82 @@ geofence_body = sync_geofence.json()
 expect(geofence_body["rejected"][0]["reason"] == "invalid_geofence", "invalid geofence should be rejected", geofence_body)
 print("✅ SUCCESS: geofence validation rejected invalid GPS\n")
 
+# 2b. Expenses flow
+print("🔹 Testing: POST /expenses submit + GET /expenses review")
+expense_idempotency_key = str(uuid.uuid4())
+expense_payload = {
+    "action": "submit",
+    "job_id": WORKER_1_JOB_ID,
+    "category": "materials",
+    "amount": 42.75,
+    "vendor": "FieldOps Supply",
+    "notes": "Fasteners and anchors",
+}
+expense_submit = requests.post(
+    f"{SUPABASE_URL}/functions/v1/expenses",
+    headers=mobile_headers(worker_1_token, expense_idempotency_key),
+    json=expense_payload,
+    timeout=15,
+)
+expect(expense_submit.status_code == 201, "/expenses submit failed", expense_submit.text)
+require_rate_limit_headers(expense_submit, 20)
+expense_body = expense_submit.json()
+expect(expense_body["status"] == "success", "expense submit missing success status", expense_body)
+expect(expense_body["expense_id"], "expense submit missing expense id", expense_body)
+
+expense_replay = requests.post(
+    f"{SUPABASE_URL}/functions/v1/expenses",
+    headers=mobile_headers(worker_1_token, expense_idempotency_key),
+    json=expense_payload,
+    timeout=15,
+)
+expect(expense_replay.status_code == 201, "expense replay failed", expense_replay.text)
+expect(expense_replay.json() == expense_body, "expense replay did not return same response", expense_replay.json())
+
+expense_list = requests.get(
+    f"{SUPABASE_URL}/functions/v1/expenses?job_id={WORKER_1_JOB_ID}&status=pending",
+    headers=mobile_headers(supervisor_token),
+    timeout=15,
+)
+expect(expense_list.status_code == 200, "/expenses list failed", expense_list.text)
+require_request_headers(expense_list)
+expense_list_body = expense_list.json()
+expect(expense_list_body["status"] == "success", "expense list missing success status", expense_list_body)
+expect(
+    any(expense["id"] == expense_body["expense_id"] for expense in expense_list_body["expenses"]),
+    "expense should be visible to supervisor review list",
+    expense_list_body,
+)
+expense_decide = requests.post(
+    f"{SUPABASE_URL}/functions/v1/expenses",
+    headers=mobile_headers(supervisor_token, str(uuid.uuid4())),
+    json={
+        "action": "decide",
+        "expense_id": expense_body["expense_id"],
+        "decision": "approved",
+        "reason": "Receipt reviewed and approved",
+    },
+    timeout=15,
+)
+expect(expense_decide.status_code == 200, "/expenses decide failed", expense_decide.text)
+expense_decide_body = expense_decide.json()
+expect(expense_decide_body["status"] == "success", "expense decide missing success status", expense_decide_body)
+expect(expense_decide_body["decision"] == "approved", "expense decision should be approved", expense_decide_body)
+
+approved_expense_list = requests.get(
+    f"{SUPABASE_URL}/functions/v1/expenses?job_id={WORKER_1_JOB_ID}&status=approved",
+    headers=mobile_headers(supervisor_token),
+    timeout=15,
+)
+expect(approved_expense_list.status_code == 200, "/expenses approved list failed", approved_expense_list.text)
+approved_expense_list_body = approved_expense_list.json()
+expect(
+    any(expense["id"] == expense_body["expense_id"] for expense in approved_expense_list_body["expenses"]),
+    "approved expense should be visible after supervisor decision",
+    approved_expense_list_body,
+)
+print("✅ SUCCESS: expenses submit and review list behave correctly\n")
+
 # 3. Media flow with authorization, idempotency, upload, finalize, and timeline event
 print("🔹 Testing: POST /media/presign and /media/finalize")
 unauthorized_media = requests.post(
@@ -325,7 +490,7 @@ asset_rows = admin_select(
     "media_assets",
     {
         "id": f"eq.{presign_body['media_asset_id']}",
-        "select": "id,bucket_name,storage_path,sync_status,sha256_hash",
+        "select": "id,bucket_name,storage_path,sync_status,sha256_hash,verification_code,stamped_media_id",
     },
 )
 expect(len(asset_rows) == 1, "expected one media_asset row", asset_rows)
@@ -341,7 +506,47 @@ photo_rows = admin_select(
 )
 expect(len(photo_rows) == 1, "finalize should create exactly one photo_event", photo_rows)
 expect(photo_rows[0]["id"] == finalize_body["photo_event_id"], "photo_event_id mismatch", photo_rows)
-print("✅ SUCCESS: media_assets and photo_events rows verified\n")
+
+processed_asset = wait_for_single_row(
+    "media_assets",
+    {
+        "id": f"eq.{presign_body['media_asset_id']}",
+        "select": "id,sync_status,sha256_hash,verification_code,stamped_media_id,metadata",
+    },
+    lambda row: row["sync_status"] == "processed" and row["stamped_media_id"] is not None and row["sha256_hash"] == checksum,
+)
+expect(processed_asset["verification_code"], "processed asset missing verification code", processed_asset)
+expect(
+    (processed_asset["metadata"] or {}).get("proof_stamp", {}).get("verification_code") == processed_asset["verification_code"],
+    "processed asset metadata missing proof stamp verification code",
+    processed_asset,
+)
+
+stamped_rows = admin_select(
+    "media_assets",
+    {
+        "id": f"eq.{processed_asset['stamped_media_id']}",
+        "select": "id,kind,sync_status,original_media_id,sha256_hash,verification_code,storage_path,metadata",
+    },
+)
+expect(len(stamped_rows) == 1, "expected one stamped media_asset row", stamped_rows)
+stamped_asset = stamped_rows[0]
+expect(stamped_asset["kind"] == "stamped_photo", "stamped asset should be stamped_photo", stamped_asset)
+expect(stamped_asset["sync_status"] == "processed", "stamped asset should be processed", stamped_asset)
+expect(stamped_asset["original_media_id"] == presign_body["media_asset_id"], "stamped asset should link to original media", stamped_asset)
+expect(stamped_asset["sha256_hash"] == checksum, "stamped asset hash mismatch", stamped_asset)
+expect(
+    (stamped_asset["metadata"] or {}).get("proof_stamp", {}).get("verification_code") == processed_asset["verification_code"],
+    "stamped asset metadata missing proof stamp verification code",
+    stamped_asset,
+)
+
+raw_sign_response = storage_sign(asset_rows[0]["storage_path"], supervisor_token)
+expect(raw_sign_response.status_code == 200, "supervisor should be able to sign raw proof media", raw_sign_response.text)
+
+stamped_sign_response = storage_sign(stamped_asset["storage_path"], supervisor_token)
+expect(stamped_sign_response.status_code == 200, "supervisor should be able to sign stamped proof media", stamped_sign_response.text)
+print("✅ SUCCESS: media_assets, stamped proof, and photo_events rows verified\n")
 
 print("========================================")
 print("🏁 TESTS COMPLETE")

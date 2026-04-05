@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 import type { JobSummary } from "@/lib/types";
 
@@ -12,6 +13,7 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
+  const { t } = useI18n();
   const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalJobs: 0,
@@ -22,11 +24,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
-
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -66,11 +64,15 @@ export default function DashboardPage() {
         pendingOT: otRes.count ?? 0,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load dashboard");
+      setError(e instanceof Error ? e.message : t("dashboard.failedToLoad"));
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
 
   return (
     <div>
@@ -78,10 +80,10 @@ export default function DashboardPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Dashboard
+            {t("dashboard.title")}
           </h1>
           <p className="mt-0.5 text-sm text-slate-400">
-            Real-time overview of your field operations
+            {t("dashboard.subtitle")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -89,13 +91,13 @@ export default function DashboardPage() {
             onClick={loadDashboard}
             className="rounded-lg bg-stone-100 px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-stone-200"
           >
-            Refresh
+            {t("common.refresh")}
           </button>
           <a
             href="/reports"
             className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-slate-800"
           >
-            Generate Report
+            {t("dashboard.generateReport")}
           </a>
         </div>
       </div>
@@ -103,27 +105,27 @@ export default function DashboardPage() {
       {/* KPI Cards */}
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KPICard
-          label="Active Jobs"
+          label={t("dashboard.activeJobs")}
           value={stats.totalJobs.toString()}
-          change="+2 this week"
+          change={t("dashboard.thisWeek")}
           color="text-slate-900"
         />
         <KPICard
-          label="Workers Clocked In"
+          label={t("dashboard.workersClockedIn")}
           value={stats.activeWorkers.toString()}
-          change="today"
+          change={t("dashboard.today")}
           color="text-green-600"
         />
         <KPICard
-          label="Photos Today"
+          label={t("dashboard.photosToday")}
           value={stats.photosToday.toString()}
-          change="proof captured"
+          change={t("dashboard.proofCaptured")}
           color="text-blue-600"
         />
         <KPICard
-          label="Pending OT"
+          label={t("dashboard.pendingOt")}
           value={stats.pendingOT.toString()}
-          change="awaiting approval"
+          change={t("dashboard.awaitingApproval")}
           color={stats.pendingOT > 0 ? "text-amber-600" : "text-slate-400"}
           href={stats.pendingOT > 0 ? "/overtime" : undefined}
         />
@@ -132,7 +134,7 @@ export default function DashboardPage() {
       {loading && (
         <div className="flex items-center gap-2 text-sm text-slate-400">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-stone-200 border-t-slate-900" />
-          Loading...
+          {t("common.loading")}
         </div>
       )}
 
@@ -143,7 +145,7 @@ export default function DashboardPage() {
             onClick={loadDashboard}
             className="ml-3 font-semibold underline"
           >
-            Retry
+            {t("common.retry")}
           </button>
         </div>
       )}
@@ -154,31 +156,31 @@ export default function DashboardPage() {
           href="/map"
           className="rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
         >
-          Open Live Map →
+          {t("dashboard.openLiveMap")} →
         </a>
         <a
           href="/workers"
           className="rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
         >
-          View Workers →
+          {t("dashboard.viewWorkers")} →
         </a>
         <a
           href="/photos"
           className="rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
         >
-          Photo Feed →
+          {t("dashboard.photoFeed")} →
         </a>
       </div>
 
       {/* Jobs Grid */}
       {!loading && !error && jobs.length === 0 && (
         <div className="rounded-2xl border border-dashed border-stone-200 bg-white p-10 text-center">
-          <p className="text-sm text-slate-400">No active jobs.</p>
+          <p className="text-sm text-slate-400">{t("dashboard.noActiveJobs")}</p>
           <a
             href="/onboarding"
             className="mt-3 inline-block rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white"
           >
-            Create Your First Job
+            {t("dashboard.createFirstJob")}
           </a>
         </div>
       )}
@@ -210,20 +212,20 @@ export default function DashboardPage() {
               </p>
             )}
             <div className="mt-3 text-[11px] text-slate-400">
-              {job.geofence_radius_m}m geofence
+              {t("dashboard.geofence", { radius: job.geofence_radius_m })}
             </div>
             <div className="mt-4 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
               <a
                 href={`/timeline?job_id=${job.id}`}
                 className="rounded-lg bg-stone-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-stone-100"
               >
-                Timeline
+                {t("dashboard.timeline")}
               </a>
               <a
                 href={`/photos?job_id=${job.id}`}
                 className="rounded-lg bg-stone-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-stone-100"
               >
-                Photos
+                {t("dashboard.photos")}
               </a>
             </div>
           </div>

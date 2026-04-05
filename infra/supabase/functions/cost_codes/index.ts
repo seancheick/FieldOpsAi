@@ -5,6 +5,9 @@ import {
   CORS_HEADERS,
   errorResponse,
   jsonResponse,
+  logRequestError,
+  logRequestResult,
+  logRequestStart,
   makeRequestId,
 } from "../_shared/api.ts"
 
@@ -24,6 +27,7 @@ serve(async (req) => {
   }
 
   const requestId = makeRequestId(req)
+  logRequestStart("cost_codes", requestId, req)
 
   try {
     const authHeader = req.headers.get("Authorization")
@@ -97,6 +101,12 @@ serve(async (req) => {
           worker_count: data.workers.size,
         }))
 
+        logRequestResult("cost_codes", requestId, 200, {
+          user_id: user.id,
+          report: "profitability",
+          job_id: jobId,
+          result_count: breakdown.length,
+        })
         return jsonResponse({
           status: "success",
           job_id: jobId,
@@ -115,6 +125,10 @@ serve(async (req) => {
 
       const uniqueCodes = [...new Set((codes || []).map((c: any) => c.task_classification).filter(Boolean))]
 
+      logRequestResult("cost_codes", requestId, 200, {
+        user_id: user.id,
+        result_count: uniqueCodes.length,
+      })
       return jsonResponse({
         status: "success",
         cost_codes: uniqueCodes,
@@ -124,7 +138,7 @@ serve(async (req) => {
 
     return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Use GET for /cost_codes")
   } catch (error) {
-    console.error("cost_codes error:", error)
+    logRequestError("cost_codes", requestId, error)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", error.message || "Internal server error")
   }
 })

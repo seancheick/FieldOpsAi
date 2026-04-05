@@ -10,10 +10,12 @@ class ExpenseCaptureScreen extends ConsumerStatefulWidget {
     super.key,
     required this.jobId,
     required this.jobName,
+    this.onCaptureReceiptPhoto,
   });
 
   final String jobId;
   final String jobName;
+  final Future<String?> Function(BuildContext context)? onCaptureReceiptPhoto;
 
   @override
   ConsumerState<ExpenseCaptureScreen> createState() =>
@@ -28,6 +30,7 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
   bool _isSubmitting = false;
   String? _error;
   bool _photoTaken = false;
+  String? _mediaAssetId;
 
   static const _categories = [
     ('materials', 'Materials', Icons.inventory_2_rounded),
@@ -46,16 +49,20 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
   }
 
   Future<void> _takeReceiptPhoto() async {
-    final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => CameraCaptureScreen(
-          jobId: widget.jobId,
-          jobName: 'Receipt: ${widget.jobName}',
-        ),
-      ),
-    );
-    if (result == true && mounted) {
-      setState(() => _photoTaken = true);
+    final result = await (widget.onCaptureReceiptPhoto?.call(context) ??
+        Navigator.of(context).push<String?>(
+          MaterialPageRoute<String?>(
+            builder: (_) => CameraCaptureScreen(
+              jobId: widget.jobId,
+              jobName: 'Receipt: ${widget.jobName}',
+            ),
+          ),
+        ));
+    if (result != null && mounted) {
+      setState(() {
+        _photoTaken = true;
+        _mediaAssetId = result;
+      });
     }
   }
 
@@ -82,6 +89,7 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
                 : null,
             notes:
                 _notesController.text.isNotEmpty ? _notesController.text : null,
+            mediaAssetId: _mediaAssetId,
           );
 
       if (mounted) {

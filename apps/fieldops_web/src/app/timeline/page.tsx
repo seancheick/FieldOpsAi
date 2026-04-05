@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 import type { TimelineEvent } from "@/lib/types";
 
@@ -14,22 +15,23 @@ const EVENT_ICONS: Record<string, string> = {
   correction_event: "✏️",
 };
 
-const EVENT_LABELS: Record<string, string> = {
-  clock_event: "Clock Event",
-  photo_event: "Photo Uploaded",
-  task_event: "Task Update",
-  note_event: "Note Added",
-  ot_approval_event: "OT Decision",
-  correction_event: "Correction",
-};
+const TIMELINE_SOURCE_TABLES = [
+  "clock_events",
+  "photo_events",
+  "task_events",
+  "note_events",
+  "ot_approval_events",
+  "correction_events",
+] as const;
 
 export default function TimelinePage() {
+  const { t } = useI18n();
   return (
     <Suspense
       fallback={
         <div className="flex items-center gap-2 text-slate-500">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
-          Loading timeline...
+          {t("timeline.loading")}
         </div>
       }
     >
@@ -39,6 +41,7 @@ export default function TimelinePage() {
 }
 
 function TimelineContent() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const jobId = searchParams.get("job_id");
 
@@ -88,29 +91,22 @@ function TimelineContent() {
     loadTimeline();
 
     const supabase = getSupabase();
-    const channel = supabase
-      .channel(`timeline-job-${jobId}`)
-      .on(
+    let channel = supabase.channel(`timeline-job-${jobId}`);
+
+    for (const table of TIMELINE_SOURCE_TABLES) {
+      channel = channel.on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
-          table: "clock_events",
+          table,
           filter: `job_id=eq.${jobId}`,
         },
         () => loadTimeline()
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "photo_events",
-          filter: `job_id=eq.${jobId}`,
-        },
-        () => loadTimeline()
-      )
-      .subscribe();
+      );
+    }
+
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
@@ -135,7 +131,7 @@ function TimelineContent() {
         const subtype = (p.subtype as string) ?? "unknown";
         const gpsLat = p.gps_lat as number | null;
         const gpsLng = p.gps_lng as number | null;
-        const label = subtype === "clock_in" ? "Clocked In" : "Clocked Out";
+        const label = subtype === "clock_in" ? t("timeline.clockedIn") : t("timeline.clockedOut");
         return (
           <div>
             <span
@@ -149,7 +145,7 @@ function TimelineContent() {
             </span>
             {gpsLat != null && gpsLng != null && (
               <span className="ml-2 text-xs text-slate-500">
-                GPS: {gpsLat.toFixed(4)}, {gpsLng.toFixed(4)}
+                {t("timeline.gps", { lat: gpsLat.toFixed(4), lng: gpsLng.toFixed(4) })}
               </span>
             )}
           </div>
@@ -158,8 +154,8 @@ function TimelineContent() {
       case "photo_event":
         return (
           <span className="text-sm text-slate-600">
-            Photo proof captured
-            {p.is_checkpoint ? " (checkpoint)" : ""}
+            {t("timeline.photoCaptured")}
+            {p.is_checkpoint ? t("timeline.checkpoint") : ""}
           </span>
         );
       case "task_event":
@@ -185,33 +181,33 @@ function TimelineContent() {
           href="/"
           className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900"
         >
-          <span>&larr;</span> Back to Dashboard
+          <span>&larr;</span> {t("common.backToDashboard")}
         </a>
         <h2 className="text-2xl font-bold text-slate-900">
-          {jobName ? `Timeline: ${jobName}` : "Job Timeline"}
+          {jobName ? t("timeline.titleWithJob", { jobName }) : t("timeline.title")}
         </h2>
         <p className="mt-1 text-slate-600">
-          Chronological view of all worker events for this job.
+          {t("timeline.subtitle")}
         </p>
       </div>
 
       {loading && (
         <div className="flex items-center gap-2 text-slate-500">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
-          Loading timeline...
+          {t("timeline.loading")}
         </div>
       )}
 
       {error === "no_job" && (
         <div className="rounded-xl border border-stone-200 bg-white p-8 text-center">
           <p className="text-slate-500">
-            Select a job from the dashboard to view its timeline.
+            {t("timeline.noJob")}
           </p>
           <a
             href="/"
             className="mt-4 inline-block rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600"
           >
-            Go to Dashboard
+            {t("timeline.goToDashboard")}
           </a>
         </div>
       )}
@@ -224,7 +220,7 @@ function TimelineContent() {
 
       {!loading && !error && events.length === 0 && (
         <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-slate-500">
-          No events recorded yet for this job.
+          {t("common.noData")}
         </div>
       )}
 
@@ -240,7 +236,14 @@ function TimelineContent() {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-slate-900">
-                  {EVENT_LABELS[event.event_type] ?? event.event_type}
+                  {{
+                    clock_event: t("timeline.clockEvent"),
+                    photo_event: t("timeline.photoEvent"),
+                    task_event: t("timeline.taskEvent"),
+                    note_event: t("timeline.noteEvent"),
+                    ot_approval_event: t("timeline.otApprovalEvent"),
+                    correction_event: t("timeline.correctionEvent"),
+                  }[event.event_type] ?? event.event_type}
                 </span>
                 <span className="text-xs text-slate-400">
                   {formatTime(event.occurred_at)}

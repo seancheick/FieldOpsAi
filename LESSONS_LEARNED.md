@@ -260,6 +260,39 @@ Why it mattered:
 - It reduces rework because later worker actions need a stable assigned-job surface anyway.
 
 What to do earlier next time:
+- Reconcile the roadmap, tracker, and repo before picking the next implementation slice.
+- Prefer the next dependency in the user flow over the most visually interesting task.
+
+Reusable rule:
+- Build the backbone in the order the product actually depends on it.
+
+### 2. Realtime on partitioned Postgres tables is a database configuration problem first
+
+What we learned:
+- The supervisor timeline page already subscribed to the right logical event sources in the UI.
+- Live updates still failed because the underlying event tables are partitioned, and Supabase Realtime was not fully configured to publish those changes in a way the frontend subscription could observe.
+- In the same QA pass, the photo feed signing failure also turned out to be a database policy issue, not a React rendering issue.
+
+What we fixed:
+- Added a storage read policy for company-scoped media objects so supervisors can sign raw and stamped proof assets.
+- Added realtime publication registration for the timeline/worker/map source tables.
+- Enabled `publish_via_partition_root` on `supabase_realtime` so subscriptions on parent table names receive inserts from partition children.
+- Added regression coverage in [test_sprint_1.py](/Users/seancheick/FieldsOps_ai/execution/test_sprint_1.py) for the realtime publication wiring and signed proof media access.
+
+Why it mattered:
+- Browser QA was correctly telling us the app was not live, but the root cause sat below the web app.
+- Without publication wiring, the frontend can look correct in code review and still never receive events.
+- Without storage policies, signed URLs fail even when the asset rows and proof metadata are otherwise correct.
+
+What to do earlier next time:
+- For any feature that depends on Supabase Realtime, verify the publication membership and partition behavior as part of backend setup, not after UI debugging starts.
+- For any private Storage-backed UI, verify the read/sign policy path with a non-service user token before calling the page “done.”
+- Add one backend-side assertion for every cross-layer assumption the UI depends on.
+
+Reusable rule:
+- When live UI data fails, check the publication, policy, and table shape before touching the component.
+
+What to do earlier next time:
 - Reconcile the PRD, roadmap, and sprint board before starting a new sprint slice.
 - Treat roadmap order as a dependency map, not just a wishlist.
 
@@ -937,6 +970,41 @@ What to do earlier next time:
 
 Reusable rule:
 - The first commit is the most important gitignore audit. Every file in `git status` before the initial commit is a deliberate choice.
+
+---
+
+### 31. Locale infrastructure is not product i18n until the high-traffic surfaces actually consume it
+
+What we learned:
+- It is easy to overclaim localization progress once a locale provider, translation map, and language toggle exist.
+- That still does not mean the product is localized. The only honest question is: which user-facing screens actually switched from hardcoded text to translated strings?
+- On this project, mobile already had Spanish assets, but the web product was still effectively English until the supervisor shell and the main operating pages were wired one by one.
+
+What we fixed:
+- Added a shared `en/es` locale provider for the web app.
+- Wired the highest-traffic supervisor surfaces to it:
+  - dashboard
+  - workers
+  - map
+  - timeline
+  - photos
+  - overtime
+  - reports
+  - schedule
+  - cost codes
+- Re-verified with `npm run lint` and `npm run build` after the translations were actually consumed.
+
+Why it mattered:
+- A locale toggle without translated operational pages is another form of completion theater.
+- The most important proof is whether the live worker/supervisor loop can operate in the target language, not whether translation infrastructure exists.
+
+What to do earlier next time:
+- Define localization scope by surface, not by setup.
+- Start with the pages users hit every day.
+- Track untranslated pages explicitly so “partial” cannot quietly become “done.”
+
+Reusable rule:
+- i18n is complete only when the real user surfaces are translated, verified, and enumerated.
 
 ---
 

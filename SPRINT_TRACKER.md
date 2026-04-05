@@ -357,38 +357,44 @@ Stripe billing deferred to Sprint 8 — run free during pilot to validate all fe
 
 ### Worker Experience
 
-- [ ] Worker hours dashboard (daily/weekly/monthly)
+- [-] Worker hours dashboard (daily/weekly/monthly)
   - Type: Mobile | Priority: HIGH
   - Definition of Done: Worker home screen shows hours worked today (progress bar), this week (bar chart), this month (total). Visual, easy to read. Data from clock_events. Real-time when clocked in.
+  - Agent findings: UI widget exists on the worker home screen, but it is still placeholder data. The surface is real; the live clock-event aggregation is not finished.
   - Source: User requested. Makes the app feel complete.
 
 - [ ] Time off / PTO requests
   - Type: Mobile | Priority: Medium
   - Definition of Done: Worker submits PTO request (vacation/sick/personal) with dates. Supervisor approves/denies. PTO balance tracking. Reflected in timesheets.
 
-- [ ] Receipt / expense capture
+- [-] Receipt / expense capture
   - Type: Mobile | Priority: HIGH — No competitor has this
   - Definition of Done: Snap receipt → auto-categorize → attach to job → supervisor approve → job cost report + CSV. Receipt stored with proof metadata. Reimbursement tracked.
+  - Agent findings: Mobile expense capture UI exists and is reachable from the worker job card. Backend persistence was fixed on 2026-04-04 with a real `expense_events` table and regression coverage. Supervisor approval/reporting and auto-categorization are still pending.
 
-- [ ] Spanish language support
+- [-] Spanish language support
   - Type: Mobile | Priority: HIGH
   - Definition of Done: app_es.arb with all translations. Added to supportedLocales. Critical for US construction crews.
+  - Agent findings: Mobile localization assets already include Spanish. On 2026-04-04, the web supervisor shell plus the main operating pages (`dashboard`, `workers`, `map`, `timeline`, `photos`, `overtime`, `reports`, `schedule`, `cost-codes`) were wired to a persisted `en/es` locale provider and passed `npm run lint` + `npm run build`. This is still partial at the product level because `onboarding`, `settings`, and other lower-traffic surfaces are not fully localized yet.
 
 ### Supervisor Experience
 
-- [ ] Admin "Who's Working Now" view
+- [x] Admin "Who's Working Now" view
   - Type: Web | Priority: HIGH
   - Definition of Done: Real-time worker status list: clocked in (green), on break (amber), out (gray), late (red). Current job, clock-in time, hours today. Sortable. Auto-refresh.
+  - Evidence: `apps/fieldops_web/src/app/workers/page.tsx`
 
-- [ ] Schedule draft → edit → publish flow
+- [-] Schedule draft → edit → publish flow
   - Type: Web | Priority: HIGH
   - Definition of Done: Drag-and-drop calendar (day/week/2-week/month). Assign workers to jobs/shifts. Draft mode → edit → publish with notification. Workers see schedule in mobile app. Optional — workers can just clock in without schedule.
+  - Agent findings: The supervisor schedule page is now backed by persisted `schedule_shifts` data and supports draft creation, draft removal, weekly load, and publish through the `schedule` edge function. Drag-and-drop, worker notifications, and worker mobile schedule consumption are still pending.
 
 ### Payroll & Compliance
 
-- [ ] Job costing / cost codes
+- [-] Job costing / cost codes
   - Type: Backend | Priority: HIGH
   - Definition of Done: Cost codes on clock events and tasks. Workers select code at clock-in. Profitability report. CSV export includes cost code. Uses task_classification field.
+  - Agent findings: Profitability backend existed already and a supervisor web view now exists at `/cost-codes`. Worker-side code selection at clock-in and report/export integration are still pending.
 
 - [ ] Time card signatures
   - Type: Mobile | Priority: HIGH
