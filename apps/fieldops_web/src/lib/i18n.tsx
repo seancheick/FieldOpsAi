@@ -105,7 +105,8 @@ const translations: Record<Locale, TranslationTree> = {
     },
     workers: {
       title: "Who's Working Now",
-      subtitle: "Live worker status board with realtime updates from the field.",
+      subtitle:
+        "Live worker status board with realtime updates from the field.",
       all: "All",
       worker: "Worker",
       status: "Status",
@@ -137,7 +138,8 @@ const translations: Record<Locale, TranslationTree> = {
       addItToEnv: "and add it to",
       asEnvKey: "as",
       workerPositions: "Worker positions (from GPS data):",
-      failedToLoadLibrary: "Could not load map library. Check your internet connection.",
+      failedToLoadLibrary:
+        "Could not load map library. Check your internet connection.",
       sdkUnavailable: "MapTiler SDK not available.",
       unknownWorker: "Unknown",
       unknownJob: "Unknown job",
@@ -163,7 +165,7 @@ const translations: Record<Locale, TranslationTree> = {
       photoCaptured: "Photo proof captured",
       checkpoint: " (checkpoint)",
     },
-      photos: {
+    photos: {
       title: "Project Photo Feed",
       titleWithJob: "Photo Feed: {{jobName}}",
       subtitle: "Stamped proof photos captured by workers in the field.",
@@ -205,7 +207,8 @@ const translations: Record<Locale, TranslationTree> = {
       confirmReimbursement: "Confirm Reimbursement",
       reimbursementReference: "Reimbursement Ref",
       reimbursementNotes: "Reimbursement Notes",
-      reimbursementReferencePlaceholder: "Required — ACH, check, or payroll batch reference",
+      reimbursementReferencePlaceholder:
+        "Required — ACH, check, or payroll batch reference",
       reimbursementNotesPlaceholder: "Optional reimbursement note",
       downloadCsv: "Download CSV",
       submitting: "Submitting...",
@@ -289,6 +292,8 @@ const translations: Record<Locale, TranslationTree> = {
       failedToUpdate: "Failed to update shift",
       failedToRemove: "Failed to remove shift",
       failedToPublish: "Failed to publish schedule",
+      weekCopied: "Previous week copied as drafts.",
+      failedToCopy: "Failed to copy previous week.",
       weekOf: "Week of {{date}}",
       prevWeek: "← Prev Week",
       nextWeek: "Next Week →",
@@ -311,6 +316,11 @@ const translations: Record<Locale, TranslationTree> = {
       remove: "Remove",
       removing: "Removing...",
       noShifts: "No shifts",
+      searchWorkers: "Search workers",
+      searchWorkersPlaceholder: "Filter by name or role",
+      noWorkersFound: "No workers match your search",
+      workers: "Workers",
+      jobs: "Jobs",
       viewModes: {
         day: "Day",
         week: "Week",
@@ -329,7 +339,8 @@ const translations: Record<Locale, TranslationTree> = {
     },
     costCodesPage: {
       title: "Cost Codes",
-      subtitle: "Review labor allocation by cost code and see which jobs are absorbing hours.",
+      subtitle:
+        "Review labor allocation by cost code and see which jobs are absorbing hours.",
       jobFilter: "Job filter",
       refreshReport: "Refresh Report",
       knownCostCodes: "Known cost codes",
@@ -339,7 +350,8 @@ const translations: Record<Locale, TranslationTree> = {
       profitabilityView: "Profitability view",
       noJobSelected: "No job selected",
       totalHours: "{{hours}} total hours",
-      noClassifiedLabor: "No classified labor has been recorded for this job yet.",
+      noClassifiedLabor:
+        "No classified labor has been recorded for this job yet.",
       costCode: "Cost Code",
       hours: "Hours",
       workers: "Workers",
@@ -348,7 +360,10 @@ const translations: Record<Locale, TranslationTree> = {
       steps: {
         company: { title: "Company", description: "Basic company information" },
         team: { title: "Team", description: "Add your workers" },
-        firstJob: { title: "First Job", description: "Create your first job site" },
+        firstJob: {
+          title: "First Job",
+          description: "Create your first job site",
+        },
         goLive: { title: "Go Live", description: "Start tracking" },
       },
       companyName: "Company Name",
@@ -361,7 +376,7 @@ const translations: Record<Locale, TranslationTree> = {
       addWorker: "Add Worker",
       addFirstWorker: "Add First Worker",
       noWorkersYet: "No workers yet",
-      noWorkersHint: "Click \"+ Add Worker\" to start building your team.",
+      noWorkersHint: 'Click "+ Add Worker" to start building your team.',
       workerLabel: "Worker {{index}}",
       remove: "Remove",
       firstName: "First Name",
@@ -374,12 +389,14 @@ const translations: Record<Locale, TranslationTree> = {
       jobCode: "Job Code",
       siteAddress: "Site Address",
       assignWorkers: "Assign Workers",
-      allWorkersAssigned: "All {{count}} {{noun}} will be assigned to this job.",
+      allWorkersAssigned:
+        "All {{count}} {{noun}} will be assigned to this job.",
       workerSingular: "worker",
       workerPlural: "workers",
       workerCountAdded: "{{count}} {{noun}} added",
       companyReady: "{{companyName}} is ready",
-      readySummary: "{{count}} {{noun}} added · 1 job created · Ready for first clock-in",
+      readySummary:
+        "{{count}} {{noun}} added · 1 job created · Ready for first clock-in",
       nextSteps: "Next steps",
       nextStepItems: {
         1: "Share the app download link with your crew",
@@ -570,7 +587,8 @@ const translations: Record<Locale, TranslationTree> = {
     },
     workers: {
       title: "Quién Está Trabajando Ahora",
-      subtitle: "Panel en vivo del estado del equipo con actualizaciones en tiempo real desde campo.",
+      subtitle:
+        "Panel en vivo del estado del equipo con actualizaciones en tiempo real desde campo.",
       all: "Todos",
       worker: "Trabajador",
       status: "Estado",
@@ -587,7 +605,8 @@ const translations: Record<Locale, TranslationTree> = {
     },
     mapPage: {
       title: "Mapa en Vivo",
-      subtitle: "Ubicaciones en vivo de trabajadores y obras con actualizaciones en tiempo real",
+      subtitle:
+        "Ubicaciones en vivo de trabajadores y obras con actualizaciones en tiempo real",
       in: "Dentro ({{count}})",
       out: "Fuera ({{count}})",
       sites: "Sitios ({{count}})",
@@ -602,7 +621,8 @@ const translations: Record<Locale, TranslationTree> = {
       addItToEnv: "y agrégala a",
       asEnvKey: "como",
       workerPositions: "Posiciones del equipo (desde datos GPS):",
-      failedToLoadLibrary: "No se pudo cargar la librería del mapa. Revisa tu conexión.",
+      failedToLoadLibrary:
+        "No se pudo cargar la librería del mapa. Revisa tu conexión.",
       sdkUnavailable: "MapTiler SDK no está disponible.",
       unknownWorker: "Desconocido",
       unknownJob: "Trabajo desconocido",
@@ -612,7 +632,8 @@ const translations: Record<Locale, TranslationTree> = {
     timeline: {
       title: "Cronología del Trabajo",
       titleWithJob: "Cronología: {{jobName}}",
-      subtitle: "Vista cronológica de todos los eventos del equipo para este trabajo.",
+      subtitle:
+        "Vista cronológica de todos los eventos del equipo para este trabajo.",
       loading: "Cargando cronología...",
       noJob: "Selecciona un trabajo desde el panel para ver su cronología.",
       goToDashboard: "Ir al Panel",
@@ -628,7 +649,7 @@ const translations: Record<Locale, TranslationTree> = {
       photoCaptured: "Foto de prueba capturada",
       checkpoint: " (punto de control)",
     },
-      photos: {
+    photos: {
       title: "Galería de Fotos del Proyecto",
       titleWithJob: "Fotos: {{jobName}}",
       subtitle: "Fotos con sello de prueba capturadas por el equipo en campo.",
@@ -649,7 +670,8 @@ const translations: Record<Locale, TranslationTree> = {
     },
     expensesPage: {
       title: "Revisión de Gastos",
-      subtitle: "Revisa recibos del equipo y aprueba o rechaza gastos enviados.",
+      subtitle:
+        "Revisa recibos del equipo y aprueba o rechaza gastos enviados.",
       pending: "Pendientes",
       approved: "Aprobados",
       denied: "Denegados",
@@ -670,7 +692,8 @@ const translations: Record<Locale, TranslationTree> = {
       confirmReimbursement: "Confirmar Reembolso",
       reimbursementReference: "Ref. de reembolso",
       reimbursementNotes: "Notas de reembolso",
-      reimbursementReferencePlaceholder: "Obligatorio: referencia ACH, cheque o lote de nómina",
+      reimbursementReferencePlaceholder:
+        "Obligatorio: referencia ACH, cheque o lote de nómina",
       reimbursementNotesPlaceholder: "Nota opcional del reembolso",
       downloadCsv: "Descargar CSV",
       submitting: "Enviando...",
@@ -707,7 +730,8 @@ const translations: Record<Locale, TranslationTree> = {
     },
     reports: {
       title: "Reportes",
-      subtitle: "Genera exportaciones seguras para nómina y resúmenes de trabajo con pruebas.",
+      subtitle:
+        "Genera exportaciones seguras para nómina y resúmenes de trabajo con pruebas.",
       job: "Trabajo",
       from: "Desde",
       to: "Hasta",
@@ -737,7 +761,8 @@ const translations: Record<Locale, TranslationTree> = {
     },
     schedulePage: {
       title: "Horario",
-      subtitle: "Crea turnos en borrador y luego publica la semana a tu equipo.",
+      subtitle:
+        "Crea turnos en borrador y luego publica la semana a tu equipo.",
       draftShifts: "{{count}} turno{{suffix}} en borrador",
       addShift: "Agregar Turno",
       adding: "Agregando...",
@@ -754,6 +779,8 @@ const translations: Record<Locale, TranslationTree> = {
       failedToUpdate: "No se pudo actualizar el turno",
       failedToRemove: "No se pudo eliminar el turno",
       failedToPublish: "No se pudo publicar el horario",
+      weekCopied: "Semana anterior copiada como borradores.",
+      failedToCopy: "No se pudo copiar la semana anterior.",
       weekOf: "Semana de {{date}}",
       prevWeek: "← Semana Anterior",
       nextWeek: "Siguiente Semana →",
@@ -776,6 +803,11 @@ const translations: Record<Locale, TranslationTree> = {
       remove: "Eliminar",
       removing: "Eliminando...",
       noShifts: "Sin turnos",
+      searchWorkers: "Buscar trabajadores",
+      searchWorkersPlaceholder: "Filtrar por nombre o rol",
+      noWorkersFound: "No hay trabajadores que coincidan",
+      workers: "Trabajadores",
+      jobs: "Trabajos",
       viewModes: {
         day: "Día",
         week: "Semana",
@@ -794,7 +826,8 @@ const translations: Record<Locale, TranslationTree> = {
     },
     costCodesPage: {
       title: "Códigos de Costo",
-      subtitle: "Revisa la asignación de mano de obra por código de costo y qué trabajos consumen horas.",
+      subtitle:
+        "Revisa la asignación de mano de obra por código de costo y qué trabajos consumen horas.",
       jobFilter: "Filtro de trabajo",
       refreshReport: "Actualizar Reporte",
       knownCostCodes: "Códigos de costo detectados",
@@ -804,16 +837,23 @@ const translations: Record<Locale, TranslationTree> = {
       profitabilityView: "Vista de rentabilidad",
       noJobSelected: "Ningún trabajo seleccionado",
       totalHours: "{{hours}} horas totales",
-      noClassifiedLabor: "Todavía no hay mano de obra clasificada para este trabajo.",
+      noClassifiedLabor:
+        "Todavía no hay mano de obra clasificada para este trabajo.",
       costCode: "Código de Costo",
       hours: "Horas",
       workers: "Trabajadores",
     },
     onboardingPage: {
       steps: {
-        company: { title: "Empresa", description: "Información básica de la empresa" },
+        company: {
+          title: "Empresa",
+          description: "Información básica de la empresa",
+        },
         team: { title: "Equipo", description: "Agrega a tus trabajadores" },
-        firstJob: { title: "Primer Trabajo", description: "Crea tu primera obra" },
+        firstJob: {
+          title: "Primer Trabajo",
+          description: "Crea tu primera obra",
+        },
         goLive: { title: "Activar", description: "Comienza a registrar" },
       },
       companyName: "Nombre de la Empresa",
@@ -826,7 +866,8 @@ const translations: Record<Locale, TranslationTree> = {
       addWorker: "Agregar Trabajador",
       addFirstWorker: "Agregar Primer Trabajador",
       noWorkersYet: "Todavía no hay trabajadores",
-      noWorkersHint: "Haz clic en \"+ Agregar Trabajador\" para comenzar a formar tu equipo.",
+      noWorkersHint:
+        'Haz clic en "+ Agregar Trabajador" para comenzar a formar tu equipo.',
       workerLabel: "Trabajador {{index}}",
       remove: "Eliminar",
       firstName: "Nombre",
@@ -839,12 +880,14 @@ const translations: Record<Locale, TranslationTree> = {
       jobCode: "Código del Trabajo",
       siteAddress: "Dirección del Sitio",
       assignWorkers: "Asignar Trabajadores",
-      allWorkersAssigned: "Los {{count}} {{noun}} serán asignados a este trabajo.",
+      allWorkersAssigned:
+        "Los {{count}} {{noun}} serán asignados a este trabajo.",
       workerSingular: "trabajador",
       workerPlural: "trabajadores",
       workerCountAdded: "{{count}} {{noun}} agregados",
       companyReady: "{{companyName}} está lista",
-      readySummary: "{{count}} {{noun}} agregados · 1 trabajo creado · Listo para el primer fichaje",
+      readySummary:
+        "{{count}} {{noun}} agregados · 1 trabajo creado · Listo para el primer fichaje",
       nextSteps: "Próximos pasos",
       nextStepItems: {
         1: "Comparte el enlace de descarga de la app con tu equipo",
@@ -912,7 +955,8 @@ const translations: Record<Locale, TranslationTree> = {
       notes: "Notas",
       permissionLevel: "Nivel de Permiso",
       activeStatus: "Estado Activo",
-      activeStatusHint: "Los trabajadores inactivos no pueden fichar ni acceder a la app.",
+      activeStatusHint:
+        "Los trabajadores inactivos no pueden fichar ni acceder a la app.",
       saved: "Guardado",
       addStaffMember: "Agregar Miembro",
       saveChanges: "Guardar Cambios",
@@ -927,7 +971,8 @@ const translations: Record<Locale, TranslationTree> = {
         },
         foreman: {
           label: "Capataz",
-          description: "Trabajador + supervisión del equipo y reportes de turno",
+          description:
+            "Trabajador + supervisión del equipo y reportes de turno",
         },
         supervisor: {
           label: "Supervisor",
@@ -952,10 +997,15 @@ const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 function lookupTranslation(locale: Locale, key: string): string {
   const path = key.split(".");
-  let current: TranslationTree | TranslationValue | undefined = translations[locale];
+  let current: TranslationTree | TranslationValue | undefined =
+    translations[locale];
 
   for (const segment of path) {
-    if (typeof current !== "object" || current === null || !(segment in current)) {
+    if (
+      typeof current !== "object" ||
+      current === null ||
+      !(segment in current)
+    ) {
       return key;
     }
     current = current[segment] as TranslationTree | TranslationValue;
@@ -964,8 +1014,13 @@ function lookupTranslation(locale: Locale, key: string): string {
   return typeof current === "string" ? current : key;
 }
 
-function interpolate(template: string, vars: Record<string, string | number> = {}) {
-  return template.replace(/\{\{(.*?)\}\}/g, (_, key) => String(vars[key.trim()] ?? ""));
+function interpolate(
+  template: string,
+  vars: Record<string, string | number> = {},
+) {
+  return template.replace(/\{\{(.*?)\}\}/g, (_, key) =>
+    String(vars[key.trim()] ?? ""),
+  );
 }
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
@@ -993,7 +1048,9 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     [locale],
   );
 
-  return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
+  return (
+    <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>
+  );
 }
 
 export function useI18n() {
