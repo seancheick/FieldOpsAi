@@ -1399,14 +1399,18 @@ export default function SchedulePage() {
 
         <DragOverlay>
           {activeWorker ? (
-            <div className="cursor-grabbing rounded-2xl border-2 border-indigo-500 bg-white px-4 py-3 shadow-xl opacity-90">
-              <div className="font-semibold text-indigo-900">
-                {activeWorker.full_name}
+            <div className="cursor-grabbing rounded-2xl border-2 border-indigo-400 bg-white px-4 py-3 shadow-2xl ring-2 ring-indigo-100">
+              <div className="flex items-center gap-2">
+                <div className="font-semibold text-slate-900">{activeWorker.full_name}</div>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                  {activeWorker.role}
+                </span>
               </div>
-              <div className="text-xs text-indigo-600">Assigning shift...</div>
-              <div className="mt-1 border-t border-indigo-100 pt-1 text-xs font-medium text-slate-500">
-                Est. Cost: ${(activeWorker.metadata?.hourly_rate || 20) * 8} /
-                8h
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-indigo-600 font-medium">
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+                Drop onto a job row
               </div>
             </div>
           ) : null}
