@@ -61,11 +61,13 @@ jobs:
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: 2.20.3
+          version: latest
 
       - name: Start Supabase
         working-directory: infra
-        run: supabase start
+        run: |
+          supabase --version
+          supabase start
 
       - name: Wait for Supabase health
         run: |
