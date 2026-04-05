@@ -117,6 +117,31 @@ interface ScheduleEntry {
 
 type ViewMode = "day" | "week" | "twoWeek" | "month";
 
+interface ScheduleTemplate {
+  name: string;
+  createdAt: string;
+  shifts: Array<{
+    worker_id: string;
+    job_id: string;
+    day_offset: number;
+    start_time: string;
+    end_time: string;
+    notes: string;
+  }>;
+}
+
+function loadTemplates(): ScheduleTemplate[] {
+  try {
+    return JSON.parse(localStorage.getItem("schedule_templates") ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function persistTemplates(templates: ScheduleTemplate[]) {
+  localStorage.setItem("schedule_templates", JSON.stringify(templates));
+}
+
 const DAY_LABELS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 const VIEW_MODES: ViewMode[] = ["day", "week", "twoWeek", "month"];
 
@@ -256,6 +281,10 @@ export default function SchedulePage() {
   const [ghostShifts, setGhostShifts] = useState<ScheduleEntry[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [reviewGhostShift, setReviewGhostShift] = useState<ScheduleEntry | null>(null);
+  const [templates, setTemplates] = useState<ScheduleTemplate[]>(() => loadTemplates());
+  const [showTemplateInput, setShowTemplateInput] = useState(false);
+  const [templateNameInput, setTemplateNameInput] = useState("");
+  const [showApplyDropdown, setShowApplyDropdown] = useState(false);
 
   const visibleDates = useMemo(
     () => buildVisibleDates(anchorDate, viewMode),
@@ -808,6 +837,76 @@ export default function SchedulePage() {
     setReviewGhostShift(null);
   }
 
+  function saveAsTemplate() {
+    const name = templateNameInput.trim();
+    if (!name) return;
+
+    const weekStart = parseDate(rangeStart);
+    const weekStartMs = weekStart.getTime();
+
+    const templateShifts = entries
+      .filter((e) => e.date >= rangeStart && e.date <= rangeEnd)
+      .map((e) => {
+        const shiftDate = parseDate(e.date);
+        const dayOffset = Math.round((shiftDate.getTime() - weekStartMs) / 86400000);
+        return {
+          worker_id: e.worker_id,
+          job_id: e.job_id,
+          day_offset: dayOffset,
+          start_time: e.start_time,
+          end_time: e.end_time,
+          notes: e.notes ?? "",
+        };
+      });
+
+    const newTemplate: ScheduleTemplate = {
+      name,
+      createdAt: new Date().toISOString(),
+      shifts: templateShifts,
+    };
+
+    const updated = [...templates.filter((t) => t.name !== name), newTemplate];
+    persistTemplates(updated);
+    setTemplates(updated);
+    setTemplateNameInput("");
+    setShowTemplateInput(false);
+    setSuccessMessage(`Template "${name}" saved (${templateShifts.length} shifts).`);
+  }
+
+  async function applyTemplate(template: ScheduleTemplate) {
+    setShowApplyDropdown(false);
+    if (template.shifts.length === 0) return;
+
+    setBusyAction("copy");
+    setError(null);
+    setSuccessMessage(null);
+    const weekStart = parseDate(rangeStart);
+
+    try {
+      await Promise.all(
+        template.shifts.map((shift) => {
+          const targetDate = new Date(weekStart);
+          targetDate.setUTCDate(weekStart.getUTCDate() + shift.day_offset);
+          return postSchedule({
+            action: "create",
+            worker_id: shift.worker_id,
+            job_id: shift.job_id,
+            shift_date: asDateKey(targetDate),
+            start_time: shift.start_time,
+            end_time: shift.end_time,
+            notes: shift.notes,
+          });
+        }),
+      );
+      await loadSchedule();
+      setSuccessMessage(`Template "${template.name}" applied — ${template.shifts.length} draft shifts created.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to apply template.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   const rangeLabel = useMemo(() => {
     if (viewMode === "day") {
       return parseDate(anchorDate).toLocaleDateString(undefined, {
@@ -898,6 +997,66 @@ export default function SchedulePage() {
               >
                 {busyAction === "copy" ? "Copying..." : "Copy Previous Week"}
               </button>
+              {showTemplateInput ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={templateNameInput}
+                    onChange={(e) => setTemplateNameInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveAsTemplate();
+                      if (e.key === "Escape") { setShowTemplateInput(false); setTemplateNameInput(""); }
+                    }}
+                    placeholder="Template name..."
+                    className="rounded-xl border border-stone-300 px-3 py-2 text-sm w-40"
+                  />
+                  <button
+                    onClick={saveAsTemplate}
+                    disabled={!templateNameInput.trim()}
+                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-40"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => { setShowTemplateInput(false); setTemplateNameInput(""); }}
+                    className="rounded-xl bg-stone-100 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-stone-200"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowTemplateInput(true)}
+                  className="rounded-xl border border-stone-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-stone-50"
+                >
+                  Save as Template
+                </button>
+              )}
+              {templates.length > 0 && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowApplyDropdown((v) => !v)}
+                    className="rounded-xl border border-stone-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-stone-50"
+                  >
+                    Apply Template ▾
+                  </button>
+                  {showApplyDropdown && (
+                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-xl border border-stone-200 bg-white py-1 shadow-lg">
+                      {templates.map((t) => (
+                        <button
+                          key={t.name}
+                          onClick={() => applyTemplate(t)}
+                          className="flex w-full items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-stone-50"
+                        >
+                          <span>{t.name}</span>
+                          <span className="text-xs text-slate-400">{t.shifts.length}sh</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <button
                 onClick={() => openCreateForm(asDateKey(visibleDates[0]))}
                 className="rounded-xl bg-amber-500 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-600"
