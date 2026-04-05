@@ -440,6 +440,94 @@ Backend already done: schedule edge function with drafts, worker-scoped reads, p
   - Type: Web | Priority: LOW
   - Definition of Done: Visual bar spanning multiple days for long jobs. FullCalendar resourceTimeline supports this natively. Construction sweet spot.
 
+### UI/UX Polish (from dev review — 2026-04-05)
+
+Principles: reduce cognitive load, action-first design, real-time feels alive, consistency, accessibility.
+Reusable components to create: StatusBadge, KpiCard, PhotoStampCard, ActionCard, LiveMapPin.
+Use shadcn/ui for all new elements (data tables, modals, tabs, forms).
+
+#### Sprint 6 scope — Global + Quick Wins
+
+- [ ] Collapsible sidebar (56px → full on hover/toggle, drawer on mobile)
+  - Type: Web | Priority: HIGH
+  - Definition of Done: Toggle button collapses sidebar to icon-only mode. On mobile/tablet: shadcn Sheet drawer. 2026 standard.
+
+- [ ] Global search bar (top header)
+  - Type: Web | Priority: HIGH
+  - Definition of Done: Search workers, jobs, photos by verification code. Instant results dropdown. Huge time-saver for supervisors.
+
+- [ ] Dashboard: KPI cards with trend arrows + sparklines (Recharts)
+  - Type: Web | Priority: HIGH
+  - Definition of Done: 4-5 larger stat cards with ↑↓ trend arrows and mini sparkline charts. Recharts is lightweight and free.
+
+- [ ] Dashboard: "Who's Working Now" horizontal avatar row
+  - Type: Web | Priority: MEDIUM
+  - Definition of Done: Scrollable row of worker avatars with status dots (green/amber/gray/red) + current hours. Click avatar → quick timeline popup.
+
+- [ ] Dashboard: smart AI hint card
+  - Type: Web | Priority: MEDIUM
+  - Definition of Done: "3 workers approaching OT threshold" or "2 jobs missing photos today". Positions as more intelligent than competitors without heavy AI. Simple query-based hints.
+
+- [ ] Dashboard: job cards with task completion progress bar
+  - Type: Web | Priority: LOW
+  - Definition of Done: Small progress bar inside each job card showing % tasks completed.
+
+- [ ] Loading skeletons (replace spinners across all pages)
+  - Type: Web | Priority: MEDIUM
+  - Definition of Done: Shimmer/skeleton placeholders for cards, tables, stats during loading. More polished than spinner.
+
+- [ ] Consistent action placement + micro-interactions
+  - Type: Web | Priority: MEDIUM
+  - Definition of Done: Primary actions always top-right or floating on mobile. Subtle hover scales on cards. Success toasts with undo where possible.
+
+#### Sprint 6 scope — Screen-Specific Quick Fixes
+
+- [ ] Workers page: avatar column + search + skill/role filter + sortable + CSV export
+  - Type: Web | Priority: MEDIUM
+  - Definition of Done: Avatar + name column. Search + role filter above tabs. Sortable by hours/status/job. Export button for current view.
+
+- [ ] Photos page: masonry grid + filters + enlarged view + bulk download
+  - Type: Web | Priority: MEDIUM
+  - Definition of Done: Responsive masonry (3/2/1 col). Filters: date/worker/task/before-after. Hover → enlarged stamp + copy verification code. Bulk select + download.
+
+- [ ] Expenses/OT/PTO: summary KPI row at top + consistent card design
+  - Type: Web | Priority: LOW
+  - Definition of Done: "Pending Total: $1,245" / "3 pending requests" stat row. Same card layout across all 3 approval pages.
+
+- [ ] Reports: visual charts (Recharts) + one-click PDF export + saved presets
+  - Type: Web | Priority: MEDIUM
+  - Definition of Done: Hours breakdown pie/bar chart, task completion donut above tables. "Export Full PDF with Stamps" button. Save favorite report presets.
+
+- [ ] Settings: visual onboarding checklist (progress ring + direct links)
+  - Type: Web | Priority: LOW
+  - Definition of Done: Progress ring instead of text checklist. Each step links directly to the action.
+
+- [ ] Staff: bulk actions (suspend selected, export list) + role tooltips
+  - Type: Web | Priority: LOW
+  - Definition of Done: Checkbox column for bulk select. "Suspend Selected" + "Export List" buttons. Role descriptions as hover tooltips.
+
+- [ ] Onboarding: progress saving + "Skip for now" on non-critical steps
+  - Type: Web | Priority: LOW
+  - Definition of Done: Resume where you left off. Skip button on steps 1-2 (team/job optional for initial setup).
+
+#### Sprint 7 scope — Deeper Enhancements
+
+- [ ] Live Map: right sidebar panel (Who's Working) + filter toggles + richer popups
+  - Type: Web | Priority: HIGH
+  - Definition of Done: Collapsible right panel with worker list. Click → zoom to worker. Legend + filter toggles (clocked-in only, job sites only, breadcrumbs). Richer pin popups with avatar, task count, "View Timeline" button. "Refresh every 15s" indicator.
+
+- [ ] Role-based dashboard variants (different quick actions per role)
+  - Type: Web | Priority: MEDIUM
+  - Definition of Done: use-role.ts tints sidebar or shows different quick action cards. Foreman sees crew-focused actions. Admin sees settings + staff.
+
+- [ ] Dark mode glassmorphism + soft border treatment on cards
+  - Type: Web | Priority: LOW
+  - Definition of Done: Subtle depth effect on cards in dark mode. Frosted glass borders. Premium feel without complexity.
+
+- [ ] Reusable component library (StatusBadge, KpiCard, PhotoStampCard, ActionCard)
+  - Type: Web | Priority: MEDIUM
+  - Definition of Done: Extract shared components into `src/components/ui/`. Consistent across all pages. Optional: internal storybook/gallery page.
+
 ### Payroll & Compliance
 
 - [-] Job costing / cost codes
