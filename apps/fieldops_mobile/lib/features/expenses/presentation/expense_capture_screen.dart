@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
 import 'package:fieldops_mobile/features/camera/domain/photo_capture_result.dart';
 import 'package:fieldops_mobile/features/camera/presentation/camera_capture_screen.dart';
@@ -45,21 +46,33 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
     ('other', 'Other', Icons.receipt_long_rounded),
   ];
 
+  static final Map<String, String> _categoryLabels = {
+    for (final entry in _categories) entry.$1: entry.$2,
+  };
+
+  Timer? _debounceTimer;
+
   @override
   void initState() {
     super.initState();
-    _vendorController.addListener(_updateSuggestedCategory);
-    _notesController.addListener(_updateSuggestedCategory);
+    _vendorController.addListener(_onCategoryInputChanged);
+    _notesController.addListener(_onCategoryInputChanged);
   }
 
   @override
   void dispose() {
-    _vendorController.removeListener(_updateSuggestedCategory);
-    _notesController.removeListener(_updateSuggestedCategory);
+    _debounceTimer?.cancel();
+    _vendorController.removeListener(_onCategoryInputChanged);
+    _notesController.removeListener(_onCategoryInputChanged);
     _amountController.dispose();
     _vendorController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  void _onCategoryInputChanged() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), _updateSuggestedCategory);
   }
 
   void _updateSuggestedCategory() {
@@ -298,6 +311,7 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
               ),
               textInputAction: TextInputAction.next,
               decoration: const InputDecoration(
+                labelText: 'Amount',
                 hintText: '0.00',
                 prefixIcon: Icon(Icons.attach_money_rounded),
               ),
@@ -377,11 +391,6 @@ class _ExpenseCaptureScreenState extends ConsumerState<ExpenseCaptureScreen> {
   }
 
   String _labelForCategory(String category) {
-    for (final entry in _categories) {
-      if (entry.$1 == category) {
-        return entry.$2;
-      }
-    }
-    return 'Other';
+    return _categoryLabels[category] ?? 'Other';
   }
 }

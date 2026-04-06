@@ -12,6 +12,48 @@ class SupabaseExpenseRepository implements ExpenseRepository {
   final Uuid _uuid;
 
   @override
+  Future<List<ExpenseRecord>> fetchMyExpenses() async {
+    try {
+      final response = await _client.functions.invoke(
+        'expenses',
+        headers: {'X-Client-Version': 'fieldops-mobile'},
+        body: {'action': 'list'},
+      );
+
+      final payload = response.data;
+      if (payload is! Map<String, dynamic>) {
+        throw const ExpenseRepositoryException.unknown(
+          'Expense list response malformed.',
+        );
+      }
+
+      final items = (payload['expenses'] as List<dynamic>?) ?? [];
+      return items.map((item) {
+        final map = item as Map<String, dynamic>;
+        return ExpenseRecord(
+          id: map['id'] as String? ?? '',
+          jobId: map['job_id'] as String? ?? '',
+          jobName: map['job_name'] as String? ?? 'Unknown job',
+          category: map['category'] as String? ?? 'other',
+          amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+          createdAt: DateTime.tryParse(map['created_at'] as String? ?? '') ??
+              DateTime.now(),
+          vendor: map['vendor'] as String?,
+          notes: map['notes'] as String?,
+          status: map['status'] as String? ?? 'submitted',
+        );
+      }).toList();
+    } on SocketException {
+      throw const ExpenseRepositoryException.offline();
+    } on FunctionException catch (error) {
+      if (error.status == 0) throw const ExpenseRepositoryException.offline();
+      throw ExpenseRepositoryException.unknown(
+        'Could not load expenses (${error.status}).',
+      );
+    }
+  }
+
+  @override
   Future<String> submitExpense({
     required String jobId,
     required String category,

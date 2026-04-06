@@ -152,7 +152,7 @@ class _HourCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               '${target!.toStringAsFixed(0)}h target',
-              style: textTheme.bodySmall?.copyWith(fontSize: 10),
+              style: textTheme.bodySmall?.copyWith(fontSize: 12),
             ),
           ],
         ],

@@ -2,6 +2,7 @@ import 'package:fieldops_mobile/app/theme/app_theme.dart';
 import 'package:fieldops_mobile/features/clock/presentation/clock_in_controller.dart';
 import 'package:fieldops_mobile/features/overtime/presentation/ot_request_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class ClockStatusPanel extends StatelessWidget {
   const ClockStatusPanel({
@@ -51,7 +52,7 @@ class ClockStatusPanel extends StatelessWidget {
           border: Border.all(
             color: isClockedIn
                 ? palette.success.withValues(alpha: 0.35)
-                : const Color(0xFFD8D2C7),
+                : palette.border,
           ),
         ),
         child: Column(
@@ -106,7 +107,12 @@ class ClockStatusPanel extends StatelessWidget {
                             borderRadius: BorderRadius.circular(20),
                           ),
                         ),
-                        onPressed: isClockingOut ? null : onClockOut,
+                        onPressed: isClockingOut
+                            ? null
+                            : () {
+                                HapticFeedback.heavyImpact();
+                                onClockOut?.call();
+                              },
                         icon: isClockingOut
                             ? SizedBox(
                                 width: 18,
@@ -179,7 +185,10 @@ class ClockStatusPanel extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                       ),
-                      onPressed: onBreakToggle,
+                      onPressed: () {
+                        HapticFeedback.mediumImpact();
+                        onBreakToggle?.call();
+                      },
                       icon: Icon(
                         state.isOnBreak
                             ? Icons.play_arrow_rounded

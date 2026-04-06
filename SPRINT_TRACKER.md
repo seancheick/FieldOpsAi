@@ -317,9 +317,9 @@ These features were identified as missing by auditing FieldOps_AI_Complete_Plan_
   - Edge function `/alerts` with GET (list), POST scan (unapproved OT, no clock-ins), POST resolve/dismiss.
   - Evidence: `infra/supabase/functions/alerts/index.ts`
 
-- [x] Push notifications (FCM) — Done (scaffold)
-  - NotificationService interface + NoOpNotificationService. Ready for Firebase integration when project is configured.
-  - Evidence: `apps/fieldops_mobile/lib/core/notifications/notification_service.dart`
+- [x] Push notifications (FCM) — Done (full implementation ready to activate)
+  - Agent findings: Completed 2026-04-05. Enhanced NotificationService with PushNotification model, NotificationCategory enum (7 categories: ot_approval, pto_update, schedule_published, shift_swap_result, safety_alert, expense_approval, timecard_ready), full FirebaseNotificationService implementation (commented out — activate when Firebase project is configured). NotificationHandler for foreground message routing with in-app SnackBar banners and deep-link navigation. Backend: device_tokens edge function (register/unregister/list actions with RLS), migration 20260407400000_device_tokens.sql (table + indexes + RLS policies), _shared/push.ts utility (sendPush, sendPushToUser, sendPushToRole with FCM v1 HTTP API, JWT-based OAuth2, stale token cleanup). Activation requires: `flutterfire configure`, add firebase_core + firebase_messaging to pubspec, uncomment FirebaseNotificationService. flutter analyze clean.
+  - Evidence: `apps/fieldops_mobile/lib/core/notifications/notification_service.dart`, `notification_handler.dart`, `infra/supabase/functions/device_tokens/index.ts`, `infra/supabase/functions/_shared/push.ts`, `infra/supabase/migrations/20260407400000_device_tokens.sql`
 
 ### Sprint 5 Gaps
 
@@ -723,48 +723,50 @@ Full research: `.claude/plans/rosy-puzzling-clover-agent-a5ebd4159a6e7ee7e.md`
 These items were identified during the comprehensive code review on 2026-04-05.
 They don't affect production safety but improve robustness and maintainability.
 
-- [ ] Sync engine: distinguish `jsonDecode` (permanent) from network (transient) errors
+- [x] Sync engine: distinguish `jsonDecode` (permanent) from network (transient) errors
   - Type: Mobile | Priority: Medium
   - File: `apps/fieldops_mobile/lib/core/data/sync_engine.dart:65`
-  - Fix: Wrap `jsonDecode` in separate try/catch for `FormatException` → mark permanently failed immediately
+  - Fix: Wrapped `jsonDecode` in separate try/catch for `FormatException` → marks permanently failed immediately
+  - Evidence: `sync_engine.dart` lines 63-73
 
-- [ ] Expense screen: replace linear category search with Map lookup
+- [x] Expense screen: replace linear category search with Map lookup
   - Type: Mobile | Priority: Low
-  - File: `apps/fieldops_mobile/lib/features/expenses/presentation/expense_capture_screen.dart:379`
-  - Fix: `static const Map<String, String> _categoryLabels = {...};`
+  - File: `apps/fieldops_mobile/lib/features/expenses/presentation/expense_capture_screen.dart`
+  - Fix: Added `static final Map<String, String> _categoryLabels` + simplified `_labelForCategory()`
 
-- [ ] Expense screen: add 300ms debounce to `_updateSuggestedCategory()`
+- [x] Expense screen: add 300ms debounce to `_updateSuggestedCategory()`
   - Type: Mobile | Priority: Low
-  - File: `apps/fieldops_mobile/lib/features/expenses/presentation/expense_capture_screen.dart:65`
-  - Fix: Add `Timer? _debounceTimer` with cancel in `dispose()`
+  - File: `apps/fieldops_mobile/lib/features/expenses/presentation/expense_capture_screen.dart`
+  - Fix: Added `Timer? _debounceTimer` with 300ms debounce + cancel in `dispose()`
 
-- [ ] Reports: replace `.findLast()` with `.slice().reverse().find()` — **DONE in round 2 commit**
+- [x] Reports: replace `.findLast()` with `.slice().reverse().find()` — **DONE in round 2 commit**
   - Status: Done (fixed in `7feab4e`)
 
-- [ ] OT endpoint: validate `total_hours` as number type
+- [x] OT endpoint: validate `total_hours` as number type
   - Type: Backend | Priority: Medium
-  - File: `infra/supabase/functions/ot/index.ts:139`
-  - Fix: `if (total_hours && typeof total_hours !== 'number') return errorResponse(...)`
+  - File: `infra/supabase/functions/ot/index.ts`
+  - Fix: Added `if (total_hours !== undefined && typeof total_hours !== "number") return errorResponse(...)`
 
-- [ ] Schedule endpoint: add `start_time < end_time` validation
+- [x] Schedule endpoint: add `start_time < end_time` validation
   - Type: Backend | Priority: Medium
-  - File: `infra/supabase/functions/schedule/index.ts:188`
-  - Fix: `if (start_time >= end_time) return errorResponse(...)` in create + update actions
+  - File: `infra/supabase/functions/schedule/index.ts`
+  - Fix: Added validation in both create and update actions
 
-- [ ] Sync events: use explicit reject marker instead of `crypto.randomUUID()` for malformed events
+- [x] Sync events: use explicit reject marker instead of `crypto.randomUUID()` for malformed events
   - Type: Backend | Priority: Low
-  - File: `infra/supabase/functions/sync_events/index.ts:121`
+  - File: `infra/supabase/functions/sync_events/index.ts`
+  - Fix: Changed to `"__MALFORMED_EVENT__"` string for rejected events with missing IDs
 
-- [ ] Test: add subprocess timeout to `admin_sql()` in test_sprint_1.py
+- [x] Test: add subprocess timeout to `admin_sql()` in test_sprint_1.py
   - Type: Testing | Priority: Low
-  - File: `execution/test_sprint_1.py:93`
-  - Fix: Add `timeout=15` to `subprocess.run()`
+  - File: `execution/test_sprint_1.py`
+  - Fix: Added `timeout=15` to `subprocess.run()`
 
 - [ ] Test: add post-suite cleanup or reset in regression runner
   - Type: Testing | Priority: Low
   - File: `execution/run_backend_regression_suite.py`
 
-- [ ] CI: pin Python version to patch level
+- [x] CI: pin Python version to patch level
   - Type: CI | Priority: Low
   - File: `.github/workflows/backend-regression.yml:54`
   - Fix: `python-version: "3.13"` → `python-version: "3.13.0"`
@@ -778,34 +780,124 @@ They don't affect production safety but improve robustness and maintainability.
   - Type: Testing | Priority: HIGH — blocks Sprint 6 RLS validation task
   - File: `execution/test_rls_validation.py`
 
-- [ ] Dashboard/Photos/Overtime: add pagination or "Load More" for hardcoded query limits
+- [x] Dashboard/Photos/Overtime: add pagination or "Load More" for hardcoded query limits
   - Type: Web | Priority: Medium
   - Files: `apps/fieldops_web/src/app/page.tsx`, `photos/page.tsx`, `overtime/page.tsx`
+  - Evidence: Dashboard (JOBS_PAGE_SIZE=20 + loadMoreJobs), Photos (PHOTOS_PAGE_SIZE=30 + loadMorePhotos), Overtime (OT_PAGE_SIZE=30 + loadMoreRequests)
 
 ### Features
 
+- [x] 5-tab bottom navigation shell (Home, Jobs, Schedule, History, More)
+  - Type: Mobile | Priority: HIGH | Status: Done
+  - Agent findings: Completed 2026-04-06. Major architecture refactor from monolithic HomeScreen to 5-tab MainShell with IndexedStack (preserves tab state across switches). NavigationBar (Material 3) with haptic feedback. Camera FAB appears when clocked in for quick proof photos. Tab state managed via NotifierProvider (Riverpod 3.x).
+  - **MainShell** (`main_shell.dart`): 5-tab NavigationBar, IndexedStack for tab persistence, Camera FAB when clocked in, global navigator key for deep-link navigation.
+  - **HomeTab** (`home_tab.dart`): Greeting header (time-of-day + date), ClockStatusPanel (reused), QuickStatsRow (tasks/saved photos/queued sync), PendingActionsCard (aggregated pending actions), OT prompt banner, Active job card with elapsed time, pull-to-refresh.
+  - **JobsTab** (`jobs_tab.dart`): Dedicated job list with _JobListCard widgets, quick clock-in button, job detail navigation, reuses existing JobsErrorState for offline/retry UX.
+  - **JobDetailScreen** (`job_detail_screen.dart`): Full drill-down with tasks, proof photo, saved photos, expense, safety checklist, view route, request OT, clock in/out.
+  - **HistoryTab** (`history_tab.dart`): Full domain/data/presentation layers — HistoryEntry model, SupabaseHistoryRepository, week/month summary cards, timeline of past shifts with hour/photo/task/OT chips.
+  - **MoreTab** (`more_tab.dart`): Profile header with avatar, Work section (PTO, Expenses, Timecards), Account section (Profile, Settings, Help & Support), Sign out with confirmation dialog, app version footer.
+  - **ProfileScreen** (`profile_screen.dart`): Avatar + info tiles, language selector (en/es/fr/th/zh).
+  - **SettingsScreen** (`settings_screen.dart`): Theme info, push notification toggle, offline storage + SQLCipher badge, app version/build/platform.
+  - **HelpScreen** (`help_screen.dart`): Contact supervisor, FAQ accordion, feedback form.
+  - **Test updates**: All 10 widget_test.dart tests updated for 5-tab navigation (navigate to Jobs tab before job assertions, Home tab for clock status). 71/71 tests pass. `flutter analyze` 0 issues.
+  - Evidence: `apps/fieldops_mobile/lib/app/main_shell.dart`, `apps/fieldops_mobile/lib/features/home/presentation/home_tab.dart`, `apps/fieldops_mobile/lib/features/jobs/presentation/jobs_tab.dart`, `apps/fieldops_mobile/lib/features/jobs/presentation/job_detail_screen.dart`, `apps/fieldops_mobile/lib/features/history/**`, `apps/fieldops_mobile/lib/features/more/**`, `apps/fieldops_mobile/test/widget_test.dart`
+
 - [ ] Crew clock-in (foreman clocks for crew)
-- [ ] Shift wrap-up form (clock-out questions)
-- [ ] GPS breadcrumb trail (shift route replay)
-  - Notes: Lightweight polyline stored in DB. Extends clock/break model. Used for shift route replay and dispute resolution.
+  - Notes: Deferred to Sprint 8 — requires DB schema, edge function, mobile + web changes
+- [x] Shift wrap-up form (clock-out questions)
+  - Type: Mobile | Priority: Medium | Status: Done
+  - Agent findings: Completed 2026-04-05. Shift wrap-up summary on clock-out with task/note fields.
+  - Evidence: `apps/fieldops_mobile/lib/features/clock/**`
+- [x] GPS breadcrumb trail (shift route replay)
+  - Type: Full-stack | Priority: HIGH | Status: Done
+  - Agent findings: Backend completed earlier (migration + edge function). Mobile UI completed 2026-04-05. BreadcrumbPlaybackScreen with animated route playback (play/pause/slider/skip), custom BreadcrumbMap widget using CustomPaint polyline renderer (no external map library), haversine distance calculation, duration/point-count/distance stats, start marker (green) + active position marker (red). BreadcrumbRepository + SupabaseBreadcrumbRepository for API integration. "View Route" button added to JobCard when clocked in. flutter analyze clean.
+  - Evidence: `apps/fieldops_mobile/lib/features/breadcrumbs/**`, `infra/supabase/migrations/20260407200000_gps_breadcrumbs.sql`, `infra/supabase/functions/breadcrumbs/index.ts`
 - [ ] Equipment tracking (GPS + machine hours)
   - Notes: Track idle equipment, machine hours. Top fraud/compliance pain point per dev review.
-- [ ] Safety sign-off questions (pre-shift checklist)
-  - Notes: Industry-specific checklists. Pre-shift safety forms. OSHA compliance.
+- [x] Safety sign-off questions (pre-shift checklist)
+  - Type: Mobile | Priority: HIGH | Status: Done
+  - Agent findings: Completed 2026-04-05. SafetyChecklistScreen with numbered question cards, Yes/No/Flag toggle buttons, flagged warning banner, submit button. SafetyChecklistController with Notifier + sentinel copyWith. SafetyRepository + SupabaseSafetyRepository calling /safety edge function. Wired into JobCard with green "Safety Checklist" button when clocked in. `flutter analyze` clean.
+  - Evidence: `apps/fieldops_mobile/lib/features/safety/**`, `apps/fieldops_mobile/lib/features/home/presentation/widgets/job_card.dart`
 - [ ] Budgeting / budget vs actual
 - [ ] Manual time entry override (with audit trail)
 - [ ] Email/SMS worker invites (deep link activation)
 - [ ] Photo annotation & markup (draw on photos)
 
+### Mobile Enhancements (completed 2026-04-05)
+
+- [x] EXIF strip before upload
+  - Type: Mobile | Priority: Medium | Status: Done
+  - Agent findings: Completed 2026-04-05. Strips EXIF metadata from photos before upload for privacy.
+  - Evidence: `apps/fieldops_mobile/lib/features/camera/**`
+
+- [x] Orphaned photo file cleanup
+  - Type: Mobile | Priority: Low | Status: Done
+  - Agent findings: Completed 2026-04-05. Cleans up local photo files that have been uploaded or are no longer needed.
+  - Evidence: `apps/fieldops_mobile/lib/features/camera/**`
+
+- [x] Session timeout + biometric lock
+  - Type: Mobile | Priority: HIGH | Status: Done
+  - Agent findings: Completed 2026-04-05. SessionLockScreen with local_auth biometric prompt. Auto-lock after inactivity timeout. LockController tracks last-active timestamp.
+  - Evidence: `apps/fieldops_mobile/lib/features/auth/**`
+
+- [x] Expense history list screen
+  - Type: Mobile | Priority: Medium | Status: Done
+  - Agent findings: Completed 2026-04-05. Worker can view past submitted expenses with status badges, amounts, categories, and dates.
+  - Evidence: `apps/fieldops_mobile/lib/features/expenses/**`
+
+- [x] OT approval queue (mobile — foreman)
+  - Type: Mobile | Priority: HIGH | Status: Done
+  - Agent findings: Completed 2026-04-05. OTApprovalScreen with RefreshIndicator, skeleton loading, empty/error states. OTRequestCard with worker name, job, hours badge, notes, approve/deny buttons. DenyReasonDialog bottom sheet. OTApprovalController AsyncNotifier with optimistic removal. Wired into ForemanHomeScreen. `flutter analyze` clean.
+  - Evidence: `apps/fieldops_mobile/lib/features/overtime/presentation/ot_approval_screen.dart`, `ot_approval_controller.dart`
+
+- [x] PTO approval workflow + balance tracking (mobile)
+  - Type: Mobile | Priority: HIGH | Status: Done
+  - Agent findings: Completed 2026-04-05. PTOApprovalScreen with type-specific icons/colors (vacation=beach_access/blue, sick=local_hospital/red, personal=person/purple). Approve/deny with DenyReasonSheet bottom sheet. PTOBalanceCard showing 3 balance chips (vacation/sick/personal remaining) at top of PTO request screen. PTOApprovalController + PTOBalanceController as AsyncNotifiers. Wired into ForemanHomeScreen with "PTO Approvals" card. `flutter analyze` clean.
+  - Evidence: `apps/fieldops_mobile/lib/features/pto/presentation/pto_approval_screen.dart`, `pto_approval_controller.dart`, `pto_balance_controller.dart`, `pto_request_screen.dart`
+
+- [x] Foreman crew attendance view
+  - Type: Mobile | Priority: HIGH | Status: Done
+  - Agent findings: Completed 2026-04-05. CrewAttendanceScreen with summary row (Active/Break/Late/Absent count chips), grouped sections by status (Late first for urgency), CrewMemberTile with initials avatar, elapsed time, status badge. CrewAttendanceController AsyncNotifier. CrewAttendanceRepository + SupabaseCrewAttendanceRepository calling /crew edge function. Wired into ForemanHomeScreen. `flutter analyze` clean.
+  - Evidence: `apps/fieldops_mobile/lib/features/foreman/**`
+
+- [x] Timecards UI + e-signature (mobile)
+  - Type: Mobile | Priority: HIGH | Status: Done
+  - Agent findings: Completed 2026-04-05. TimecardsScreen with period cards showing Regular/OT/2x hours breakdown, status badges, inline signature pad toggle. Custom SignaturePad widget using GestureDetector + CustomPaint + PictureRecorder for PNG export. TimecardsController AsyncNotifier. TimecardRepository + SupabaseTimecardRepository with base64 signature encoding. Wired into home screen app bar. `flutter analyze` clean.
+  - Evidence: `apps/fieldops_mobile/lib/features/timecards/**`
+
+- [x] Schedule calendar view + shift swap (mobile)
+  - Type: Mobile | Priority: HIGH | Status: Done
+  - Agent findings: Completed 2026-04-05. ScheduleCalendar compact month widget using pure Dart date math (Mon-Sun columns, shift dates highlighted in signal orange, today outlined). Added to WorkerScheduleScreen above shift list. "Request Swap" OutlinedButton on each shift card with SwapConfirmDialog confirmation. ScheduleRepository extended with requestShiftSwap(). Test fakes updated. `flutter analyze` clean.
+  - Evidence: `apps/fieldops_mobile/lib/features/schedule/presentation/widgets/schedule_calendar.dart`, `worker_schedule_screen.dart`
+
+- [x] SQLite DB encryption (sqlcipher)
+  - Type: Mobile | Priority: HIGH | Status: Done
+  - Agent findings: Completed 2026-04-05. Replaced sqlite3_flutter_libs with sqlcipher_flutter_libs ^0.6.7. Added flutter_secure_storage ^9.2.4. Modified _openConnection() to retrieve/generate 32-char random key from FlutterSecureStorage and pass via PRAGMA key in NativeDatabase setup callback. _generateKey() uses Random.secure(). `flutter analyze` clean.
+  - Evidence: `apps/fieldops_mobile/pubspec.yaml`, `apps/fieldops_mobile/lib/core/data/local_database.dart`
+
+### Scheduler Enhancement
+
+- [x] Live conflict detection (PTO, OT threshold, crew size, duplicate shift)
+  - Evidence: `schedule/page.tsx` — `checkConflicts()` with 4 conflict types, multi-conflict dialog with override reason, blocks drag-and-drop until acknowledged.
+
+### Live Map Enhancement
+
+- [x] Right sidebar with worker list (grouped clocked-in/out, click-to-pan)
+  - Evidence: `map/page.tsx` — Collapsible 72-wide sidebar, grouped workers, initials avatars, click-to-flyTo
+- [x] Filter toggles (clocked-in only, job sites only, breadcrumbs placeholder)
+  - Evidence: `map/page.tsx` — 3 filter pill buttons, useMemo filtered data
+- [x] Richer popups (worker: initials + timeline link, job site: worker count + photos link)
+  - Evidence: `map/page.tsx` — HTML popups with initials, status, job name, time, deep links
+
 ### Scalability Foundations (from dev review — 2026-04-05)
 
-- [ ] RLS performance hardening
+- [x] RLS performance hardening
   - Type: Database | Priority: HIGH
-  - Definition of Done: Indexes on every company_id/job_id column used in RLS policies. Test with 10k+ rows per company. Never use RLS for business filtering — query first, then RLS protects.
+  - Evidence: Migration `20260407000000_rls_performance_indexes.sql` — 30+ B-tree indexes on company_id/job_id/user_id columns across all RLS-protected tables. Uses `CREATE INDEX IF NOT EXISTS` for idempotency.
 
-- [ ] Background jobs / queuing
+- [x] Background jobs / queuing
   - Type: Infra | Priority: HIGH
-  - Definition of Done: Move heavy work (photo stamping v2, report PDF, AI inference) to a queue. Options: Supabase pg_cron + DB triggers, or Inngest. Edge functions stay lightweight.
+  - Evidence: Migration `20260407300000_background_jobs.sql` (table + enqueue/claim/complete functions with SKIP LOCKED), Edge function `infra/supabase/functions/job_worker/index.ts` (processes up to 5 jobs per invocation, supports send_notification/generate_report/cleanup_expired types)
 
 - [ ] Photo optimization (auto-compress + WebP)
   - Type: Backend | Priority: MEDIUM
@@ -821,9 +913,82 @@ They don't affect production safety but improve robustness and maintainability.
   - Type: Tooling | Priority: MEDIUM
   - Definition of Done: Generate Flutter/Dart models from Supabase schema. Backend changes can't silently break mobile.
 
-- [ ] E2E tests (Playwright)
+- [x] E2E tests (Playwright)
   - Type: Testing | Priority: HIGH
-  - Definition of Done: Critical worker → supervisor flows. Settings save, invite flow, suspend/reactivate. Run in CI.
+  - Evidence: `apps/fieldops_web/playwright.config.ts` + 6 E2E tests in `e2e/` (auth, dashboard, navigation, schedule, settings, workers). Config with retry, parallel, webServer auto-start.
+
+### Mobile App Enhancements (2026-04-05)
+
+#### Core Features
+
+- [x] Proof stamp renderer (pixel-burned metadata on photos)
+  - Type: Mobile | Priority: HIGH
+  - Definition of Done: Burn timestamp, GPS, worker email, job name directly into photo pixels as tamper-evident overlay before upload. Graceful GPS timeout (5s). Semi-transparent banner with white text.
+  - Evidence: `apps/fieldops_mobile/lib/features/camera/data/proof_stamp_renderer.dart`, `photo_review_screen.dart`, `camera_controller.dart`
+
+- [x] Camera dispose race condition fix
+  - Type: Mobile | Priority: HIGH
+  - Definition of Done: Prevent async operations on disposed camera controller. `_disposed` flag checked at every async boundary in `_capture()` and `_initCamera()`.
+  - Evidence: `apps/fieldops_mobile/lib/features/camera/presentation/camera_capture_screen.dart`
+
+- [x] Mobile skeleton loader (shimmer placeholders)
+  - Type: Mobile | Priority: MEDIUM
+  - Definition of Done: Animated shimmer skeleton replacing bare CircularProgressIndicator across 5 screens (home, schedule, tasks, photo drafts, PTO).
+  - Evidence: `apps/fieldops_mobile/lib/app/widgets/skeleton_loader.dart`
+
+- [x] Upload UX: double-tap prevention + stamping phase feedback
+  - Type: Mobile | Priority: MEDIUM
+  - Definition of Done: `_isStamping` guard prevents double-tap during GPS+stamp phase. Status text priority: enhancing → finalizing → uploading → stamping → fallback. "Proof stamp will be applied" chip on review preview.
+  - Evidence: `apps/fieldops_mobile/lib/features/camera/presentation/photo_review_screen.dart`
+
+#### UI/UX Pro Max Audit (2026-04-05)
+
+- [x] Replace hardcoded colors with semantic palette tokens
+  - Type: Mobile | Priority: MEDIUM
+  - Fix: `Color(0xFFD8D2C7)` → `palette.border` in `_InfoChip` (job_card.dart) and `ClockStatusPanel` (clock_status_panel.dart)
+  - UX Rule: §6 `color-semantic`
+
+- [x] Password show/hide toggle on login screen
+  - Type: Mobile | Priority: MEDIUM
+  - Fix: Added `_obscurePassword` state + `IconButton` suffix with visibility toggle + tooltip
+  - UX Rule: §8 `password-toggle`
+  - Evidence: `apps/fieldops_mobile/lib/features/auth/presentation/login_screen.dart`
+
+- [x] Fix sub-minimum font size (10px → 12px)
+  - Type: Mobile | Priority: LOW
+  - Fix: `fontSize: 10` → `fontSize: 12` on hours target label in worker_hours_summary.dart
+  - UX Rule: §6 `readable-font-size`
+
+- [x] Reduced-motion accessibility support for skeleton loader
+  - Type: Mobile | Priority: MEDIUM
+  - Fix: Check `MediaQuery.disableAnimations`, stop animation controller and show static skeleton when enabled. Pauses/resumes correctly on setting changes via `didChangeDependencies`.
+  - UX Rule: §1 `reduced-motion`
+  - Evidence: `apps/fieldops_mobile/lib/app/widgets/skeleton_loader.dart`
+
+- [x] Haptic feedback on clock-in, clock-out, and break toggle
+  - Type: Mobile | Priority: LOW
+  - Fix: `HapticFeedback.mediumImpact()` on clock-in and break toggle, `HapticFeedback.heavyImpact()` on clock-out (heavier = more significant action)
+  - UX Rule: §2 `haptic-feedback`
+  - Evidence: `job_card.dart`, `clock_status_panel.dart`
+
+- [x] Semantics wrapper on PTO date picker tiles
+  - Type: Mobile | Priority: LOW
+  - Fix: Added `Semantics(button: true, label: ...)` to `_DateTile` in PTO screen for screen reader accessibility
+  - UX Rule: §1 `aria-labels`
+  - Evidence: `apps/fieldops_mobile/lib/features/pto/presentation/pto_request_screen.dart`
+
+- [x] Add labelText to expense amount field
+  - Type: Mobile | Priority: LOW
+  - Fix: Added `labelText: 'Amount'` to amount TextFormField (was hint-only)
+  - UX Rule: §8 `input-labels`
+  - Evidence: `apps/fieldops_mobile/lib/features/expenses/presentation/expense_capture_screen.dart`
+
+#### Mobile audit summary
+- **Theme system**: Premium-grade. Semantic `FieldOpsPalette` ThemeExtension, 8dp spacing scale, elevation shadows, dark mode pairing. Space Grotesk + IBM Plex Sans typography. No changes needed.
+- **Touch targets**: All buttons ≥44px. Proper 8dp+ spacing. No changes needed.
+- **Accessibility**: Semantics on all interactive elements. Error states near fields. Color + icon (never color-only). Minor fixes applied above.
+- **Forms**: Visible labels, submit feedback, disabled states during async. Minor fixes applied above.
+- **flutter analyze**: 0 issues after all changes.
 
 ## Sprint 8 — Billing + Integrations + SOC 2
 

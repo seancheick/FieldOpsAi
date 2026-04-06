@@ -204,6 +204,10 @@ serve(async (req) => {
         )
       }
 
+      if (start_time >= end_time) {
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "start_time must be before end_time")
+      }
+
       const [{ data: worker }, { data: job }] = await Promise.all([
         supabaseAdmin
           .from("users")
@@ -301,6 +305,10 @@ serve(async (req) => {
 
       if (Object.keys(updates).length === 0) {
         return errorResponse(requestId, 400, "INVALID_PAYLOAD", "At least one editable field is required")
+      }
+
+      if (start_time && end_time && start_time >= end_time) {
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "start_time must be before end_time")
       }
 
       if (worker_id || job_id) {

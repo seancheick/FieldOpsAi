@@ -3,11 +3,14 @@ import 'dart:io';
 import 'package:fieldops_mobile/features/schedule/domain/schedule_repository.dart';
 import 'package:fieldops_mobile/features/schedule/domain/worker_schedule_shift.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 class SupabaseScheduleRepository implements ScheduleRepository {
-  const SupabaseScheduleRepository(this._client);
+  const SupabaseScheduleRepository(this._client, {Uuid? uuid})
+      : _uuid = uuid ?? const Uuid();
 
   final SupabaseClient _client;
+  final Uuid _uuid;
 
   @override
   Future<List<WorkerScheduleShift>> fetchMySchedule({
@@ -50,6 +53,45 @@ class SupabaseScheduleRepository implements ScheduleRepository {
       }
       throw ScheduleRepositoryException.unknown(
         'Schedule request failed (${error.status}).',
+      );
+    }
+  }
+
+  @override
+  Future<String> requestShiftSwap({
+    required String shiftId,
+    String? notes,
+  }) async {
+    try {
+      final response = await _client.functions.invoke(
+        'schedule',
+        headers: {
+          'Idempotency-Key': _uuid.v4(),
+          'X-Client-Version': 'fieldops-mobile',
+        },
+        body: {
+          'action': 'swap_request',
+          'shift_id': shiftId,
+          if (notes != null && notes.isNotEmpty) 'notes': notes,
+        },
+      );
+
+      final payload = response.data;
+      if (payload is! Map<String, dynamic>) {
+        throw const ScheduleRepositoryException.unknown(
+          'Swap response was malformed.',
+        );
+      }
+
+      return payload['swap_request_id'] as String? ?? '';
+    } on SocketException {
+      throw const ScheduleRepositoryException.offline();
+    } on FunctionException catch (error) {
+      if (error.status == 0) {
+        throw const ScheduleRepositoryException.offline();
+      }
+      throw ScheduleRepositoryException.unknown(
+        'Could not submit swap request (${error.status}).',
       );
     }
   }

@@ -34,6 +34,7 @@ class _CameraCaptureScreenState extends ConsumerState<CameraCaptureScreen> {
   cam.CameraController? _cameraController;
   bool _isCameraReady = false;
   bool _isCapturing = false;
+  bool _disposed = false;
   String? _cameraError;
 
   @override
@@ -64,7 +65,7 @@ class _CameraCaptureScreenState extends ConsumerState<CameraCaptureScreen> {
 
       await controller.initialize();
 
-      if (!mounted) {
+      if (!mounted || _disposed) {
         await controller.dispose();
         return;
       }
@@ -84,13 +85,17 @@ class _CameraCaptureScreenState extends ConsumerState<CameraCaptureScreen> {
 
   @override
   void dispose() {
+    _disposed = true;
     _cameraController?.dispose();
     super.dispose();
   }
 
   Future<void> _capture() async {
     final controller = _cameraController;
-    if (controller == null || !controller.value.isInitialized || _isCapturing) {
+    if (controller == null ||
+        !controller.value.isInitialized ||
+        _isCapturing ||
+        _disposed) {
       return;
     }
 
@@ -98,7 +103,7 @@ class _CameraCaptureScreenState extends ConsumerState<CameraCaptureScreen> {
 
     try {
       final xFile = await controller.takePicture();
-      if (!mounted) return;
+      if (!mounted || _disposed) return;
 
       final result = await Navigator.of(context).push<PhotoCaptureResult>(
         MaterialPageRoute<PhotoCaptureResult>(
@@ -111,7 +116,7 @@ class _CameraCaptureScreenState extends ConsumerState<CameraCaptureScreen> {
         ),
       );
 
-      if (!mounted || result == null) return;
+      if (!mounted || _disposed || result == null) return;
 
       if (result.shouldRetake) {
         return;

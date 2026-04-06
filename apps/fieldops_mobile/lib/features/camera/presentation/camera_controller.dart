@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:camera/camera.dart' as cam;
+import 'package:fieldops_mobile/features/camera/data/exif_stripper.dart';
 import 'package:fieldops_mobile/features/camera/data/media_repository_provider.dart';
+import 'package:fieldops_mobile/features/camera/data/proof_stamp_renderer.dart';
 import 'package:fieldops_mobile/features/camera/domain/media_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,13 +17,25 @@ class CaptureController extends Notifier<CaptureState> {
   Future<String> uploadCapturedPhoto({
     required String jobId,
     required String filePath,
+    ProofStampMetadata? stampMetadata,
   }) async {
     try {
+      state = const CaptureUploading();
+
+      // Apply proof stamp before reading final bytes.
+      // Proof stamp decode→encode cycle also strips EXIF metadata.
+      if (stampMetadata != null) {
+        const renderer = ProofStampRenderer();
+        await renderer.stampFile(filePath, stampMetadata);
+      } else {
+        // No stamp — still strip EXIF to prevent GPS/timestamp leaks.
+        const exifStripper = ExifStripper();
+        await exifStripper.stripFile(filePath);
+      }
+
       final file = File(filePath);
       final fileBytes = await file.readAsBytes();
       final fileSizeBytes = fileBytes.length;
-
-      state = const CaptureUploading();
 
       final repository = ref.read(mediaRepositoryProvider);
 

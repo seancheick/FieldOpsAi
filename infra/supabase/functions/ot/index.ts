@@ -229,6 +229,10 @@ serve(async (req) => {
           return errorResponse(requestId, 400, "INVALID_PAYLOAD", "job_id is required")
         }
 
+        if (total_hours !== undefined && total_hours !== null && typeof total_hours !== "number") {
+          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "total_hours must be a number")
+        }
+
         // Verify worker is assigned
         const { data: assignment } = await supabase
           .from("assignments")

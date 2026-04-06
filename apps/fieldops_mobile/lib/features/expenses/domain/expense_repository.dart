@@ -7,6 +7,32 @@ abstract class ExpenseRepository {
     String? notes,
     String? mediaAssetId,
   });
+
+  Future<List<ExpenseRecord>> fetchMyExpenses();
+}
+
+class ExpenseRecord {
+  const ExpenseRecord({
+    required this.id,
+    required this.jobId,
+    required this.jobName,
+    required this.category,
+    required this.amount,
+    required this.createdAt,
+    this.vendor,
+    this.notes,
+    this.status = 'submitted',
+  });
+
+  final String id;
+  final String jobId;
+  final String jobName;
+  final String category;
+  final double amount;
+  final DateTime createdAt;
+  final String? vendor;
+  final String? notes;
+  final String status;
 }
 
 enum ExpenseCategory { materials, fuel, tools, meals, other }

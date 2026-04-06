@@ -67,12 +67,16 @@ function PhotoFeedContent() {
   const searchParams = useSearchParams();
   const jobId = searchParams.get("job_id");
 
+  const PHOTOS_PAGE_SIZE = 30;
+
   const [photos, setPhotos] = useState<ResolvedPhotoEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jobName, setJobName] = useState<string | null>(null);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const urlCacheRef = useRef<Record<string, string>>({});
+  const [hasMorePhotos, setHasMorePhotos] = useState(false);
+  const [loadingMorePhotos, setLoadingMorePhotos] = useState(false);
 
   // Filter state
   const [filterDate, setFilterDate] = useState("");
@@ -131,10 +135,11 @@ function PhotoFeedContent() {
         `)
         .eq("job_id", jobId)
         .order("occurred_at", { ascending: false })
-        .limit(200);
+        .limit(PHOTOS_PAGE_SIZE);
 
       if (err) throw err;
       const photoData = (data as unknown as PhotoEntry[]) ?? [];
+      setHasMorePhotos(photoData.length === PHOTOS_PAGE_SIZE);
 
       const stampedIds = photoData
         .map((photo) => photo.media_assets?.stamped_media_id)
@@ -201,6 +206,105 @@ function PhotoFeedContent() {
       setLoading(false);
     }
   }, [jobId, t]);
+
+  const loadMorePhotos = useCallback(async () => {
+    if (!jobId) return;
+    setLoadingMorePhotos(true);
+    try {
+      const supabase = getSupabase();
+      const { data, error: err } = await supabase
+        .from("photo_events")
+        .select(`
+          id,
+          occurred_at,
+          media_asset_id,
+          is_checkpoint,
+          user_id,
+          task_id,
+          users!photo_events_user_id_fkey ( full_name ),
+          tasks ( name ),
+          media_assets!photo_events_media_asset_id_fkey (
+            id,
+            verification_code,
+            storage_path,
+            bucket_name,
+            sha256_hash,
+            kind,
+            stamped_media_id,
+            metadata
+          )
+        `)
+        .eq("job_id", jobId)
+        .order("occurred_at", { ascending: false })
+        .range(photos.length, photos.length + PHOTOS_PAGE_SIZE - 1);
+
+      if (err) throw err;
+      const photoData = (data as unknown as PhotoEntry[]) ?? [];
+      setHasMorePhotos(photoData.length === PHOTOS_PAGE_SIZE);
+
+      // Resolve stamped assets for new page
+      const stampedIds = photoData
+        .map((photo) => photo.media_assets?.stamped_media_id)
+        .filter((id): id is string => Boolean(id));
+
+      let stampedAssetsById = new Map<string, DisplayAsset>();
+      if (stampedIds.length > 0) {
+        const { data: stampedAssets, error: stampedErr } = await supabase
+          .from("media_assets")
+          .select(`
+            id,
+            verification_code,
+            storage_path,
+            bucket_name,
+            sha256_hash,
+            kind,
+            stamped_media_id,
+            metadata
+          `)
+          .in("id", stampedIds);
+
+        if (stampedErr) throw stampedErr;
+        stampedAssetsById = new Map(
+          ((stampedAssets as DisplayAsset[] | null) ?? []).map((asset) => [asset.id, asset]),
+        );
+      }
+
+      const resolvedNew = photoData.map((photo) => ({
+        ...photo,
+        displayAsset: getDisplayAsset(photo, stampedAssetsById),
+      }));
+
+      // Generate signed URLs for new photos
+      await Promise.allSettled(
+        resolvedNew.map(async (photo) => {
+          const asset = photo.displayAsset;
+          if (!asset?.storage_path || !asset?.bucket_name) return;
+          const { data: urlData } = await supabase.storage
+            .from(asset.bucket_name)
+            .createSignedUrl(asset.storage_path, 3600);
+          if (urlData?.signedUrl) {
+            const cacheKey = buildSignedUrlCacheKey(photo.id, asset);
+            urlCacheRef.current[cacheKey] = urlData.signedUrl;
+          }
+        })
+      );
+
+      const newSignedUrls: Record<string, string> = {};
+      resolvedNew.forEach((photo) => {
+        const cacheKey = buildSignedUrlCacheKey(photo.id, photo.displayAsset);
+        if (urlCacheRef.current[cacheKey]) {
+          newSignedUrls[photo.id] = urlCacheRef.current[cacheKey];
+        }
+      });
+
+      setPhotos((prev) => [...prev, ...resolvedNew]);
+      setSignedUrls((prev) => ({ ...prev, ...newSignedUrls }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("photos.failedToLoad"));
+    } finally {
+      setLoadingMorePhotos(false);
+    }
+  }, [jobId, photos.length, t]);
 
   useEffect(() => {
     if (!jobId) return;
@@ -580,6 +684,19 @@ function PhotoFeedContent() {
           );
         })}
       </div>
+
+      {/* Load More */}
+      {hasMorePhotos && (
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={loadMorePhotos}
+            disabled={loadingMorePhotos}
+            className="mx-auto flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 shadow-sm hover:bg-stone-50 disabled:opacity-50"
+          >
+            {loadingMorePhotos ? t("common.loadingMore") : t("common.loadMore")}
+          </button>
+        </div>
+      )}
 
       {/* Lightbox modal */}
       {lightboxPhoto && selectedPhotoIndex !== null && (() => {

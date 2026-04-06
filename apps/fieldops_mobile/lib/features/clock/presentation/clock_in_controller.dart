@@ -22,6 +22,7 @@ class ClockController extends Notifier<ClockState> {
         activeJobId: jobId,
         activeJobName: jobName,
         lastOccurredAt: result.occurredAt,
+        clockedInAt: result.occurredAt,
       ),
       onError: () => state = state.copyWith(activeRequestJobId: null),
     );
@@ -42,6 +43,7 @@ class ClockController extends Notifier<ClockState> {
         activeJobName: null,
         lastOccurredAt: result.occurredAt,
         lastCompletedJobName: jobName,
+        clockedInAt: null,
       ),
       onError: () => state = state.copyWith(activeRequestJobId: null),
     );
@@ -114,6 +116,7 @@ class ClockState {
     this.lastCompletedJobName,
     this.isOnBreak = false,
     this.clockError,
+    this.clockedInAt,
   });
 
   final String? activeRequestJobId;
@@ -123,6 +126,8 @@ class ClockState {
   final String? lastCompletedJobName;
   final bool isOnBreak;
   final ({String title, String message})? clockError;
+  /// When the current shift started. Used for shift wrap-up summary.
+  final DateTime? clockedInAt;
 
   // Legacy accessors for widgets that read errorTitle/errorMessage
   String? get errorTitle => clockError?.title;
@@ -141,6 +146,7 @@ class ClockState {
     Object? lastCompletedJobName = _sentinel,
     Object? isOnBreak = _sentinel,
     Object? clockError = _sentinel,
+    Object? clockedInAt = _sentinel,
   }) {
     return ClockState(
       activeRequestJobId: activeRequestJobId == _sentinel
@@ -162,6 +168,9 @@ class ClockState {
       clockError: clockError == _sentinel
           ? this.clockError
           : clockError as ({String title, String message})?,
+      clockedInAt: clockedInAt == _sentinel
+          ? this.clockedInAt
+          : clockedInAt as DateTime?,
     );
   }
 
@@ -175,7 +184,8 @@ class ClockState {
           lastOccurredAt == other.lastOccurredAt &&
           lastCompletedJobName == other.lastCompletedJobName &&
           isOnBreak == other.isOnBreak &&
-          clockError == other.clockError;
+          clockError == other.clockError &&
+          clockedInAt == other.clockedInAt;
 
   @override
   int get hashCode => Object.hash(
@@ -186,6 +196,7 @@ class ClockState {
         lastCompletedJobName,
         isOnBreak,
         clockError,
+        clockedInAt,
       );
 }
 

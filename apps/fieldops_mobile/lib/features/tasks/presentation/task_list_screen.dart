@@ -1,3 +1,4 @@
+import 'package:fieldops_mobile/app/widgets/skeleton_loader.dart';
 import 'package:fieldops_mobile/features/tasks/domain/task_item.dart';
 import 'package:fieldops_mobile/features/tasks/domain/tasks_repository.dart';
 import 'package:fieldops_mobile/features/tasks/presentation/tasks_controller.dart';
@@ -48,8 +49,7 @@ class TaskListScreen extends ConsumerWidget {
                       .read(tasksControllerProvider.notifier)
                       .reload(),
                 ),
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                loading: () => const SkeletonLoader(itemCount: 4),
                 error: (error, _) {
                   final repoError = error is TasksRepositoryException
                       ? error

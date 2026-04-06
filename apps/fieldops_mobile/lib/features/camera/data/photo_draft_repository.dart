@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:fieldops_mobile/core/data/local_database.dart';
+import 'package:fieldops_mobile/features/camera/data/exif_stripper.dart';
 import 'package:fieldops_mobile/features/camera/data/media_repository_provider.dart';
 import 'package:fieldops_mobile/features/camera/domain/media_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -73,7 +74,12 @@ class PhotoDraftRepository {
       );
     }
 
-    final fileBytes = await file.readAsBytes();
+    // Strip EXIF metadata (GPS, timestamps, device info) before upload.
+    // The direct-upload path strips EXIF via proof stamp decode→encode,
+    // but drafts bypass that — so we strip explicitly here.
+    const exifStripper = ExifStripper();
+    final rawBytes = await file.readAsBytes();
+    final fileBytes = exifStripper.stripBytes(rawBytes);
 
     try {
       final presign = await _mediaRepository.presignUpload(
@@ -90,8 +96,18 @@ class PhotoDraftRepository {
 
       await _mediaRepository.finalizeUpload(mediaAssetId: presign.mediaAssetId);
 
+      // Mark uploaded first — if deleteDraft fails or app crashes after this
+      // point, the "uploaded" flag prevents a duplicate re-upload on next launch.
       await _database.markPendingMediaUploadUploaded(draftId);
-      await deleteDraft(draftId);
+
+      // Best-effort cleanup of the local file and DB record. If this fails
+      // (e.g. app crash), the file is orphaned but the upload is safe.
+      try {
+        await deleteDraft(draftId);
+      } on Exception catch (_) {
+        // Orphaned file — will be cleaned up by periodic maintenance.
+      }
+
       return presign.mediaAssetId;
     } on MediaRepositoryException catch (error) {
       await _database.markPendingMediaUploadFailed(

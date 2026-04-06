@@ -2,9 +2,18 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
 
 const MAPTILER_KEY =
   process.env.NEXT_PUBLIC_MAPTILER_KEY || "3EVTjBsPJIuw0UVfaNvL";
@@ -38,6 +47,12 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+
+  // Sidebar + filter state
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [filterClockedIn, setFilterClockedIn] = useState(false);
+  const [filterJobSitesOnly, setFilterJobSitesOnly] = useState(false);
+  const [filterBreadcrumbs, setFilterBreadcrumbs] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -137,7 +152,18 @@ export default function MapPage() {
     };
   }, [mapReady, loadData, t]);
 
-  // Update markers
+  // Filtered data for rendering (declared before marker useEffect that depends on them)
+  const filteredWorkers = useMemo(() => {
+    if (filterJobSitesOnly) return [];
+    if (filterClockedIn) return workers.filter((w) => w.event_subtype === "clock_in");
+    return workers;
+  }, [workers, filterClockedIn, filterJobSitesOnly]);
+
+  const filteredJobSites = useMemo(() => {
+    return jobSites;
+  }, [jobSites]);
+
+  // Update markers (filter-aware + richer popups)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || mapError) return;
@@ -148,40 +174,68 @@ export default function MapPage() {
       for (const m of markersRef.current) m.remove();
       markersRef.current = [];
 
-      for (const site of jobSites) {
+      // Count workers per job site for popup
+      const workersPerSite = new Map<string, number>();
+      for (const w of workers) {
+        if (w.event_subtype === "clock_in") {
+          workersPerSite.set(w.job_name, (workersPerSite.get(w.job_name) || 0) + 1);
+        }
+      }
+
+      for (const site of filteredJobSites) {
         const el = document.createElement("div");
-        el.style.cssText = "width:32px;height:32px;background:#F38B2A;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.2);cursor:pointer;";
+        el.style.cssText = "width:32px;height:32px;background:#F38B2A;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;font-weight:700;";
+        el.textContent = "\u{1F4CD}";
         el.title = `${site.name} (${site.code})`;
+
+        const siteWorkerCount = workersPerSite.get(site.name) || 0;
+        const popupHtml = `<div style="font-family:system-ui;padding:8px;min-width:180px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px">${site.name}</div>
+          <div style="color:#64748B;font-size:12px;margin-bottom:6px">${site.code} &middot; ${site.geofence_radius_m}m geofence</div>
+          <div style="font-size:12px;color:#334155">${siteWorkerCount} ${t("mapPage.workers")}</div>
+          <a href="/photos?job=${encodeURIComponent(site.id)}" style="display:inline-block;margin-top:6px;font-size:12px;color:#2563EB;text-decoration:none;font-weight:600">${t("mapPage.viewPhotos")} &rarr;</a>
+        </div>`;
 
         const marker = new mt.Marker({ element: el })
           .setLngLat([site.site_lng, site.site_lat])
-          .setPopup(new mt.Popup({ offset: 20 }).setHTML(
-            `<div style="font-family:system-ui;padding:4px"><strong>${site.name}</strong><br/><span style="color:#64748B;font-size:12px">${site.code} · ${site.geofence_radius_m}m geofence</span></div>`,
-          ))
+          .setPopup(new mt.Popup({ offset: 20 }).setHTML(popupHtml))
           .addTo(map);
         markersRef.current.push(marker);
       }
 
-      for (const w of workers) {
+      for (const w of filteredWorkers) {
         const isClockedIn = w.event_subtype === "clock_in";
         const color = isClockedIn ? "#16A34A" : "#94A3B8";
+        const initials = getInitials(w.full_name);
 
         const el = document.createElement("div");
-        el.style.cssText = `width:28px;height:28px;background:${color};border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);cursor:pointer;`;
+        el.style.cssText = `width:28px;height:28px;background:${color};border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);cursor:pointer;display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:700;`;
+        el.textContent = initials;
         el.title = `${w.full_name} — ${isClockedIn ? t("mapPage.clockedInTitle") : t("mapPage.clockedOutTitle")}`;
+
+        const popupHtml = `<div style="font-family:system-ui;padding:8px;min-width:200px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <div style="width:32px;height:32px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700;flex-shrink:0">${initials}</div>
+            <div>
+              <div style="font-weight:700;font-size:14px">${w.full_name}</div>
+              <div style="color:${color};font-size:12px;font-weight:600">${isClockedIn ? `&#9679; ${t("mapPage.clockedInTitle")}` : `&#9675; ${t("mapPage.clockedOutTitle")}`}</div>
+            </div>
+          </div>
+          <div style="font-size:12px;color:#334155;margin-bottom:2px">${w.job_name}</div>
+          <div style="font-size:11px;color:#64748B">${new Date(w.occurred_at).toLocaleTimeString()}</div>
+          <a href="/timeline?worker=${encodeURIComponent(w.user_id)}" style="display:inline-block;margin-top:6px;font-size:12px;color:#2563EB;text-decoration:none;font-weight:600">${t("mapPage.viewTimeline")} &rarr;</a>
+        </div>`;
 
         const marker = new mt.Marker({ element: el })
           .setLngLat([w.gps_lng, w.gps_lat])
-          .setPopup(new mt.Popup({ offset: 16 }).setHTML(
-            `<div style="font-family:system-ui;padding:4px"><strong>${w.full_name}</strong><br/><span style="color:${color};font-weight:600">${isClockedIn ? `● ${t("mapPage.clockedInTitle")}` : `○ ${t("mapPage.clockedOutTitle")}`}</span><br/><span style="color:#64748B;font-size:12px">${w.job_name}<br/>${new Date(w.occurred_at).toLocaleTimeString()}</span></div>`,
-          ))
+          .setPopup(new mt.Popup({ offset: 16 }).setHTML(popupHtml))
           .addTo(map);
         markersRef.current.push(marker);
       }
 
       const allCoords = [
-        ...workers.map((w) => [w.gps_lng, w.gps_lat]),
-        ...jobSites.map((s) => [s.site_lng, s.site_lat]),
+        ...filteredWorkers.map((w) => [w.gps_lng, w.gps_lat]),
+        ...filteredJobSites.map((s) => [s.site_lng, s.site_lat]),
       ];
       if (allCoords.length > 1) {
         const bounds = new mt.LngLatBounds();
@@ -194,7 +248,7 @@ export default function MapPage() {
     } catch {
       // Marker error — non-fatal
     }
-  }, [workers, jobSites, mapReady, mapError, t]);
+  }, [filteredWorkers, filteredJobSites, workers, mapReady, mapError, t]);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -225,10 +279,30 @@ export default function MapPage() {
     };
   }, [loadData]);
 
+  // Auto-refresh every 15 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadData();
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, [loadData]);
+
   const clockedIn = workers.filter((w) => w.event_subtype === "clock_in").length;
+
+  // Helper to pan/zoom to a worker pin
+  const panToWorker = useCallback((w: WorkerPin) => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.flyTo({ center: [w.gps_lng, w.gps_lat], zoom: 16 });
+  }, []);
+
+  // Group sidebar workers by status
+  const clockedInWorkers = workers.filter((w) => w.event_subtype === "clock_in");
+  const clockedOutWorkers = workers.filter((w) => w.event_subtype !== "clock_in");
 
   return (
     <div>
+      {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("mapPage.title")}</h1>
@@ -250,10 +324,43 @@ export default function MapPage() {
         </div>
       </div>
 
+      {/* Filter toggles */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setFilterClockedIn((v) => !v)}
+          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+            filterClockedIn
+              ? "border-green-300 bg-green-50 text-green-700"
+              : "border-stone-200 bg-white text-slate-500 hover:bg-stone-50"
+          }`}
+        >
+          <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-green-500" />
+          {t("mapPage.clockedInOnly")}
+        </button>
+        <button
+          onClick={() => setFilterJobSitesOnly((v) => !v)}
+          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+            filterJobSitesOnly
+              ? "border-amber-300 bg-amber-50 text-amber-700"
+              : "border-stone-200 bg-white text-slate-500 hover:bg-stone-50"
+          }`}
+        >
+          <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+          {t("mapPage.jobSitesOnly")}
+        </button>
+        <button
+          disabled
+          className="cursor-not-allowed rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-medium text-slate-300"
+          title="Coming soon"
+        >
+          {t("mapPage.showBreadcrumbs")}
+        </button>
+      </div>
+
       {/* Map error fallback */}
       {mapError && (
         <div className="rounded-2xl border border-red-100 bg-red-50 p-8 text-center">
-          <div className="text-3xl text-red-300">🗺️</div>
+          <div className="text-3xl text-red-300">{"\uD83D\uDDFA\uFE0F"}</div>
           <h3 className="mt-3 font-bold text-red-800">{t("mapPage.mapUnavailable")}</h3>
           <p className="mt-1 text-sm text-red-600">{mapError}</p>
           <p className="mt-3 text-xs text-red-400">
@@ -329,13 +436,123 @@ export default function MapPage() {
         </div>
       )}
 
+      {/* Map + Right sidebar layout */}
       {!mapError && (
-        <div
-          ref={mapContainer}
-          className="h-[600px] w-full rounded-2xl border border-stone-200 shadow-sm"
-          style={{ minHeight: "500px" }}
-        />
+        <div className="flex gap-0 overflow-hidden rounded-2xl border border-stone-200 shadow-sm">
+          {/* Map container */}
+          <div className="relative flex-1">
+            <div
+              ref={mapContainer}
+              className="h-[600px] w-full"
+              style={{ minHeight: "500px" }}
+            />
+          </div>
+
+          {/* Right sidebar toggle button */}
+          <button
+            onClick={() => setSidebarOpen((v) => !v)}
+            className="flex w-6 items-center justify-center border-l border-stone-200 bg-stone-50 text-slate-400 hover:bg-stone-100 hover:text-slate-600"
+            aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className={`h-4 w-4 transition-transform ${sidebarOpen ? "rotate-0" : "rotate-180"}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          {/* Right sidebar panel — Who's Working */}
+          {sidebarOpen && (
+            <div className="flex w-72 flex-col border-l border-stone-200 bg-white">
+              <div className="border-b border-stone-100 px-4 py-3">
+                <h2 className="text-sm font-bold text-slate-900">
+                  {t("mapPage.whosWorking")}
+                </h2>
+                <p className="text-xs text-slate-400">
+                  {clockedIn} {t("mapPage.clockedInTitle").toLowerCase()}
+                </p>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {/* Clocked-in group */}
+                {clockedInWorkers.length > 0 && (
+                  <div>
+                    <div className="sticky top-0 bg-green-50 px-4 py-1.5 text-xs font-semibold text-green-700">
+                      {t("mapPage.clockedInTitle")} ({clockedInWorkers.length})
+                    </div>
+                    {clockedInWorkers.map((w) => (
+                      <button
+                        key={w.user_id}
+                        onClick={() => panToWorker(w)}
+                        className="flex w-full items-center gap-3 border-b border-stone-50 px-4 py-2.5 text-left transition-colors hover:bg-stone-50"
+                      >
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white">
+                          {getInitials(w.full_name)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-xs font-semibold text-slate-900">
+                            {w.full_name}
+                          </div>
+                          <div className="truncate text-[11px] text-slate-400">
+                            {w.job_name}
+                          </div>
+                        </div>
+                        <div className="text-[10px] text-slate-300">
+                          {new Date(w.occurred_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Clocked-out group */}
+                {clockedOutWorkers.length > 0 && (
+                  <div>
+                    <div className="sticky top-0 bg-slate-50 px-4 py-1.5 text-xs font-semibold text-slate-400">
+                      {t("mapPage.clockedOutTitle")} ({clockedOutWorkers.length})
+                    </div>
+                    {clockedOutWorkers.map((w) => (
+                      <button
+                        key={w.user_id}
+                        onClick={() => panToWorker(w)}
+                        className="flex w-full items-center gap-3 border-b border-stone-50 px-4 py-2.5 text-left transition-colors hover:bg-stone-50"
+                      >
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-slate-300 text-[10px] font-bold text-white">
+                          {getInitials(w.full_name)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-xs font-semibold text-slate-500">
+                            {w.full_name}
+                          </div>
+                          <div className="truncate text-[11px] text-slate-300">
+                            {w.job_name}
+                          </div>
+                        </div>
+                        <div className="text-[10px] text-slate-300">
+                          {new Date(w.occurred_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {workers.length === 0 && !loading && (
+                  <div className="px-4 py-8 text-center text-xs text-slate-300">
+                    {t("common.noData")}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       )}
+
+      {/* Refresh indicator */}
+      <div className="mt-2 text-center text-xs text-slate-400">
+        {t("mapPage.refreshEvery")}
+      </div>
     </div>
   );
 }

@@ -68,8 +68,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.lastEmail, 'worker@test.com');
-    expect(find.text('Assigned jobs'), findsOneWidget);
-    expect(find.textContaining('Signed in as worker@test.com'), findsOneWidget);
+    // After sign-in, the MainShell renders with the Home tab active
+    expect(find.text('FieldOps'), findsOneWidget);
+    // Navigate to Jobs tab to see assigned jobs
+    await tester.tap(find.text('Jobs'));
+    await tester.pumpAndSettle();
     expect(find.text('Grid Restoration'), findsOneWidget);
   });
 
@@ -124,7 +127,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Assigned jobs'), findsOneWidget);
+    // Navigate to Jobs tab to see assigned jobs
+    await tester.tap(find.text('Jobs'));
+    await tester.pumpAndSettle();
+    expect(find.text('My Jobs'), findsOneWidget);
     expect(find.text('Grid Restoration'), findsOneWidget);
     expect(find.text('Substation Audit'), findsOneWidget);
     expect(find.textContaining('2 tasks'), findsOneWidget);
@@ -185,6 +191,10 @@ void main() {
     await tester.pumpAndSettle();
     final firstFetchCount = jobsRepository.fetchCount;
 
+    // Navigate to Jobs tab to see the error state
+    await tester.tap(find.text('Jobs'));
+    await tester.pumpAndSettle();
+
     expect(find.text('You are offline'), findsOneWidget);
     expect(find.text('Retry jobs'), findsOneWidget);
 
@@ -221,15 +231,21 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Navigate to Jobs tab and clock in
+    await tester.tap(find.text('Jobs'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Clock in').first);
     await tester.pumpAndSettle();
 
     expect(clockRepository.lastJobId, 'job-1');
-    expect(find.text('Clocked in'), findsWidgets);
+    // Navigate to Home to verify clock status
+    await tester.tap(find.text('Home'));
+    await tester.pumpAndSettle();
+    expect(find.text('Clocked in'), findsOneWidget);
     expect(find.textContaining('Grid Restoration'), findsWidgets);
   });
 
-  testWidgets('take proof photo button appears only when clocked in', (
+  testWidgets('camera FAB appears only when clocked in', (
     tester,
   ) async {
     _usePhoneViewport(tester);
@@ -256,16 +272,19 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Before clocking in, no photo button
-    expect(find.text('Photo'), findsNothing);
+    // Before clocking in, no camera FAB
+    expect(find.byType(FloatingActionButton), findsNothing);
 
-    // Clock in
+    // Navigate to Jobs tab and clock in
+    await tester.tap(find.text('Jobs'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Clock in').first);
     await tester.pumpAndSettle();
 
-    // After clocking in, photo and tasks buttons appear
-    expect(find.text('Photo'), findsOneWidget);
-    expect(find.text('2 tasks'), findsOneWidget);
+    // After clocking in, camera FAB appears on the MainShell scaffold
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+    // Job tasks still visible
+    expect(find.textContaining('2 tasks'), findsOneWidget);
   });
 
   testWidgets('worker can clock out after clocking in', (tester) async {
@@ -293,13 +312,24 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Clock in first
+    // Navigate to Jobs tab and clock in
+    await tester.tap(find.text('Jobs'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Clock in').first);
     await tester.pumpAndSettle();
-    expect(find.text('Clocked in'), findsWidgets);
 
-    // Now clock out
+    // Navigate to Home tab where clock status panel shows
+    await tester.tap(find.text('Home'));
+    await tester.pumpAndSettle();
+    expect(find.text('Clocked in'), findsOneWidget);
+
+    // Now clock out — triggers the shift wrap-up dialog first
     await tester.tap(find.text('Clock out'));
+    await tester.pumpAndSettle();
+
+    // The ShiftWrapupDialog shows; submit to complete clock-out
+    expect(find.text('Submit & Clock Out'), findsOneWidget);
+    await tester.tap(find.text('Submit & Clock Out'));
     await tester.pumpAndSettle();
 
     expect(clockRepository.lastClockOutJobId, 'job-1');
@@ -336,7 +366,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Navigate to Jobs tab and attempt clock in
+    await tester.tap(find.text('Jobs'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Clock in').first);
+    await tester.pumpAndSettle();
+
+    // Navigate to Home tab where error panel shows
+    await tester.tap(find.text('Home'));
     await tester.pumpAndSettle();
 
     expect(find.text('Clock in failed'), findsOneWidget);
@@ -515,5 +552,13 @@ class FakeScheduleRepository implements ScheduleRepository {
     DateTime? to,
   }) async {
     return shifts;
+  }
+
+  @override
+  Future<String> requestShiftSwap({
+    required String shiftId,
+    String? notes,
+  }) async {
+    return 'swap-1';
   }
 }

@@ -16,6 +16,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -131,14 +132,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 textField: true,
                                 child: TextFormField(
                                   controller: _passwordController,
-                                  obscureText: true,
+                                  obscureText: _obscurePassword,
                                   textInputAction: TextInputAction.done,
                                   onFieldSubmitted: (_) => _submit(),
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     labelText: 'Password',
                                     hintText: 'Enter your password',
                                     prefixIcon:
-                                        Icon(Icons.lock_outline_rounded),
+                                        const Icon(Icons.lock_outline_rounded),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscurePassword
+                                            ? Icons.visibility_off_rounded
+                                            : Icons.visibility_rounded,
+                                      ),
+                                      tooltip: _obscurePassword
+                                          ? 'Show password'
+                                          : 'Hide password',
+                                      onPressed: () {
+                                        setState(
+                                          () => _obscurePassword =
+                                              !_obscurePassword,
+                                        );
+                                      },
+                                    ),
                                   ),
                                   validator: (value) {
                                     if ((value ?? '').isEmpty) {

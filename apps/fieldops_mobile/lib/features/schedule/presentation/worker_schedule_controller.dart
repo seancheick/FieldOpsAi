@@ -23,7 +23,7 @@ class WorkerScheduleController extends AsyncNotifier<List<WorkerScheduleShift>> 
   Future<void> reorderShifts(int oldIndex, int newIndex) async {
     if (newIndex > oldIndex) newIndex--;
     
-    final currentShifts = state.valueOrNull;
+    final currentShifts = state.value;
     if (currentShifts == null || currentShifts.length < 2) return;
 
     final updatedShifts = List<WorkerScheduleShift>.from(currentShifts);

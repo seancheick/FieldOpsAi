@@ -61,7 +61,16 @@ class SyncEngine {
 
   Future<void> _syncSingleEvent(PendingEvent event) async {
     try {
-      final payload = jsonDecode(event.payload) as Map<String, dynamic>;
+      late final Map<String, dynamic> payload;
+      try {
+        payload = jsonDecode(event.payload) as Map<String, dynamic>;
+      } on FormatException catch (e) {
+        await database.markPermanentlyFailed(
+          event.id,
+          'Malformed JSON payload (permanent): $e',
+        );
+        return;
+      }
 
       switch (event.eventType) {
         case 'clock_event':

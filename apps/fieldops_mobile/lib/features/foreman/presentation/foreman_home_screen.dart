@@ -1,5 +1,8 @@
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
 import 'package:fieldops_mobile/features/auth/presentation/session_controller.dart';
+import 'package:fieldops_mobile/features/foreman/presentation/crew_attendance_screen.dart';
+import 'package:fieldops_mobile/features/overtime/presentation/ot_approval_screen.dart';
+import 'package:fieldops_mobile/features/pto/presentation/pto_approval_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -52,9 +55,11 @@ class ForemanHomeScreen extends ConsumerWidget {
               title: 'Crew Attendance',
               subtitle: 'See who is clocked in, late, or absent',
               color: palette.signal,
-              onTap: () {
-                // TODO: Navigate to crew attendance view
-              },
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const CrewAttendanceScreen(),
+                ),
+              ),
             ),
             const SizedBox(height: 12),
             _QuickActionCard(
@@ -62,9 +67,23 @@ class ForemanHomeScreen extends ConsumerWidget {
               title: 'OT Approvals',
               subtitle: 'Review and approve overtime requests',
               color: palette.success,
-              onTap: () {
-                // TODO: Navigate to OT approval queue
-              },
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const OTApprovalScreen(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _QuickActionCard(
+              icon: Icons.beach_access_rounded,
+              title: 'PTO Approvals',
+              subtitle: 'Review time off requests from crew',
+              color: const Color(0xFF7C3AED),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const PTOApprovalScreen(),
+                ),
+              ),
             ),
             const SizedBox(height: 12),
             _QuickActionCard(

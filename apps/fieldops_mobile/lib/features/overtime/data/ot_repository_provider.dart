@@ -26,4 +26,25 @@ class _UnconfiguredOTRepository implements OTRepository {
       'Missing Supabase configuration.',
     );
   }
+
+  @override
+  Future<List<OTRequest>> fetchPendingRequests() {
+    throw const OTRepositoryException.unknown(
+      'Missing Supabase configuration.',
+    );
+  }
+
+  @override
+  Future<void> approveRequest(String requestId) {
+    throw const OTRepositoryException.unknown(
+      'Missing Supabase configuration.',
+    );
+  }
+
+  @override
+  Future<void> denyRequest(String requestId, {String? reason}) {
+    throw const OTRepositoryException.unknown(
+      'Missing Supabase configuration.',
+    );
+  }
 }

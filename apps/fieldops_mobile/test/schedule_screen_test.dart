@@ -27,7 +27,7 @@ void main() {
                   startTime: '07:00',
                   endTime: '15:30',
                   status: WorkerScheduleStatus.published,
-                  publishedAt: DateTime.utc(2026, 4, 5, 12, 0),
+                  publishedAt: DateTime.now().toUtc().subtract(const Duration(hours: 2)),
                   notes: 'Crew briefing at 6:45.',
                 ),
               ],
@@ -69,5 +69,13 @@ class FakeScheduleRepository implements ScheduleRepository {
     DateTime? to,
   }) async {
     return shifts;
+  }
+
+  @override
+  Future<String> requestShiftSwap({
+    required String shiftId,
+    String? notes,
+  }) async {
+    return 'swap-1';
   }
 }

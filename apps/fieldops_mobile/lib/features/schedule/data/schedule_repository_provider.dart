@@ -26,4 +26,14 @@ class _UnconfiguredScheduleRepository implements ScheduleRepository {
       'Mobile app is missing Supabase configuration.',
     );
   }
+
+  @override
+  Future<String> requestShiftSwap({
+    required String shiftId,
+    String? notes,
+  }) {
+    throw const ScheduleRepositoryException.unknown(
+      'Mobile app is missing Supabase configuration.',
+    );
+  }
 }

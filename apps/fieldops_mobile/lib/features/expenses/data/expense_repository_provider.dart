@@ -16,6 +16,11 @@ class _UnconfiguredExpenseRepository implements ExpenseRepository {
   const _UnconfiguredExpenseRepository();
 
   @override
+  Future<List<ExpenseRecord>> fetchMyExpenses() {
+    throw const ExpenseRepositoryException.unknown('Missing Supabase configuration.');
+  }
+
+  @override
   Future<String> submitExpense({
     required String jobId,
     required String category,

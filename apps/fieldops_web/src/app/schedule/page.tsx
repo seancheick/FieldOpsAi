@@ -281,6 +281,21 @@ interface ConflictContext {
   costImpact?: number;
 }
 
+interface ConflictWarning {
+  type: "error" | "warning";
+  message: string;
+}
+
+interface PendingDraftData {
+  workerId: string;
+  jobId: string;
+  shiftDate: string;
+  startTime: string;
+  endTime: string;
+}
+
+const DEFAULT_CREW_SIZE_LIMIT = 10;
+
 export default function SchedulePage() {
   const { t } = useI18n();
   const [workers, setWorkers] = useState<Worker[]>([]);
@@ -310,9 +325,14 @@ export default function SchedulePage() {
   // Availability heatmap state
   const [workerAvailability, setWorkerAvailability] = useState<Record<string, AvailabilityStatus>>({});
 
-  // Conflict Detection State
+  // Conflict Detection State (legacy single-conflict)
   const [conflictContext, setConflictContext] = useState<ConflictContext | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
+
+  // Sprint 7: Live multi-conflict detection
+  const [pendingConflicts, setPendingConflicts] = useState<ConflictWarning[]>([]);
+  const [pendingDraftData, setPendingDraftData] = useState<PendingDraftData | null>(null);
+  const [conflictOverrideReason, setConflictOverrideReason] = useState("");
 
   // AI Smart Fill State
   const [ghostShifts, setGhostShifts] = useState<ScheduleEntry[]>([]);
@@ -569,13 +589,32 @@ export default function SchedulePage() {
         if (dateStr && job_id) {
           const date = dateStr.slice(0, 10);
           const time = dateStr.slice(11, 16) || "07:00";
-          clearForm(date);
-          setFormWorkerId(worker_id);
-          setFormJobId(job_id);
-          setFormDate(date);
-          setFormStartTime(time);
-          setFormEndTime("15:30");
-          setShowForm(true);
+          const endTime = "15:30";
+
+          // Sprint 7: Run conflict checks before opening form
+          const conflicts = checkConflicts(worker_id, job_id, date, time, endTime);
+
+          if (conflicts.length > 0) {
+            // Show conflict dialog, stash draft data
+            setPendingConflicts(conflicts);
+            setPendingDraftData({
+              workerId: worker_id,
+              jobId: job_id,
+              shiftDate: date,
+              startTime: time,
+              endTime,
+            });
+            setConflictOverrideReason("");
+          } else {
+            // No conflicts — open form immediately (existing behavior)
+            clearForm(date);
+            setFormWorkerId(worker_id);
+            setFormJobId(job_id);
+            setFormDate(date);
+            setFormStartTime(time);
+            setFormEndTime(endTime);
+            setShowForm(true);
+          }
         }
       }
     }
@@ -622,6 +661,110 @@ export default function SchedulePage() {
     setFormNotes("");
     setConflictContext(null);
     setOverrideReason("");
+  }
+
+  function checkConflicts(
+    workerId: string,
+    jobId: string,
+    shiftDate: string,
+    startTime: string,
+    endTime: string,
+  ): ConflictWarning[] {
+    const warnings: ConflictWarning[] = [];
+    const workerName =
+      workers.find((w) => w.id === workerId)?.full_name ?? "Worker";
+    const jobName =
+      jobs.find((j) => j.id === jobId)?.name ?? "Job";
+
+    // 1. PTO Conflict (RED)
+    const hasPto =
+      workerAvailability[workerId] === "pto" ||
+      ptoRequests.some(
+        (p) =>
+          p.user_id === workerId &&
+          p.start_date <= shiftDate &&
+          p.end_date >= shiftDate,
+      );
+    if (hasPto) {
+      warnings.push({
+        type: "error",
+        message: t("schedulePage.conflictPto", { name: workerName }),
+      });
+    }
+
+    // 2. Duplicate Shift Check (RED)
+    const isDuplicate = entries.some(
+      (e) =>
+        e.worker_id === workerId &&
+        e.job_id === jobId &&
+        e.date === shiftDate &&
+        e.id !== editingShiftId,
+    );
+    if (isDuplicate) {
+      warnings.push({
+        type: "error",
+        message: t("schedulePage.conflictDuplicate", {
+          name: workerName,
+          job: jobName,
+        }),
+      });
+    }
+
+    // 3. OT Threshold Warning (YELLOW)
+    const d1 = new Date(`1970-01-01T${startTime}:00Z`).getTime();
+    const d2 = new Date(`1970-01-01T${endTime}:00Z`).getTime();
+    const reqHours = (d2 - d1) / 3600000;
+
+    // Get the week that contains shiftDate (Mon-Sun)
+    const targetDay = parseDate(shiftDate);
+    const weekStartDate = startOfWeek(targetDay);
+    const weekEndDate = new Date(weekStartDate);
+    weekEndDate.setUTCDate(weekStartDate.getUTCDate() + 6);
+    const weekStartKey = asDateKey(weekStartDate);
+    const weekEndKey = asDateKey(weekEndDate);
+
+    const weekEntries = entries.filter(
+      (e) =>
+        e.worker_id === workerId &&
+        e.date >= weekStartKey &&
+        e.date <= weekEndKey &&
+        e.id !== editingShiftId,
+    );
+    const currentWeekHours = weekEntries.reduce((acc, curr) => {
+      try {
+        const t1 = new Date(`1970-01-01T${curr.start_time}:00Z`).getTime();
+        const t2 = new Date(`1970-01-01T${curr.end_time}:00Z`).getTime();
+        return acc + (t2 - t1) / 3600000;
+      } catch {
+        return acc;
+      }
+    }, 0);
+    const totalHours = Math.round((currentWeekHours + reqHours) * 10) / 10;
+    if (totalHours > 40) {
+      warnings.push({
+        type: "warning",
+        message: t("schedulePage.conflictOt", {
+          name: workerName,
+          hours: String(totalHours),
+        }),
+      });
+    }
+
+    // 4. Crew Size Check (YELLOW)
+    const crewOnDay = entries.filter(
+      (e) => e.job_id === jobId && e.date === shiftDate,
+    ).length;
+    if (crewOnDay >= DEFAULT_CREW_SIZE_LIMIT) {
+      warnings.push({
+        type: "warning",
+        message: t("schedulePage.conflictCrew", {
+          job: jobName,
+          count: String(crewOnDay),
+        }),
+      });
+    }
+
+    return warnings;
   }
 
   function openCreateForm(dateOverride?: string) {
@@ -1524,6 +1667,79 @@ export default function SchedulePage() {
                 className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50"
               >
                 {busyAction ? "Saving..." : "Confirm Override"}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Sprint 7: Multi-conflict detection dialog */}
+        <Dialog open={pendingConflicts.length > 0} onOpenChange={(open) => { if (!open) { setPendingConflicts([]); setPendingDraftData(null); } }}>
+          <DialogContent className="sm:max-w-md border-amber-100 shadow-xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-700">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                {t("schedulePage.conflictsFound")}
+              </DialogTitle>
+              <DialogDescription className="space-y-2 py-2">
+                {pendingConflicts.map((c, i) => (
+                  <span
+                    key={i}
+                    className={`block rounded-lg px-3 py-2 text-sm ${
+                      c.type === "error"
+                        ? "border border-red-200 bg-red-50 text-red-700"
+                        : "border border-amber-200 bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {c.type === "error" ? "\u{1F6AB} " : "\u26A0\uFE0F "}{c.message}
+                  </span>
+                ))}
+              </DialogDescription>
+            </DialogHeader>
+            {pendingConflicts.some((c) => c.type === "error") && (
+              <div className="space-y-3 pt-2">
+                <Label htmlFor="conflictOverrideReason" className="text-slate-700">
+                  {t("schedulePage.overrideRequired")} <span className="text-rose-600">*</span>
+                </Label>
+                <Input
+                  id="conflictOverrideReason"
+                  type="text"
+                  placeholder="e.g. Critical coverage needed"
+                  value={conflictOverrideReason}
+                  onChange={(e) => setConflictOverrideReason(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+            )}
+            <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
+              <button
+                type="button"
+                onClick={() => { setPendingConflicts([]); setPendingDraftData(null); }}
+                className="rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-stone-200"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                disabled={pendingConflicts.some((c) => c.type === "error") && !conflictOverrideReason.trim()}
+                onClick={() => {
+                  if (pendingDraftData) {
+                    clearForm(pendingDraftData.shiftDate);
+                    setFormWorkerId(pendingDraftData.workerId);
+                    setFormJobId(pendingDraftData.jobId);
+                    setFormDate(pendingDraftData.shiftDate);
+                    setFormStartTime(pendingDraftData.startTime);
+                    setFormEndTime(pendingDraftData.endTime);
+                    setShowForm(true);
+                  }
+                  setPendingConflicts([]);
+                  setPendingDraftData(null);
+                  setConflictOverrideReason("");
+                }}
+                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+              >
+                {t("schedulePage.proceedAnyway")}
               </button>
             </DialogFooter>
           </DialogContent>

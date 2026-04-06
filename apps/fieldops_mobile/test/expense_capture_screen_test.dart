@@ -77,6 +77,9 @@ class _FakeExpenseRepository implements ExpenseRepository {
   int submitCount = 0;
 
   @override
+  Future<List<ExpenseRecord>> fetchMyExpenses() async => [];
+
+  @override
   Future<String> submitExpense({
     required String jobId,
     required String category,

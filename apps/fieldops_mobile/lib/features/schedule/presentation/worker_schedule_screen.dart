@@ -1,9 +1,13 @@
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
+import 'package:fieldops_mobile/app/widgets/skeleton_loader.dart';
 import 'package:fieldops_mobile/l10n/app_localizations.dart';
+import 'package:fieldops_mobile/features/schedule/data/schedule_repository_provider.dart';
 import 'package:fieldops_mobile/features/schedule/domain/schedule_repository.dart';
 import 'package:fieldops_mobile/features/schedule/domain/worker_schedule_shift.dart';
+import 'package:fieldops_mobile/features/schedule/presentation/widgets/schedule_calendar.dart';
 import 'package:fieldops_mobile/features/schedule/presentation/worker_schedule_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class WorkerScheduleScreen extends ConsumerWidget {
@@ -35,9 +39,40 @@ class WorkerScheduleScreen extends ConsumerWidget {
                   _ScheduleEmptyState(),
                 ],
               );
+            }
+            // Build shift date set for calendar
+            final now = DateTime.now();
+            final shiftDates = shifts
+                .map((s) => DateTime(
+                      s.shiftDate.year,
+                      s.shiftDate.month,
+                      s.shiftDate.day,
+                    ))
+                .toSet();
+
             return CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: palette.surfaceWhite,
+                        borderRadius: BorderRadius.circular(
+                          FieldOpsRadius.xxl,
+                        ),
+                        border: Border.all(color: palette.border),
+                      ),
+                      child: ScheduleCalendar(
+                        month: now.month,
+                        year: now.year,
+                        shiftDates: shiftDates,
+                      ),
+                    ),
+                  ),
+                ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
@@ -74,7 +109,10 @@ class WorkerScheduleScreen extends ConsumerWidget {
               ],
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Padding(
+            padding: EdgeInsets.all(20),
+            child: SkeletonLoader(itemCount: 4),
+          ),
           error: (error, _) {
             final repositoryError =
                 error is ScheduleRepositoryException
@@ -95,14 +133,14 @@ class WorkerScheduleScreen extends ConsumerWidget {
   }
 }
 
-class _ScheduleCard extends StatelessWidget {
+class _ScheduleCard extends ConsumerWidget {
   const _ScheduleCard({required this.shift, required this.palette});
 
   final WorkerScheduleShift shift;
   final FieldOpsPalette palette;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final dateLabel = _formatDate(shift.shiftDate);
     return Card(
@@ -161,6 +199,56 @@ class _ScheduleCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ],
+            const SizedBox(height: 12),
+            Semantics(
+              button: true,
+              label: 'Request shift swap for ${shift.jobName} on $dateLabel',
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: palette.steel,
+                    side: BorderSide(
+                      color: palette.steel.withValues(alpha: 0.25),
+                    ),
+                    minimumSize: const Size.fromHeight(44),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                  ),
+                  onPressed: () async {
+                    final confirmed = await _SwapConfirmDialog.show(
+                      context,
+                      jobName: shift.jobName,
+                      dateLabel: dateLabel,
+                    );
+                    if (confirmed != true || !context.mounted) return;
+
+                    await HapticFeedback.mediumImpact();
+                    try {
+                      await ref
+                          .read(scheduleRepositoryProvider)
+                          .requestShiftSwap(shiftId: shift.id);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Swap request submitted'),
+                          ),
+                        );
+                      }
+                    } on ScheduleRepositoryException catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(e.message)),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                  label: const Text('Request Swap'),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -209,6 +297,49 @@ class _ScheduleChip extends StatelessWidget {
           Text(label),
         ],
       ),
+    );
+  }
+}
+
+class _SwapConfirmDialog extends StatelessWidget {
+  const _SwapConfirmDialog({required this.jobName, required this.dateLabel});
+
+  final String jobName;
+  final String dateLabel;
+
+  static Future<bool?> show(
+    BuildContext context, {
+    required String jobName,
+    required String dateLabel,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (_) =>
+          _SwapConfirmDialog(jobName: jobName, dateLabel: dateLabel),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return AlertDialog(
+      title: const Text('Request Shift Swap'),
+      content: Text(
+        'Submit a swap request for $jobName on $dateLabel? '
+        'Your supervisor will be notified.',
+        style: textTheme.bodyMedium,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Request Swap'),
+        ),
+      ],
     );
   }
 }

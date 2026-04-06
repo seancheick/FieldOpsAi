@@ -54,6 +54,8 @@ function getInitials(name: string): string {
 
 export default function DashboardPage() {
   const { t } = useI18n();
+  const JOBS_PAGE_SIZE = 20;
+
   const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalJobs: 0,
@@ -65,6 +67,8 @@ export default function DashboardPage() {
   const [jobTasks, setJobTasks] = useState<JobTaskCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasMoreJobs, setHasMoreJobs] = useState(false);
+  const [loadingMoreJobs, setLoadingMoreJobs] = useState(false);
 
   const sparkDataMap = useMemo(() => ({
     totalJobs: generateSparkData(stats.totalJobs),
@@ -100,7 +104,7 @@ export default function DashboardPage() {
             .select("id, name, code, status, site_name, geofence_radius_m")
             .in("status", ["active", "in_progress"])
             .order("created_at", { ascending: false })
-            .limit(50),
+            .limit(JOBS_PAGE_SIZE),
           supabase
             .from("clock_events")
             .select("user_id", { count: "exact", head: true })
@@ -126,6 +130,7 @@ export default function DashboardPage() {
       if (jobsRes.error) throw jobsRes.error;
 
       setJobs(jobsRes.data ?? []);
+      setHasMoreJobs((jobsRes.data ?? []).length === JOBS_PAGE_SIZE);
       setStats({
         totalJobs: (jobsRes.data ?? []).length,
         activeWorkers: clockRes.count ?? 0,
@@ -174,6 +179,28 @@ export default function DashboardPage() {
       setLoading(false);
     }
   }, [t]);
+
+  const loadMoreJobs = useCallback(async () => {
+    setLoadingMoreJobs(true);
+    try {
+      const supabase = getSupabase();
+      const { data, error: err } = await supabase
+        .from("jobs")
+        .select("id, name, code, status, site_name, geofence_radius_m")
+        .in("status", ["active", "in_progress"])
+        .order("created_at", { ascending: false })
+        .range(jobs.length, jobs.length + JOBS_PAGE_SIZE - 1);
+
+      if (err) throw err;
+      const newJobs = (data ?? []) as JobSummary[];
+      setJobs((prev) => [...prev, ...newJobs]);
+      setHasMoreJobs(newJobs.length === JOBS_PAGE_SIZE);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("dashboard.failedToLoad"));
+    } finally {
+      setLoadingMoreJobs(false);
+    }
+  }, [jobs.length, t]);
 
   useEffect(() => {
     loadDashboard();
@@ -427,6 +454,18 @@ export default function DashboardPage() {
           );
         })}
       </div>
+
+      {hasMoreJobs && (
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={loadMoreJobs}
+            disabled={loadingMoreJobs}
+            className="mx-auto mt-4 flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 shadow-sm hover:bg-stone-50 disabled:opacity-50"
+          >
+            {loadingMoreJobs ? t("common.loadingMore") : t("common.loadMore")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

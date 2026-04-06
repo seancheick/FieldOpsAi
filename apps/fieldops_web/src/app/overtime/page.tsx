@@ -39,10 +39,14 @@ function OvertimeContent() {
   const searchParams = useSearchParams();
   const filterStatus = searchParams.get("status") || "pending";
 
+  const OT_PAGE_SIZE = 30;
+
   const [requests, setRequests] = useState<OTRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [hasMoreRequests, setHasMoreRequests] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -65,16 +69,50 @@ function OvertimeContent() {
         `)
         .eq("status", filterStatus)
         .order("requested_at", { ascending: false })
-        .limit(50);
+        .limit(OT_PAGE_SIZE);
 
       if (err) throw err;
-      setRequests((data as unknown as OTRequest[]) ?? []);
+      const result = (data as unknown as OTRequest[]) ?? [];
+      setRequests(result);
+      setHasMoreRequests(result.length === OT_PAGE_SIZE);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("overtimePage.failedToLoad"));
     } finally {
       setLoading(false);
     }
   }, [filterStatus, t]);
+
+  const loadMoreRequests = useCallback(async () => {
+    setLoadingMore(true);
+    try {
+      const supabase = getSupabase();
+      const { data, error: err } = await supabase
+        .from("ot_requests")
+        .select(`
+          id,
+          job_id,
+          worker_id,
+          requested_at,
+          total_hours_at_request,
+          notes,
+          status,
+          users!ot_requests_worker_id_fkey ( full_name ),
+          jobs!ot_requests_job_id_fkey ( name, code )
+        `)
+        .eq("status", filterStatus)
+        .order("requested_at", { ascending: false })
+        .range(requests.length, requests.length + OT_PAGE_SIZE - 1);
+
+      if (err) throw err;
+      const newItems = (data as unknown as OTRequest[]) ?? [];
+      setRequests((prev) => [...prev, ...newItems]);
+      setHasMoreRequests(newItems.length === OT_PAGE_SIZE);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("overtimePage.failedToLoad"));
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [filterStatus, requests.length, t]);
 
   useEffect(() => {
     loadRequests();
@@ -230,6 +268,18 @@ function OvertimeContent() {
           />
         ))}
       </div>
+
+      {hasMoreRequests && (
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={loadMoreRequests}
+            disabled={loadingMore}
+            className="mx-auto flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 shadow-sm hover:bg-stone-50 disabled:opacity-50"
+          >
+            {loadingMore ? t("common.loadingMore") : t("common.loadMore")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

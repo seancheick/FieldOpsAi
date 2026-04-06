@@ -5,6 +5,12 @@ abstract class ScheduleRepository {
     DateTime? from,
     DateTime? to,
   });
+
+  /// Requests a shift swap with another worker.
+  Future<String> requestShiftSwap({
+    required String shiftId,
+    String? notes,
+  });
 }
 
 enum ScheduleRepositoryErrorType { offline, unknown }

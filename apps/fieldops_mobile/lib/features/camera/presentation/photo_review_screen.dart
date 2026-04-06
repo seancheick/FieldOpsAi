@@ -1,13 +1,16 @@
 import 'dart:io';
 
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
+import 'package:fieldops_mobile/features/auth/presentation/session_controller.dart';
 import 'package:fieldops_mobile/features/camera/data/photo_draft_repository.dart';
 import 'package:fieldops_mobile/features/camera/data/photo_enhancer.dart';
+import 'package:fieldops_mobile/features/camera/data/proof_stamp_renderer.dart';
 import 'package:fieldops_mobile/features/camera/domain/media_repository.dart';
 import 'package:fieldops_mobile/features/camera/domain/photo_capture_result.dart';
 import 'package:fieldops_mobile/features/camera/presentation/camera_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 
 class PhotoReviewScreen extends ConsumerStatefulWidget {
   const PhotoReviewScreen({
@@ -30,6 +33,7 @@ class PhotoReviewScreen extends ConsumerStatefulWidget {
 class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
   final _photoEnhancer = const PhotoEnhancer();
   bool _isEnhancing = false;
+  bool _isStamping = false;
   bool _enhanced = false;
   int _previewRevision = 0;
 
@@ -67,11 +71,60 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
     ).pop(PhotoCaptureResult.savedForLater(draftId: draftId));
   }
 
-  Future<void> _uploadNow() async {
+  Future<ProofStampMetadata> _buildStampMetadata() async {
+    final session = ref.read(sessionControllerProvider);
+    final workerEmail = session.email ?? 'unknown';
+
+    double? lat;
+    double? lng;
+    double? accuracy;
+
     try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+        ),
+      ).timeout(const Duration(seconds: 5));
+      lat = position.latitude;
+      lng = position.longitude;
+      accuracy = position.accuracy;
+    } on Exception catch (_) {
+      // GPS unavailable — stamp without coordinates
+    }
+
+    return ProofStampMetadata(
+      workerEmail: workerEmail,
+      jobName: widget.jobName,
+      capturedAt: DateTime.now().toUtc(),
+      latitude: lat,
+      longitude: lng,
+      accuracyMeters: accuracy,
+    );
+  }
+
+  Future<void> _uploadNow() async {
+    if (_isStamping) return;
+    setState(() => _isStamping = true);
+
+    try {
+      final stampMetadata = await _buildStampMetadata();
+
       final mediaAssetId = await ref
           .read(captureControllerProvider.notifier)
-          .uploadCapturedPhoto(jobId: widget.jobId, filePath: widget.filePath);
+          .uploadCapturedPhoto(
+            jobId: widget.jobId,
+            filePath: widget.filePath,
+            stampMetadata: stampMetadata,
+          );
+
+      // Clean up the temp photo file after successful upload to prevent
+      // orphaned files accumulating on disk.
+      try {
+        final tempFile = File(widget.filePath);
+        if (await tempFile.exists()) await tempFile.delete();
+      } on FileSystemException catch (_) {
+        // Best-effort cleanup — don't block success path.
+      }
 
       if (!mounted) return;
       Navigator.of(
@@ -79,6 +132,10 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
       ).pop(PhotoCaptureResult.uploaded(mediaAssetId: mediaAssetId));
     } on MediaRepositoryException {
       // UI state already updated by the capture controller.
+    } finally {
+      if (mounted) {
+        setState(() => _isStamping = false);
+      }
     }
   }
 
@@ -90,6 +147,7 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
     final hasUploadError = captureState is CaptureError;
     final isBusy =
         _isEnhancing ||
+        _isStamping ||
         captureState is CaptureUploading ||
         captureState is CaptureFinalizing;
 
@@ -138,6 +196,14 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
                           label: widget.jobName,
                         ),
                       ),
+                      const Positioned(
+                        left: 16,
+                        bottom: 16,
+                        child: _ReviewChip(
+                          icon: Icons.verified_user_rounded,
+                          label: 'Proof stamp will be applied',
+                        ),
+                      ),
                       if (_enhanced)
                         const Positioned(
                           right: 16,
@@ -163,7 +229,11 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
                                     ? 'Enhancing photo...'
                                     : captureState is CaptureFinalizing
                                     ? 'Finalizing upload...'
-                                    : 'Uploading photo...',
+                                    : captureState is CaptureUploading
+                                    ? 'Uploading photo...'
+                                    : _isStamping
+                                    ? 'Applying proof stamp...'
+                                    : 'Processing...',
                                 style: textTheme.titleMedium?.copyWith(
                                   color: Colors.white,
                                 ),
@@ -207,7 +277,7 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Check the proof photo before it leaves the device.',
+                    'Timestamp, GPS & worker ID will be stamped before upload.',
                     style: textTheme.bodyLarge?.copyWith(
                       color: Colors.white.withValues(alpha: 0.86),
                     ),

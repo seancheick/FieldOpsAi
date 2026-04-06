@@ -1,9 +1,9 @@
 - **FieldOps AI**
 - Complete Product & Business Plan · 2026
 
-*"The easiest way for electrical crews to track and prove their work —*
+_"The easiest way for electrical crews to track and prove their work —_
 
-*with a complete job timeline."*
+_with a complete job timeline."_
 
 | - **Construction & Grid** - Primary Target Market | - **Flutter + Supabase** - Core Tech Stack | - **SaaS + White-Label** - Business Model |
 
@@ -843,4 +843,4 @@ One working loop. Nothing else ships until this loop works perfectly on real dev
 
 - **FieldOps AI**
 - Built by B&Br Technology · Boston, MA · 2026
-- *"What happened, how well it happened, and how to improve it."*
+- _"What happened, how well it happened, and how to improve it."_

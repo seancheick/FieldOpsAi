@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 
 part 'local_database.g.dart';
@@ -186,8 +188,31 @@ LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dir = await getApplicationDocumentsDirectory();
     final file = File('${dir.path}/fieldops_local.sqlite');
-    return NativeDatabase.createInBackground(file);
+
+    // Retrieve or generate the encryption key.
+    const storage = FlutterSecureStorage();
+    const keyName = 'fieldops_db_key';
+    var dbKey = await storage.read(key: keyName);
+    if (dbKey == null || dbKey.isEmpty) {
+      dbKey = _generateKey(32);
+      await storage.write(key: keyName, value: dbKey);
+    }
+
+    return NativeDatabase.createInBackground(
+      file,
+      setup: (rawDb) {
+        rawDb.execute("PRAGMA key = '$dbKey'");
+      },
+    );
   });
+}
+
+/// Generates a cryptographically secure random key of [length] characters.
+String _generateKey(int length) {
+  const chars =
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  final rng = Random.secure();
+  return List.generate(length, (_) => chars[rng.nextInt(chars.length)]).join();
 }
 
 final localDatabaseProvider = Provider<LocalDatabase>((ref) {

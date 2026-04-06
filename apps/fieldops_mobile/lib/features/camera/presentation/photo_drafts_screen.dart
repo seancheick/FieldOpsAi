@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
+import 'package:fieldops_mobile/app/widgets/skeleton_loader.dart';
 import 'package:fieldops_mobile/core/data/local_database.dart';
 import 'package:fieldops_mobile/features/camera/data/photo_draft_repository.dart';
 import 'package:fieldops_mobile/features/camera/domain/media_repository.dart';
@@ -159,7 +160,10 @@ class _PhotoDraftsScreenState extends ConsumerState<PhotoDraftsScreen> {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Padding(
+          padding: EdgeInsets.all(16),
+          child: SkeletonLoader(itemCount: 2),
+        ),
         error: (error, _) =>
             Center(child: Text('Saved photos failed to load: $error')),
       ),

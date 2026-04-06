@@ -111,6 +111,7 @@ def admin_sql(query):
         capture_output=True,
         text=True,
         check=False,
+        timeout=15,
     )
     expect(result.returncode == 0, f"admin SQL failed: {query}", result.stderr.strip())
     return [line for line in result.stdout.splitlines() if line.strip()]

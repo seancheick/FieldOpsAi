@@ -92,6 +92,17 @@ serve(async (req) => {
     }
 
     const jobIds = [...new Set(clock_events.map((event: any) => event.job_id).filter(Boolean))]
+
+    // ─── Crew clock-in: collect worker_ids job assignments ──
+    const crewWorkerIds = new Set<string>()
+    for (const event of clock_events) {
+      if (event.event_subtype === "crew_clock_in" || event.event_subtype === "crew_clock_out") {
+        if (Array.isArray(event.worker_ids)) {
+          for (const wid of event.worker_ids) crewWorkerIds.add(wid)
+        }
+      }
+    }
+
     const { data: assignments, error: assignmentsError } = await supabase
       .from("assignments")
       .select(`
@@ -122,7 +133,7 @@ serve(async (req) => {
     for (const event of clock_events) {
       if (!event?.id || !event?.job_id || !event?.event_subtype || !event?.occurred_at) {
         rejected.push({
-          id: event?.id || crypto.randomUUID(),
+          id: event?.id || "__MALFORMED_EVENT__",
           reason: "invalid_payload",
           message: "clock event missing required fields",
         })

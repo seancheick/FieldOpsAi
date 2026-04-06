@@ -6,9 +6,12 @@ import 'package:fieldops_mobile/features/camera/presentation/photo_drafts_screen
 import 'package:fieldops_mobile/features/clock/presentation/clock_in_controller.dart';
 import 'package:fieldops_mobile/features/expenses/presentation/expense_capture_screen.dart';
 import 'package:fieldops_mobile/features/jobs/domain/job_summary.dart';
+import 'package:fieldops_mobile/features/breadcrumbs/presentation/breadcrumb_playback_screen.dart';
+import 'package:fieldops_mobile/features/safety/presentation/safety_checklist_screen.dart';
 import 'package:fieldops_mobile/features/tasks/presentation/task_list_screen.dart';
 import 'package:fieldops_mobile/features/tasks/presentation/tasks_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class JobCard extends ConsumerWidget {
@@ -87,7 +90,10 @@ class JobCard extends ConsumerWidget {
                 child: ElevatedButton.icon(
                   onPressed: isSubmitting || isClockedIn
                       ? null
-                      : () => onClockIn(jobId: job.jobId, jobName: job.jobName),
+                      : () {
+                          HapticFeedback.mediumImpact();
+                          onClockIn(jobId: job.jobId, jobName: job.jobName);
+                        },
                   icon: isSubmitting
                       ? SizedBox(
                           width: 18,
@@ -269,6 +275,74 @@ class JobCard extends ConsumerWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: Semantics(
+                  button: true,
+                  label: 'Safety checklist for ${job.jobName}',
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: palette.success,
+                      side: BorderSide(
+                        color: palette.success.withValues(alpha: 0.3),
+                      ),
+                      minimumSize: const Size.fromHeight(44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<bool>(
+                          builder: (_) => SafetyChecklistScreen(
+                            jobId: job.jobId,
+                            jobName: job.jobName,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.shield_rounded, size: 18),
+                    label: const Text('Safety Checklist'),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: Semantics(
+                  button: true,
+                  label: 'View shift route for ${job.jobName}',
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: palette.steel,
+                      side: BorderSide(
+                        color: palette.steel.withValues(alpha: 0.2),
+                      ),
+                      minimumSize: const Size.fromHeight(44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                    ),
+                    onPressed: () {
+                      final today = DateTime.now();
+                      final shiftDate =
+                          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => BreadcrumbPlaybackScreen(
+                            shiftDate: shiftDate,
+                            jobName: job.jobName,
+                            jobId: job.jobId,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.route_rounded, size: 18),
+                    label: const Text('View Route'),
+                  ),
+                ),
+              ),
             ],
           ],
         ),
@@ -295,7 +369,7 @@ class _InfoChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: palette.canvas,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFD8D2C7)),
+          border: Border.all(color: palette.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

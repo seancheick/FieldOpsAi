@@ -1,5 +1,7 @@
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
+import 'package:fieldops_mobile/app/widgets/skeleton_loader.dart';
 import 'package:fieldops_mobile/features/pto/domain/pto_repository.dart';
+import 'package:fieldops_mobile/features/pto/presentation/pto_balance_controller.dart';
 import 'package:fieldops_mobile/features/pto/presentation/pto_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -79,6 +81,10 @@ class _PTORequestScreenState extends ConsumerState<PTORequestScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          // PTO Balance summary
+          _PTOBalanceCard(palette: palette, textTheme: textTheme),
+          const SizedBox(height: 20),
+
           // Type selector
           Text('Type', style: textTheme.labelLarge),
           const SizedBox(height: 8),
@@ -189,7 +195,7 @@ class _PTORequestScreenState extends ConsumerState<PTORequestScreen> {
                 children: requests.map((r) => _PTOCard(request: r)).toList(),
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const SkeletonLoader(itemCount: 2),
             error: (e, _) => Text('Failed to load: $e'),
           ),
         ],
@@ -208,9 +214,14 @@ class _DateTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
+    return Semantics(
+      button: true,
+      label: date != null
+          ? '$label: ${date!.month}/${date!.day}/${date!.year}'
+          : '$label: not selected, tap to choose',
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           border: Border.all(color: palette.border),
@@ -231,6 +242,7 @@ class _DateTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -291,6 +303,151 @@ class _PTOCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PTOBalanceCard extends ConsumerWidget {
+  const _PTOBalanceCard({required this.palette, required this.textTheme});
+
+  final FieldOpsPalette palette;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final balanceState = ref.watch(ptoBalanceProvider);
+
+    return balanceState.when(
+      data: (balance) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: palette.surfaceWhite,
+          borderRadius: BorderRadius.circular(FieldOpsRadius.xxl),
+          border: Border.all(color: palette.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('PTO Balance', style: textTheme.titleMedium),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _BalanceChip(
+                  label: 'Vacation',
+                  remaining: balance.vacationRemaining,
+                  total: balance.vacationTotal,
+                  color: const Color(0xFF2563EB),
+                  palette: palette,
+                  textTheme: textTheme,
+                ),
+                const SizedBox(width: 10),
+                _BalanceChip(
+                  label: 'Sick',
+                  remaining: balance.sickRemaining,
+                  total: balance.sickTotal,
+                  color: const Color(0xFFDC2626),
+                  palette: palette,
+                  textTheme: textTheme,
+                ),
+                const SizedBox(width: 10),
+                _BalanceChip(
+                  label: 'Personal',
+                  remaining: balance.personalRemaining,
+                  total: balance.personalTotal,
+                  color: const Color(0xFF7C3AED),
+                  palette: palette,
+                  textTheme: textTheme,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      loading: () => Container(
+        height: 88,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: palette.muted,
+          borderRadius: BorderRadius.circular(FieldOpsRadius.xxl),
+        ),
+        child: Center(
+          child: Text('Loading balance...', style: textTheme.bodySmall),
+        ),
+      ),
+      error: (_, __) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: palette.muted,
+          borderRadius: BorderRadius.circular(FieldOpsRadius.xxl),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline_rounded, size: 18, color: palette.steel),
+            const SizedBox(width: 8),
+            Text(
+              'PTO balance unavailable',
+              style: textTheme.bodySmall?.copyWith(color: palette.steel),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BalanceChip extends StatelessWidget {
+  const _BalanceChip({
+    required this.label,
+    required this.remaining,
+    required this.total,
+    required this.color,
+    required this.palette,
+    required this.textTheme,
+  });
+
+  final String label;
+  final double remaining;
+  final double total;
+  final Color color;
+  final FieldOpsPalette palette;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(FieldOpsRadius.lg),
+        ),
+        child: Column(
+          children: [
+            Text(
+              remaining.toStringAsFixed(remaining.truncateToDouble() == remaining ? 0 : 1),
+              style: textTheme.titleLarge?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              'of ${total.toStringAsFixed(0)}d',
+              style: textTheme.labelSmall?.copyWith(
+                color: palette.steel,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
