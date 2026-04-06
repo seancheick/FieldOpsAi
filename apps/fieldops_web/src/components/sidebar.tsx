@@ -119,8 +119,11 @@ export function Sidebar() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  /* ---------- auth state ---------- */
+  /* ---------- auth state (cached to avoid refetch on every navigation) ---------- */
+  const authLoadedRef = useRef(false);
+
   useEffect(() => {
+    if (authLoadedRef.current) return; // Already loaded — skip redundant queries
     try {
       const supabase = getSupabase();
       supabase.auth.getSession().then(async ({ data }) => {
@@ -141,9 +144,16 @@ export function Sidebar() {
             setCompanyLogoUrl(company?.logo_url ?? null);
           }
         }
+        authLoadedRef.current = true;
       });
       const { data: listener } = supabase.auth.onAuthStateChange(
-        (_event, session) => setUserEmail(session?.user?.email ?? null),
+        (_event, session) => {
+          setUserEmail(session?.user?.email ?? null);
+          // Reset cache on sign-out / sign-in so role re-fetches
+          if (_event === "SIGNED_OUT" || _event === "SIGNED_IN") {
+            authLoadedRef.current = false;
+          }
+        },
       );
       return () => listener.subscription.unsubscribe();
     } catch {

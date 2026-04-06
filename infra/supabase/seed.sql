@@ -55,6 +55,26 @@ INSERT INTO public.users (id, company_id, role, full_name, email)
 VALUES ('66666666-6666-6666-6666-666666666666', '11111111-1111-1111-1111-111111111111', 'supervisor', 'Test Supervisor', 'supervisor@test.com')
 ON CONFLICT DO NOTHING;
 
+-- ─── Admin user for full-access testing ─────────────────────
+INSERT INTO auth.users (
+    instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+    recovery_sent_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data,
+    created_at, updated_at, confirmation_token, email_change, email_change_token_new, recovery_token
+) VALUES (
+    '00000000-0000-0000-0000-000000000000', 'aaaaaaaa-0000-0000-0000-aaaaaaaaaaaa',
+    'authenticated', 'authenticated', 'admin@test.com', crypt('password123', gen_salt('bf')),
+    now(), null, now(), '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''
+) ON CONFLICT DO NOTHING;
+
+INSERT INTO public.users (id, company_id, role, full_name, email)
+VALUES ('aaaaaaaa-0000-0000-0000-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'admin', 'Test Admin', 'admin@test.com')
+ON CONFLICT DO NOTHING;
+
+-- Also add to platform_admins for super-admin / platform-level access
+INSERT INTO platform_admins (auth_user_id, email, full_name, role, is_active)
+VALUES ('aaaaaaaa-0000-0000-0000-aaaaaaaaaaaa', 'admin@test.com', 'Test Admin', 'platform_admin', true)
+ON CONFLICT DO NOTHING;
+
 INSERT INTO jobs (id, company_id, name, code, created_by)
 VALUES (
     '33333333-3333-3333-3333-333333333333',

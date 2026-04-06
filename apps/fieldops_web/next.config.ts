@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
     // Use the explicit ESLint CLI gate from package.json as the source of truth.
     ignoreDuringBuilds: true,
   },
+  // FullCalendar ships ESM-only — Next.js must transpile it to avoid
+  // "module not found" errors and ensure CSS is bundled correctly.
+  transpilePackages: [
+    "@fullcalendar/react",
+    "@fullcalendar/interaction",
+    "@fullcalendar/resource-timeline",
+    "@fullcalendar/core",
+  ],
 };
 
 export default withSentryConfig(nextConfig, {
