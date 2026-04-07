@@ -35,6 +35,7 @@ TABLES_TO_TEST = [
     "shift_report_events",
     "expense_events",
     "schedule_shifts",
+    "pto_requests",
 ]
 
 # Company A (from seed.sql)
@@ -51,6 +52,10 @@ ISOLATION_TABLES = [
     "jobs",
     "tasks",
     "assignments",
+    "clock_events",
+    "schedule_shifts",
+    "expense_events",
+    "pto_requests",
 ]
 
 

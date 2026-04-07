@@ -13,16 +13,6 @@ import {
   DragStartEvent,
   DragEndEvent,
 } from "@dnd-kit/core";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 
 interface Worker {
   id: string;
@@ -41,20 +31,15 @@ interface PtoRequest {
   end_date: string;
 }
 
-type AvailabilityStatus = "available" | "partial" | "pto";
-
 function DraggableWorker({
   worker,
   isOverlappingPTO,
   currentHours,
-  availabilityStatus,
 }: {
   worker: Worker;
   isOverlappingPTO: boolean;
   currentHours: number;
-  availabilityStatus: AvailabilityStatus;
 }) {
-  const { t } = useI18n();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: worker.id,
     data: { worker },
@@ -70,19 +55,6 @@ function DraggableWorker({
     statusGlow = "shadow-[0_0_8px_rgba(245,158,11,0.4)]";
   }
 
-  const availBadgeColor =
-    availabilityStatus === "pto"
-      ? "bg-red-500"
-      : availabilityStatus === "partial"
-        ? "bg-amber-500"
-        : "bg-green-500";
-  const availTooltip =
-    availabilityStatus === "pto"
-      ? t("schedulePage.onPto")
-      : availabilityStatus === "partial"
-        ? t("schedulePage.partialAvailability")
-        : t("schedulePage.available");
-
   return (
     <div
       ref={setNodeRef}
@@ -91,37 +63,21 @@ function DraggableWorker({
       className={`relative cursor-grab rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-opacity hover:border-slate-300 ${isDragging ? "opacity-40" : "opacity-100"}`}
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <div
-            className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${availBadgeColor}`}
-            title={availTooltip}
-          />
-          <div className="font-semibold text-slate-900">{worker.full_name}</div>
-        </div>
+        <div className="font-semibold text-slate-900">{worker.full_name}</div>
         <div
           className={`h-3 w-3 rounded-full ${statusColor} ${statusGlow}`}
           title={
             isOverlappingPTO
-              ? t("schedulePage.onPto")
+              ? "On PTO"
               : currentHours >= 40
                 ? "Overtime Risk"
-                : t("schedulePage.available")
+                : "Available"
           }
         />
       </div>
-      <div className="mt-2 space-y-1">
-        <div className="flex items-center justify-between text-xs text-slate-500">
-          <span>{worker.role}</span>
-          <span className={`font-semibold tabular-nums ${currentHours >= 40 ? "text-red-600" : currentHours >= 32 ? "text-amber-600" : "text-slate-600"}`}>
-            {currentHours}h / 40h
-          </span>
-        </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-          <div
-            className={`h-full rounded-full transition-all ${currentHours >= 40 ? "bg-red-500" : currentHours >= 32 ? "bg-amber-400" : "bg-green-400"}`}
-            style={{ width: `${Math.min((currentHours / 40) * 100, 100)}%` }}
-          />
-        </div>
+      <div className="flex items-center justify-between mt-1 text-xs text-slate-500">
+        <span>{worker.role}</span>
+        <span className="font-medium">{currentHours}h</span>
       </div>
     </div>
   );
@@ -143,38 +99,13 @@ interface ScheduleEntry {
   date: string;
   start_time: string;
   end_time: string;
-  status: "draft" | "published" | "ghost";
+  status: "draft" | "published";
   notes?: string | null;
   published_at?: string | null;
   published_by?: string | null;
 }
 
 type ViewMode = "day" | "week" | "twoWeek" | "month";
-
-interface ScheduleTemplate {
-  name: string;
-  createdAt: string;
-  shifts: Array<{
-    worker_id: string;
-    job_id: string;
-    day_offset: number;
-    start_time: string;
-    end_time: string;
-    notes: string;
-  }>;
-}
-
-function loadTemplates(): ScheduleTemplate[] {
-  try {
-    return JSON.parse(localStorage.getItem("schedule_templates") ?? "[]");
-  } catch {
-    return [];
-  }
-}
-
-function persistTemplates(templates: ScheduleTemplate[]) {
-  localStorage.setItem("schedule_templates", JSON.stringify(templates));
-}
 
 const DAY_LABELS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 const VIEW_MODES: ViewMode[] = ["day", "week", "twoWeek", "month"];
@@ -274,27 +205,114 @@ function buildEventDateTime(date: string, time: string) {
   return `${date}T${time}:00Z`;
 }
 
-interface ConflictContext {
-  type: "pto" | "overtime" | "overbook";
-  title: string;
-  message: string;
-  costImpact?: number;
-}
+/** Merge consecutive-day shifts for the same worker+job into multi-day bars.
+ *  Only invoked in week / twoWeek / month views.
+ *  Returns { merged, individual } where merged events span multiple days and
+ *  individual events are single-day shifts that weren't part of a run. */
+function mergeConsecutiveShifts(entries: ScheduleEntry[]) {
+  // Group by composite key: worker_id + job_id
+  const groups = new Map<string, ScheduleEntry[]>();
+  for (const entry of entries) {
+    const key = `${entry.worker_id}::${entry.job_id}`;
+    const list = groups.get(key) ?? [];
+    list.push(entry);
+    groups.set(key, list);
+  }
 
-interface ConflictWarning {
-  type: "error" | "warning";
-  message: string;
-}
+  const merged: {
+    id: string;
+    resourceId: string;
+    title: string;
+    start: string;
+    end: string;
+    allDay: true;
+    backgroundColor: string;
+    borderColor: string;
+    textColor: string;
+    display: string;
+    editable: false;
+    extendedProps: {
+      isMergedBar: true;
+      dayCount: number;
+      status: string;
+      worker_name: string;
+      job_id: string;
+      worker_id: string;
+      childIds: string[];
+    };
+  }[] = [];
 
-interface PendingDraftData {
-  workerId: string;
-  jobId: string;
-  shiftDate: string;
-  startTime: string;
-  endTime: string;
-}
+  const consumedIds = new Set<string>();
 
-const DEFAULT_CREW_SIZE_LIMIT = 10;
+  for (const [, list] of groups) {
+    // Sort by date ascending
+    const sorted = [...list].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    );
+
+    let runStart = 0;
+    while (runStart < sorted.length) {
+      let runEnd = runStart;
+      // Extend the run while the next entry is on the next calendar day
+      while (runEnd + 1 < sorted.length) {
+        const currentDate = new Date(sorted[runEnd].date + "T00:00:00Z");
+        const nextDate = new Date(sorted[runEnd + 1].date + "T00:00:00Z");
+        const diffMs = nextDate.getTime() - currentDate.getTime();
+        if (diffMs === 86400000) {
+          runEnd++;
+        } else {
+          break;
+        }
+      }
+
+      const dayCount = runEnd - runStart + 1;
+      if (dayCount >= 2) {
+        const first = sorted[runStart];
+        const last = sorted[runEnd];
+        const childIds = sorted
+          .slice(runStart, runEnd + 1)
+          .map((s) => s.id);
+        childIds.forEach((id) => consumedIds.add(id));
+
+        // End date is exclusive in FullCalendar for allDay events, so add 1 day
+        const endDate = new Date(last.date + "T00:00:00Z");
+        endDate.setUTCDate(endDate.getUTCDate() + 1);
+        const endStr = endDate.toISOString().split("T")[0];
+
+        const hasDraft = sorted
+          .slice(runStart, runEnd + 1)
+          .some((s) => s.status === "draft");
+
+        merged.push({
+          id: `merged-${childIds.join("-")}`,
+          resourceId: first.job_id,
+          title: `${first.worker_name} (${dayCount} days)`,
+          start: first.date,
+          end: endStr,
+          allDay: true,
+          backgroundColor: hasDraft ? "#fef3c7" : "#d1fae5",
+          borderColor: hasDraft ? "#d97706" : "#059669",
+          textColor: hasDraft ? "#92400e" : "#065f46",
+          display: "block",
+          editable: false,
+          extendedProps: {
+            isMergedBar: true,
+            dayCount,
+            status: hasDraft ? "draft" : "published",
+            worker_name: first.worker_name,
+            job_id: first.job_id,
+            worker_id: first.worker_id,
+            childIds,
+          },
+        });
+      }
+
+      runStart = runEnd + 1;
+    }
+  }
+
+  return { merged, consumedIds };
+}
 
 export default function SchedulePage() {
   const { t } = useI18n();
@@ -321,27 +339,6 @@ export default function SchedulePage() {
   const [searchText, setSearchText] = useState("");
   const [activeWorker, setActiveWorker] = useState<Worker | null>(null);
   const calendarRef = useRef<FullCalendar | null>(null);
-  
-  // Availability heatmap state
-  const [workerAvailability, setWorkerAvailability] = useState<Record<string, AvailabilityStatus>>({});
-
-  // Conflict Detection State (legacy single-conflict)
-  const [conflictContext, setConflictContext] = useState<ConflictContext | null>(null);
-  const [overrideReason, setOverrideReason] = useState("");
-
-  // Sprint 7: Live multi-conflict detection
-  const [pendingConflicts, setPendingConflicts] = useState<ConflictWarning[]>([]);
-  const [pendingDraftData, setPendingDraftData] = useState<PendingDraftData | null>(null);
-  const [conflictOverrideReason, setConflictOverrideReason] = useState("");
-
-  // AI Smart Fill State
-  const [ghostShifts, setGhostShifts] = useState<ScheduleEntry[]>([]);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [reviewGhostShift, setReviewGhostShift] = useState<ScheduleEntry | null>(null);
-  const [templates, setTemplates] = useState<ScheduleTemplate[]>(() => loadTemplates());
-  const [showTemplateInput, setShowTemplateInput] = useState(false);
-  const [templateNameInput, setTemplateNameInput] = useState("");
-  const [showApplyDropdown, setShowApplyDropdown] = useState(false);
 
   const visibleDates = useMemo(
     () => buildVisibleDates(anchorDate, viewMode),
@@ -360,28 +357,39 @@ export default function SchedulePage() {
     );
   }, [searchText, workers]);
 
-  const events = useMemo(
-    () =>
-      [...entries, ...ghostShifts].map((entry) => ({
-        id: entry.id,
-        resourceId: entry.job_id,
-        title: entry.worker_name || workers.find((w) => w.id === entry.worker_id)?.full_name || "Unknown",
-        start: buildEventDateTime(entry.date, formatTime(entry.start_time)),
-        end: buildEventDateTime(entry.date, formatTime(entry.end_time)),
-        backgroundColor: entry.status === "draft" ? "#f8e2b4" : entry.status === "ghost" ? "#e0e7ff" : "#dcfce7",
-        borderColor: entry.status === "draft" ? "#f59e0b" : entry.status === "ghost" ? "#8b5cf6" : "#4ade80",
-        textColor: entry.status === "draft" ? "#92400e" : entry.status === "ghost" ? "#4c1d95" : "#166534",
-        extendedProps: {
-          isGhost: entry.status === "ghost",
-          status: entry.status,
-          worker_name: entry.worker_name,
-          job_id: entry.job_id,
-          worker_id: entry.worker_id,
-          notes: entry.notes,
-        },
-      })),
-    [entries, ghostShifts, workers],
-  );
+  const events = useMemo(() => {
+    const individualEvents = entries.map((entry) => ({
+      id: entry.id,
+      resourceId: entry.job_id,
+      title: entry.worker_name,
+      start: buildEventDateTime(entry.date, formatTime(entry.start_time)),
+      end: buildEventDateTime(entry.date, formatTime(entry.end_time)),
+      backgroundColor: entry.status === "draft" ? "#f8e2b4" : "#dcfce7",
+      borderColor: entry.status === "draft" ? "#f59e0b" : "#4ade80",
+      textColor: entry.status === "draft" ? "#92400e" : "#166534",
+      extendedProps: {
+        status: entry.status,
+        worker_name: entry.worker_name,
+        job_id: entry.job_id,
+        worker_id: entry.worker_id,
+        notes: entry.notes,
+        isMergedBar: false,
+      },
+    }));
+
+    // Only merge in multi-day views (week, twoWeek, month)
+    if (viewMode === "day") return individualEvents;
+
+    const { merged, consumedIds } = mergeConsecutiveShifts(entries);
+    if (merged.length === 0) return individualEvents;
+
+    // Keep individual events that were NOT consumed by a merge
+    const remaining = individualEvents.filter(
+      (ev) => !consumedIds.has(ev.id),
+    );
+
+    return [...remaining, ...merged];
+  }, [entries, viewMode]);
 
   const resources = useMemo(
     () =>
@@ -391,79 +399,22 @@ export default function SchedulePage() {
 
   const loadReferenceData = useCallback(async () => {
     const supabase = getSupabase();
-    const [workersRes, jobsRes, ptoRes, historyRes] = await Promise.all([
-      supabase
-        .from("users")
-        .select("id, full_name, role, metadata")
-        .eq("is_active", true)
-        .in("role", ["worker", "foreman"])
-        .order("full_name"),
-      supabase
-        .from("jobs")
-        .select("id, name, code")
-        .in("status", ["active", "in_progress"])
-        .order("name"),
-      supabase
-        .from("pto_requests")
-        .select("worker_id, start_date, end_date, status")
-        .eq("status", "approved")
-        .lte("start_date", rangeEnd)
-        .gte("end_date", rangeStart),
-      supabase
-        .from("schedule_shifts")
-        .select("worker_id, shift_date")
-        .gte("shift_date", rangeStart)
-        .lte("shift_date", rangeEnd)
-        .eq("status", "published"),
-    ]);
+    const { data: workersData } = await supabase
+      .from("users")
+      .select("id, full_name, role")
+      .eq("is_active", true)
+      .in("role", ["worker", "foreman"])
+      .order("full_name");
 
-    const workersData = workersRes.data ?? [];
-    const jobsData = jobsRes.data ?? [];
-    const ptoData = ptoRes.data ?? [];
-    const historyData = historyRes.data ?? [];
+    const { data: jobsData } = await supabase
+      .from("jobs")
+      .select("id, name, code")
+      .in("status", ["active", "in_progress"])
+      .order("name");
 
-    // Compute availability status per worker
-    const availability: Record<string, AvailabilityStatus> = {};
-    const weekStart = parseDate(rangeStart);
-    const weekEnd = parseDate(rangeEnd);
-
-    for (const w of workersData) {
-      // Check PTO coverage
-      const workerPto = ptoData.filter(
-        (p: { worker_id: string }) => p.worker_id === w.id,
-      );
-
-      // Count how many visible days fall within any approved PTO range
-      let ptoDays = 0;
-      const totalDays = visibleDates.length;
-      for (const d of visibleDates) {
-        const dk = asDateKey(d);
-        const hasPto = workerPto.some(
-          (p: { start_date: string; end_date: string }) =>
-            p.start_date <= dk && p.end_date >= dk,
-        );
-        if (hasPto) ptoDays++;
-      }
-
-      if (ptoDays > 0 && ptoDays >= totalDays) {
-        // Full PTO coverage
-        availability[w.id] = "pto";
-      } else if (ptoDays > 0) {
-        // Partial PTO coverage
-        availability[w.id] = "partial";
-      } else {
-        // Check shift count from history
-        const shiftCount = historyData.filter(
-          (s: { worker_id: string }) => s.worker_id === w.id,
-        ).length;
-        availability[w.id] = shiftCount >= 5 ? "partial" : "available";
-      }
-    }
-
-    setWorkers(workersData);
-    setJobs(jobsData);
-    setWorkerAvailability(availability);
-  }, [rangeStart, rangeEnd, visibleDates]);
+    setWorkers(workersData ?? []);
+    setJobs(jobsData ?? []);
+  }, []);
 
   const loadSchedule = useCallback(async () => {
     const supabase = getSupabase();
@@ -557,14 +508,18 @@ export default function SchedulePage() {
 
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveWorker(null);
-    const { active } = event;
+    const { active, delta } = event;
     if (event.activatorEvent) {
       const ev = event.activatorEvent as MouseEvent | TouchEvent;
-      const clientX =
+      const startX =
         "clientX" in ev ? ev.clientX : ev.changedTouches?.[0]?.clientX;
-      const clientY =
+      const startY =
         "clientY" in ev ? ev.clientY : ev.changedTouches?.[0]?.clientY;
-      if (clientX === undefined || clientY === undefined) return;
+      if (startX === undefined || startY === undefined) return;
+
+      // Use delta to calculate the actual DROP position, not the drag start
+      const clientX = startX + (delta?.x ?? 0);
+      const clientY = startY + (delta?.y ?? 0);
 
       const elements = document.elementsFromPoint(clientX, clientY);
 
@@ -589,32 +544,13 @@ export default function SchedulePage() {
         if (dateStr && job_id) {
           const date = dateStr.slice(0, 10);
           const time = dateStr.slice(11, 16) || "07:00";
-          const endTime = "15:30";
-
-          // Sprint 7: Run conflict checks before opening form
-          const conflicts = checkConflicts(worker_id, job_id, date, time, endTime);
-
-          if (conflicts.length > 0) {
-            // Show conflict dialog, stash draft data
-            setPendingConflicts(conflicts);
-            setPendingDraftData({
-              workerId: worker_id,
-              jobId: job_id,
-              shiftDate: date,
-              startTime: time,
-              endTime,
-            });
-            setConflictOverrideReason("");
-          } else {
-            // No conflicts — open form immediately (existing behavior)
-            clearForm(date);
-            setFormWorkerId(worker_id);
-            setFormJobId(job_id);
-            setFormDate(date);
-            setFormStartTime(time);
-            setFormEndTime(endTime);
-            setShowForm(true);
-          }
+          clearForm(date);
+          setFormWorkerId(worker_id);
+          setFormJobId(job_id);
+          setFormDate(date);
+          setFormStartTime(time);
+          setFormEndTime("15:30");
+          setShowForm(true);
         }
       }
     }
@@ -622,6 +558,11 @@ export default function SchedulePage() {
 
   async function handleEventDrop(info: any) {
     if (!info.event.id) return;
+    // Merged multi-day bars are not directly editable via drag — revert
+    if (info.event.extendedProps?.isMergedBar) {
+      info.revert?.();
+      return;
+    }
     const shiftedResource = info.event.getResources()[0];
     const jobId = shiftedResource?.id ?? info.event.extendedProps.job_id;
     if (!jobId) return;
@@ -640,11 +581,6 @@ export default function SchedulePage() {
   }
 
   function handleEventClick(clickInfo: any) {
-    if (clickInfo.event.extendedProps.isGhost) {
-      const ghost = ghostShifts.find((g) => g.id === clickInfo.event.id);
-      if (ghost) setReviewGhostShift(ghost);
-      return;
-    }
     const entry = entries.find((entry) => entry.id === clickInfo.event.id);
     if (entry) {
       openEditForm(entry);
@@ -659,112 +595,6 @@ export default function SchedulePage() {
     setFormStartTime("07:00");
     setFormEndTime("15:30");
     setFormNotes("");
-    setConflictContext(null);
-    setOverrideReason("");
-  }
-
-  function checkConflicts(
-    workerId: string,
-    jobId: string,
-    shiftDate: string,
-    startTime: string,
-    endTime: string,
-  ): ConflictWarning[] {
-    const warnings: ConflictWarning[] = [];
-    const workerName =
-      workers.find((w) => w.id === workerId)?.full_name ?? "Worker";
-    const jobName =
-      jobs.find((j) => j.id === jobId)?.name ?? "Job";
-
-    // 1. PTO Conflict (RED)
-    const hasPto =
-      workerAvailability[workerId] === "pto" ||
-      ptoRequests.some(
-        (p) =>
-          p.user_id === workerId &&
-          p.start_date <= shiftDate &&
-          p.end_date >= shiftDate,
-      );
-    if (hasPto) {
-      warnings.push({
-        type: "error",
-        message: t("schedulePage.conflictPto", { name: workerName }),
-      });
-    }
-
-    // 2. Duplicate Shift Check (RED)
-    const isDuplicate = entries.some(
-      (e) =>
-        e.worker_id === workerId &&
-        e.job_id === jobId &&
-        e.date === shiftDate &&
-        e.id !== editingShiftId,
-    );
-    if (isDuplicate) {
-      warnings.push({
-        type: "error",
-        message: t("schedulePage.conflictDuplicate", {
-          name: workerName,
-          job: jobName,
-        }),
-      });
-    }
-
-    // 3. OT Threshold Warning (YELLOW)
-    const d1 = new Date(`1970-01-01T${startTime}:00Z`).getTime();
-    const d2 = new Date(`1970-01-01T${endTime}:00Z`).getTime();
-    const reqHours = (d2 - d1) / 3600000;
-
-    // Get the week that contains shiftDate (Mon-Sun)
-    const targetDay = parseDate(shiftDate);
-    const weekStartDate = startOfWeek(targetDay);
-    const weekEndDate = new Date(weekStartDate);
-    weekEndDate.setUTCDate(weekStartDate.getUTCDate() + 6);
-    const weekStartKey = asDateKey(weekStartDate);
-    const weekEndKey = asDateKey(weekEndDate);
-
-    const weekEntries = entries.filter(
-      (e) =>
-        e.worker_id === workerId &&
-        e.date >= weekStartKey &&
-        e.date <= weekEndKey &&
-        e.id !== editingShiftId,
-    );
-    const currentWeekHours = weekEntries.reduce((acc, curr) => {
-      try {
-        const t1 = new Date(`1970-01-01T${curr.start_time}:00Z`).getTime();
-        const t2 = new Date(`1970-01-01T${curr.end_time}:00Z`).getTime();
-        return acc + (t2 - t1) / 3600000;
-      } catch {
-        return acc;
-      }
-    }, 0);
-    const totalHours = Math.round((currentWeekHours + reqHours) * 10) / 10;
-    if (totalHours > 40) {
-      warnings.push({
-        type: "warning",
-        message: t("schedulePage.conflictOt", {
-          name: workerName,
-          hours: String(totalHours),
-        }),
-      });
-    }
-
-    // 4. Crew Size Check (YELLOW)
-    const crewOnDay = entries.filter(
-      (e) => e.job_id === jobId && e.date === shiftDate,
-    ).length;
-    if (crewOnDay >= DEFAULT_CREW_SIZE_LIMIT) {
-      warnings.push({
-        type: "warning",
-        message: t("schedulePage.conflictCrew", {
-          job: jobName,
-          count: String(crewOnDay),
-        }),
-      });
-    }
-
-    return warnings;
   }
 
   function openCreateForm(dateOverride?: string) {
@@ -812,7 +642,7 @@ export default function SchedulePage() {
     return payload;
   }
 
-  async function saveEntry(skipConflictCheck = false) {
+  async function saveEntry() {
     if (
       !formWorkerId ||
       !formJobId ||
@@ -821,75 +651,6 @@ export default function SchedulePage() {
       !formEndTime
     ) {
       return;
-    }
-
-    if (!skipConflictCheck) {
-      // Find worker metadata for costing
-      const targetWorker = workers.find((w) => w.id === formWorkerId);
-      const hourlyRate = targetWorker?.metadata?.hourly_rate || 20;
-      
-      // Calculate requested hours
-      const d1 = new Date(`1970-01-01T${formStartTime}:00Z`).getTime();
-      const d2 = new Date(`1970-01-01T${formEndTime}:00Z`).getTime();
-      const reqHours = (d2 - d1) / 3600000;
-
-      // 1. PTO Conflict
-      const isOverlappingPTO = ptoRequests.some(
-        (p) =>
-          p.user_id === formWorkerId &&
-          p.start_date <= formDate &&
-          p.end_date >= formDate,
-      );
-      if (isOverlappingPTO) {
-        setConflictContext({
-          type: "pto",
-          title: "Worker on PTO",
-          message: "This worker is taking Personal Time Off during this period. Are you sure you want to schedule them anyway?",
-        });
-        return;
-      }
-
-      // 2. Overbooking Conflict
-      const isOverbooked = entries.some(
-        (e) =>
-          e.worker_id === formWorkerId &&
-          e.date === formDate &&
-          e.id !== editingShiftId &&
-          ((e.start_time <= formStartTime && e.end_time > formStartTime) ||
-            (e.start_time < formEndTime && e.end_time >= formEndTime) ||
-            (e.start_time >= formStartTime && e.end_time <= formEndTime))
-      );
-      if (isOverbooked) {
-        setConflictContext({
-          type: "overbook",
-          title: "Double Booked",
-          message: "This worker already has a shift scheduled that overlaps with this time. Continue?",
-        });
-        return;
-      }
-
-      // 3. OT Threshold Conflict
-      const weekEntries = entries.filter((e) => e.worker_id === formWorkerId && e.id !== editingShiftId);
-      const currentHours = weekEntries.reduce((acc, curr) => {
-        try {
-          const t1 = new Date(`1970-01-01T${curr.start_time}:00Z`).getTime();
-          const t2 = new Date(`1970-01-01T${curr.end_time}:00Z`).getTime();
-          return acc + (t2 - t1) / 3600000;
-        } catch { return acc; }
-      }, 0);
-
-      if (currentHours + reqHours > 40) {
-        const excessHours = currentHours + reqHours - 40;
-        const otRate = hourlyRate * 1.5;
-        const impact = excessHours * otRate;
-        setConflictContext({
-          type: "overtime",
-          title: "Overtime Threshold Exceeded",
-          message: `This shift pushes the worker to ${currentHours + reqHours} hours for the week.`,
-          costImpact: impact,
-        });
-        return;
-      }
     }
 
     const actionKey = editingShiftId ? "update" : "create";
@@ -906,7 +667,7 @@ export default function SchedulePage() {
         shift_date: formDate,
         start_time: formStartTime,
         end_time: formEndTime,
-        notes: (overrideReason ? `[OVERRIDE: ${overrideReason}]\n` : "") + (formNotes.trim() || ""),
+        notes: formNotes.trim() || null,
       });
       await loadSchedule();
       clearForm();
@@ -1008,153 +769,6 @@ export default function SchedulePage() {
     (entry) => entry.status === "published",
   );
 
-  async function askAiForSuggestions() {
-    setAiLoading(true);
-    try {
-      const supabase = getSupabase();
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      if (!token) throw new Error("Missing session");
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/schedule_ai`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            workers: workers.map((w) => w.id),
-            jobs: jobs.map((j) => j.id),
-            anchorDate: anchorDate,
-          }),
-        }
-      );
-      
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "AI failed");
-      
-      if (data.ghost_shifts) {
-        setGhostShifts(data.ghost_shifts);
-        setSuccessMessage("AI returned suggested shifts.");
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(`AI suggestion error: ${message}`);
-    } finally {
-      setAiLoading(false);
-    }
-  }
-
-  async function resolveGhostShift(accept: boolean) {
-    if (!reviewGhostShift) return;
-    
-    setGhostShifts((prev) => prev.filter((g) => g.id !== reviewGhostShift.id));
-    
-    if (accept) {
-      setBusyAction("create");
-      try {
-        await postSchedule({
-          action: "create",
-          worker_id: reviewGhostShift.worker_id,
-          job_id: reviewGhostShift.job_id,
-          shift_date: reviewGhostShift.date,
-          start_time: reviewGhostShift.start_time,
-          end_time: reviewGhostShift.end_time,
-          notes: reviewGhostShift.notes,
-        });
-        await loadSchedule();
-        setSuccessMessage("AI shift accepted and saved as Draft.");
-      } catch (err) {
-        // handled globally or omitted for brevity
-      } finally {
-        setBusyAction(null);
-      }
-    }
-    setReviewGhostShift(null);
-  }
-
-  function saveAsTemplate() {
-    const name = templateNameInput.trim();
-    if (!name) return;
-
-    const weekStart = parseDate(rangeStart);
-    const weekStartMs = weekStart.getTime();
-
-    const templateShifts = entries
-      .filter((e) => e.date >= rangeStart && e.date <= rangeEnd)
-      .map((e) => {
-        const shiftDate = parseDate(e.date);
-        const dayOffset = Math.round((shiftDate.getTime() - weekStartMs) / 86400000);
-        return {
-          worker_id: e.worker_id,
-          job_id: e.job_id,
-          day_offset: dayOffset,
-          start_time: e.start_time,
-          end_time: e.end_time,
-          notes: e.notes ?? "",
-        };
-      });
-
-    if (templateShifts.length === 0) {
-      setError("No shifts in the current range to save as a template.");
-      return;
-    }
-
-    const newTemplate: ScheduleTemplate = {
-      name,
-      createdAt: new Date().toISOString(),
-      shifts: templateShifts,
-    };
-
-    const updated = [...templates.filter((t) => t.name !== name), newTemplate];
-    persistTemplates(updated);
-    setTemplates(updated);
-    setTemplateNameInput("");
-    setShowTemplateInput(false);
-    setSuccessMessage(`Template "${name}" saved (${templateShifts.length} shifts).`);
-  }
-
-  async function applyTemplate(template: ScheduleTemplate) {
-    setShowApplyDropdown(false);
-    if (template.shifts.length === 0) return;
-
-    setBusyAction("copy");
-    setError(null);
-    setSuccessMessage(null);
-    const weekStart = startOfWeek(parseDate(rangeStart));
-
-    try {
-      await Promise.all(
-        template.shifts.map((shift) => {
-          const targetDate = new Date(weekStart);
-          targetDate.setUTCDate(weekStart.getUTCDate() + shift.day_offset);
-          return postSchedule({
-            action: "create",
-            worker_id: shift.worker_id,
-            job_id: shift.job_id,
-            shift_date: asDateKey(targetDate),
-            start_time: shift.start_time,
-            end_time: shift.end_time,
-            notes: shift.notes,
-          });
-        }),
-      );
-      await loadSchedule();
-      setSuccessMessage(`Template "${template.name}" applied — ${template.shifts.length} draft shifts created.`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to apply template.");
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  const copySourceLabel = useMemo(() => {
-    const srcMonday = parseDate(previousAnchor(rangeStart, "week"));
-    return srcMonday.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  }, [rangeStart]);
-
   const rangeLabel = useMemo(() => {
     if (viewMode === "day") {
       return parseDate(anchorDate).toLocaleDateString(undefined, {
@@ -1225,86 +839,12 @@ export default function SchedulePage() {
                 </span>
               )}
               <button
-                onClick={askAiForSuggestions}
-                disabled={aiLoading || Boolean(busyAction)}
-                className="rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50"
-              >
-                {aiLoading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-300 border-t-indigo-700" />
-                    Thinking...
-                  </span>
-                ) : (
-                  "✦ AI Suggestions"
-                )}
-              </button>
-              <button
                 onClick={handleCopyPreviousWeek}
                 disabled={busyAction === "copy"}
                 className="rounded-xl border border-stone-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-stone-50 disabled:opacity-50"
               >
-                {busyAction === "copy" ? "Copying..." : `Copy Week of ${copySourceLabel}`}
+                {busyAction === "copy" ? "Copying..." : "Copy Previous Week"}
               </button>
-              {showTemplateInput ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    autoFocus
-                    type="text"
-                    value={templateNameInput}
-                    onChange={(e) => setTemplateNameInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") saveAsTemplate();
-                      if (e.key === "Escape") { setShowTemplateInput(false); setTemplateNameInput(""); }
-                    }}
-                    placeholder="Template name..."
-                    className="rounded-xl border border-stone-300 px-3 py-2 text-sm w-40"
-                  />
-                  <button
-                    onClick={saveAsTemplate}
-                    disabled={!templateNameInput.trim()}
-                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-40"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => { setShowTemplateInput(false); setTemplateNameInput(""); }}
-                    className="rounded-xl bg-stone-100 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-stone-200"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowTemplateInput(true)}
-                  className="rounded-xl border border-stone-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-stone-50"
-                >
-                  Save as Template
-                </button>
-              )}
-              {templates.length > 0 && (
-                <div className="relative">
-                  <button
-                    onClick={() => setShowApplyDropdown((v) => !v)}
-                    className="rounded-xl border border-stone-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-stone-50"
-                  >
-                    Apply Template ▾
-                  </button>
-                  {showApplyDropdown && (
-                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-xl border border-stone-200 bg-white py-1 shadow-lg">
-                      {templates.map((t) => (
-                        <button
-                          key={t.name}
-                          onClick={() => applyTemplate(t)}
-                          className="flex w-full items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-stone-50"
-                        >
-                          <span>{t.name}</span>
-                          <span className="text-xs text-slate-400">{t.shifts.length}sh</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
               <button
                 onClick={() => openCreateForm(asDateKey(visibleDates[0]))}
                 className="rounded-xl bg-amber-500 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-600"
@@ -1467,7 +1007,7 @@ export default function SchedulePage() {
             </div>
             <div className="mt-4 flex gap-3">
               <button
-                onClick={() => saveEntry(false)}
+                onClick={saveEntry}
                 disabled={
                   Boolean(busyAction) ||
                   !formWorkerId ||
@@ -1499,12 +1039,6 @@ export default function SchedulePage() {
 
         <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
           <aside className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-800">Workers</h3>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                {filteredWorkers.length}
-              </span>
-            </div>
             <div className="mb-4">
               <label className="mb-2 block text-sm font-medium text-slate-700">
                 {t("schedulePage.searchWorkers")}
@@ -1547,7 +1081,6 @@ export default function SchedulePage() {
                     worker={worker}
                     isOverlappingPTO={isOverlappingPTO}
                     currentHours={currentHours}
-                    availabilityStatus={workerAvailability[worker.id] ?? "available"}
                   />
                 );
               })}
@@ -1559,20 +1092,6 @@ export default function SchedulePage() {
             </div>
           </aside>
 
-          <div className="flex items-center gap-4 px-1 pb-2 text-xs font-medium text-slate-500">
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" />
-              Draft
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-400" />
-              Published
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-violet-400" />
-              AI Suggestion
-            </span>
-          </div>
           <div className="relative min-w-0 overflow-x-auto rounded-2xl border border-stone-200 bg-white">
               <div className="min-w-[800px]">
                 <FullCalendar
@@ -1596,21 +1115,38 @@ export default function SchedulePage() {
                   eventDrop={handleEventDrop}
                   eventResize={handleEventDrop}
                   eventClick={handleEventClick}
+                  eventContent={(arg) => {
+                    const props = arg.event.extendedProps;
+                    if (props.isMergedBar) {
+                      const isDraft = props.status === "draft";
+                      return {
+                        html: `<div style="
+                          padding: 4px 10px;
+                          border-radius: 8px;
+                          font-size: 12px;
+                          font-weight: 600;
+                          line-height: 1.4;
+                          white-space: nowrap;
+                          overflow: hidden;
+                          text-overflow: ellipsis;
+                          min-height: 28px;
+                          display: flex;
+                          align-items: center;
+                          background: ${isDraft ? "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)" : "linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)"};
+                          border-left: 4px solid ${isDraft ? "#d97706" : "#059669"};
+                          color: ${isDraft ? "#92400e" : "#065f46"};
+                          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                        ">${arg.event.title}</div>`,
+                      };
+                    }
+                    return undefined; // default rendering for single-day events
+                  }}
                   dayMaxEventRows={true}
                   displayEventTime
                   schedulerLicenseKey="CC-Attribution-NonCommercial-NoDerivatives"
                 />
               </div>
 
-            {!loading && entries.length === 0 && ghostShifts.length === 0 && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 text-slate-400 pointer-events-none">
-                <svg className="h-10 w-10 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                </svg>
-                <p className="text-sm font-medium">No shifts scheduled</p>
-                <p className="text-xs">Drag a worker from the left panel to get started</p>
-              </div>
-            )}
             {loading && (
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 text-sm font-medium text-slate-500">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500 mb-2"></div>
@@ -1620,131 +1156,6 @@ export default function SchedulePage() {
           </div>
         </div>
 
-        <Dialog open={!!conflictContext} onOpenChange={(open) => !open && setConflictContext(null)}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-rose-600">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                {conflictContext?.title}
-              </DialogTitle>
-              <DialogDescription className="py-3 text-slate-700">
-                {conflictContext?.message}
-                {conflictContext?.costImpact && (
-                   <div className="mt-3 rounded-lg bg-rose-50 p-3 font-semibold text-rose-800">
-                     Estimated OT Impact: +${conflictContext.costImpact.toFixed(2)}
-                   </div>
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 pt-2">
-              <Label htmlFor="overrideReason" className="text-slate-700">
-                Override Reason <span className="text-rose-600">*</span>
-              </Label>
-              <Input
-                id="overrideReason"
-                type="text"
-                placeholder="e.g. Critical site coverage needed"
-                value={overrideReason}
-                onChange={(e) => setOverrideReason(e.target.value)}
-                className={`w-full ${!overrideReason.trim() ? "border-rose-300 focus-visible:ring-rose-300" : ""}`}
-              />
-              <p className="mt-1 text-xs text-slate-400">Reason is logged with the shift for audit trail.</p>
-            </div>
-            <DialogFooter className="mt-6 flex gap-2 sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setConflictContext(null)}
-                className="rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-stone-200"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={!overrideReason.trim() || Boolean(busyAction)}
-                onClick={() => saveEntry(true)}
-                className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50"
-              >
-                {busyAction ? "Saving..." : "Confirm Override"}
-              </button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Sprint 7: Multi-conflict detection dialog */}
-        <Dialog open={pendingConflicts.length > 0} onOpenChange={(open) => { if (!open) { setPendingConflicts([]); setPendingDraftData(null); } }}>
-          <DialogContent className="sm:max-w-md border-amber-100 shadow-xl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-amber-700">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-                {t("schedulePage.conflictsFound")}
-              </DialogTitle>
-              <DialogDescription className="space-y-2 py-2">
-                {pendingConflicts.map((c, i) => (
-                  <span
-                    key={i}
-                    className={`block rounded-lg px-3 py-2 text-sm ${
-                      c.type === "error"
-                        ? "border border-red-200 bg-red-50 text-red-700"
-                        : "border border-amber-200 bg-amber-50 text-amber-700"
-                    }`}
-                  >
-                    {c.type === "error" ? "\u{1F6AB} " : "\u26A0\uFE0F "}{c.message}
-                  </span>
-                ))}
-              </DialogDescription>
-            </DialogHeader>
-            {pendingConflicts.some((c) => c.type === "error") && (
-              <div className="space-y-3 pt-2">
-                <Label htmlFor="conflictOverrideReason" className="text-slate-700">
-                  {t("schedulePage.overrideRequired")} <span className="text-rose-600">*</span>
-                </Label>
-                <Input
-                  id="conflictOverrideReason"
-                  type="text"
-                  placeholder="e.g. Critical coverage needed"
-                  value={conflictOverrideReason}
-                  onChange={(e) => setConflictOverrideReason(e.target.value)}
-                  className="w-full"
-                />
-              </div>
-            )}
-            <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
-              <button
-                type="button"
-                onClick={() => { setPendingConflicts([]); setPendingDraftData(null); }}
-                className="rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-stone-200"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                type="button"
-                disabled={pendingConflicts.some((c) => c.type === "error") && !conflictOverrideReason.trim()}
-                onClick={() => {
-                  if (pendingDraftData) {
-                    clearForm(pendingDraftData.shiftDate);
-                    setFormWorkerId(pendingDraftData.workerId);
-                    setFormJobId(pendingDraftData.jobId);
-                    setFormDate(pendingDraftData.shiftDate);
-                    setFormStartTime(pendingDraftData.startTime);
-                    setFormEndTime(pendingDraftData.endTime);
-                    setShowForm(true);
-                  }
-                  setPendingConflicts([]);
-                  setPendingDraftData(null);
-                  setConflictOverrideReason("");
-                }}
-                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
-              >
-                {t("schedulePage.proceedAnyway")}
-              </button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
         {!isDraft && publishedShifts.length > 0 && (
           <div className="mt-4 rounded-xl bg-green-50 p-4 text-sm text-green-700">
             ✓ {t("schedulePage.published")}
@@ -1753,67 +1164,18 @@ export default function SchedulePage() {
 
         <DragOverlay>
           {activeWorker ? (
-            <div className="cursor-grabbing rounded-2xl border-2 border-indigo-400 bg-white px-4 py-3 shadow-2xl ring-2 ring-indigo-100">
-              <div className="flex items-center gap-2">
-                <div className="font-semibold text-slate-900">{activeWorker.full_name}</div>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                  {activeWorker.role}
-                </span>
+            <div className="cursor-grabbing rounded-2xl border-2 border-indigo-500 bg-white px-4 py-3 shadow-xl opacity-90">
+              <div className="font-semibold text-indigo-900">
+                {activeWorker.full_name}
               </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-indigo-600 font-medium">
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                </svg>
-                Drop onto a job row
+              <div className="text-xs text-indigo-600">Assigning shift...</div>
+              <div className="mt-1 border-t border-indigo-100 pt-1 text-xs font-medium text-slate-500">
+                Est. Cost: ${(activeWorker.metadata?.hourly_rate || 20) * 8} /
+                8h
               </div>
             </div>
           ) : null}
         </DragOverlay>
-
-        <Dialog open={!!reviewGhostShift} onOpenChange={(open) => !open && setReviewGhostShift(null)}>
-          <DialogContent className="sm:max-w-md border-indigo-100 shadow-xl shadow-indigo-100">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-indigo-700">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                AI Shift Suggestion
-              </DialogTitle>
-              <DialogDescription className="py-2 text-slate-700">
-                This shift is recommended based on historical skills and job requirements. 
-                <br /><br />
-                <span className="font-semibold text-slate-900 block">{workers.find(w => w.id === reviewGhostShift?.worker_id)?.full_name}</span>
-                <span className="block">
-                  {reviewGhostShift?.date
-                    ? parseDate(reviewGhostShift.date).toLocaleDateString(undefined, {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                      })
-                    : ""}{" "}
-                  · {reviewGhostShift?.start_time} – {reviewGhostShift?.end_time}
-                </span>
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="mt-6 flex justify-between">
-              <button
-                type="button"
-                onClick={() => resolveGhostShift(false)}
-                className="rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-stone-200"
-              >
-                Discard
-              </button>
-              <button
-                type="button"
-                onClick={() => resolveGhostShift(true)}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-              >
-                Accept Selection
-              </button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
       </div>
     </DndContext>
   );

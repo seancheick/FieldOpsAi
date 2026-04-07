@@ -193,7 +193,7 @@ export default function MapPage() {
           <div style="font-weight:700;font-size:14px;margin-bottom:4px">${site.name}</div>
           <div style="color:#64748B;font-size:12px;margin-bottom:6px">${site.code} &middot; ${site.geofence_radius_m}m geofence</div>
           <div style="font-size:12px;color:#334155">${siteWorkerCount} ${t("mapPage.workers")}</div>
-          <a href="/photos?job=${encodeURIComponent(site.id)}" style="display:inline-block;margin-top:6px;font-size:12px;color:#2563EB;text-decoration:none;font-weight:600">${t("mapPage.viewPhotos")} &rarr;</a>
+          <a href="/photos?job_id=${encodeURIComponent(site.id)}" style="display:inline-block;margin-top:6px;font-size:12px;color:#2563EB;text-decoration:none;font-weight:600">${t("mapPage.viewPhotos")} &rarr;</a>
         </div>`;
 
         const marker = new mt.Marker({ element: el })

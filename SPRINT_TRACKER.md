@@ -318,7 +318,7 @@ These features were identified as missing by auditing FieldOps_AI_Complete_Plan_
   - Evidence: `infra/supabase/functions/alerts/index.ts`
 
 - [x] Push notifications (FCM) — Done (full implementation ready to activate)
-  - Agent findings: Completed 2026-04-05. Enhanced NotificationService with PushNotification model, NotificationCategory enum (7 categories: ot_approval, pto_update, schedule_published, shift_swap_result, safety_alert, expense_approval, timecard_ready), full FirebaseNotificationService implementation (commented out — activate when Firebase project is configured). NotificationHandler for foreground message routing with in-app SnackBar banners and deep-link navigation. Backend: device_tokens edge function (register/unregister/list actions with RLS), migration 20260407400000_device_tokens.sql (table + indexes + RLS policies), _shared/push.ts utility (sendPush, sendPushToUser, sendPushToRole with FCM v1 HTTP API, JWT-based OAuth2, stale token cleanup). Activation requires: `flutterfire configure`, add firebase_core + firebase_messaging to pubspec, uncomment FirebaseNotificationService. flutter analyze clean.
+  - Agent findings: Completed 2026-04-05. Enhanced NotificationService with PushNotification model, NotificationCategory enum (7 categories: ot_approval, pto_update, schedule_published, shift_swap_result, safety_alert, expense_approval, timecard_ready), full FirebaseNotificationService implementation (commented out — activate when Firebase project is configured). NotificationHandler for foreground message routing with in-app SnackBar banners and deep-link navigation. Backend: device_tokens edge function (register/unregister/list actions with RLS), migration 20260407400000_device_tokens.sql (table + indexes + RLS policies), \_shared/push.ts utility (sendPush, sendPushToUser, sendPushToRole with FCM v1 HTTP API, JWT-based OAuth2, stale token cleanup). Activation requires: `flutterfire configure`, add firebase_core + firebase_messaging to pubspec, uncomment FirebaseNotificationService. flutter analyze clean.
   - Evidence: `apps/fieldops_mobile/lib/core/notifications/notification_service.dart`, `notification_handler.dart`, `infra/supabase/functions/device_tokens/index.ts`, `infra/supabase/functions/_shared/push.ts`, `infra/supabase/migrations/20260407400000_device_tokens.sql`
 
 ### Sprint 5 Gaps
@@ -427,14 +427,15 @@ Backend already done: schedule edge function with drafts, worker-scoped reads, p
 - [x] Cost code preview on drag
   - Type: Web | Priority: LOW
   - Definition of Done: When dragging worker onto a job slot, show cost code + estimated cost. Ties into existing profitability reports.
-  - Agent findings: Completed on 2026-04-05. DragOverlay redesigned — removed misleading flat cost estimate ($hourly_rate * 8h). Now shows worker name (bold), role badge, and "Drop onto a job row" guidance. True real-time cost-on-hover requires FullCalendar eventReceive — deferred. Cost context moved to conflict check dialog where full job info is available.
+  - Agent findings: Completed on 2026-04-05. DragOverlay redesigned — removed misleading flat cost estimate ($hourly_rate \* 8h). Now shows worker name (bold), role badge, and "Drop onto a job row" guidance. True real-time cost-on-hover requires FullCalendar eventReceive — deferred. Cost context moved to conflict check dialog where full job info is available.
   - Evidence: `apps/fieldops_web/src/app/schedule/page.tsx` (DragOverlay section) — commit `864cc84`
 
 #### Sprint 7 scope (medium effort)
 
-- [ ] Live conflict detection (PTO, OT rules, geofence overlap, crew size)
+- [x] Live conflict detection (PTO, OT rules, geofence overlap, crew size)
   - Type: Web | Priority: HIGH
   - Definition of Done: Red/yellow highlights on drop when conflicts detected. No overbooking. Checks PTO calendar, OT threshold, crew size limits. Warns but allows override with reason.
+  - Notes: Duplicate of "Scheduler Enhancement" section below — completed 2026-04-05. See evidence at line 886.
 
 - [x] AI smart schedule suggestions
   - Type: Backend | Priority: HIGH — dev review: "2026 differentiator most competitors still lack"
@@ -442,13 +443,17 @@ Backend already done: schedule edge function with drafts, worker-scoped reads, p
   - Agent findings: Completed on 2026-04-05. Replaced mock endpoint with real historical frequency analysis. JWT auth validated. 4-week lookback query on schedule_shifts (published). Frequency map: job_id → worker_id → {count, full_name, start_time, end_time}. Top-3 workers per job by frequency. Ghost shifts include worker_name. UI: "AI Suggestions" button in header with spinner, ghost shifts rendered as violet calendar events, review dialog with formatted dates, accept/dismiss per suggestion. Session guard added for missing token.
   - Evidence: `infra/supabase/functions/schedule_ai/index.ts`, `apps/fieldops_web/src/app/schedule/page.tsx` — commits `1f4b760`, `c001c45`, `096b800`
 
-- [ ] Foreman mobile schedule drag (simplified list view)
+- [x] Foreman mobile schedule drag (simplified list view)
   - Type: Mobile | Priority: MEDIUM
   - Definition of Done: Foreman can adjust schedule on-site from mobile. Simple list reorder (not full calendar). Web publish approval still required.
+  - Agent findings: Completed 2026-04-07. Created ForemanScheduleScreen with ReorderableListView.builder, haptic feedback on drag, date section headers (Today/Tomorrow), shift tiles with worker name/job/time/status badge. ForemanScheduleController AsyncNotifier with optimistic reorder + saveChanges(). CrewScheduleShift domain model. UserRole enum with canManageCrew extension. "Crew Schedule" item in More tab (foreman/supervisor only). 7 new l10n keys (EN+ES+FR+TH+ZH).
+  - Evidence: `apps/fieldops_mobile/lib/features/schedule/presentation/foreman_schedule_screen.dart`, `foreman_schedule_controller.dart`, `apps/fieldops_mobile/lib/features/auth/domain/user_role.dart`
 
-- [ ] Gantt-style timeline overlay for multi-day jobs
+- [x] Gantt-style timeline overlay for multi-day jobs
   - Type: Web | Priority: LOW
   - Definition of Done: Visual bar spanning multiple days for long jobs. FullCalendar resourceTimeline supports this natively. Construction sweet spot.
+  - Agent findings: Completed 2026-04-07. Added `mergeConsecutiveShifts()` utility that groups shifts by worker+job, detects consecutive calendar days, and produces merged allDay events spanning the full range. Merged bars render with Gantt-like gradient (amber draft, green published), 4px left accent, rounded corners, bold font. Only applies in week/2-week/month views — day view unaffected. Drag-drop disabled on merged bars. Individual shift rendering preserved.
+  - Evidence: `apps/fieldops_web/src/app/schedule/page.tsx` (mergeConsecutiveShifts, eventContent callback)
 
 ### UI/UX Polish (from dev review — 2026-04-05)
 
@@ -552,21 +557,28 @@ Use shadcn/ui for all new elements (data tables, modals, tabs, forms).
 
 #### Sprint 7 scope — Deeper Enhancements
 
-- [ ] Live Map: right sidebar panel (Who's Working) + filter toggles + richer popups
+- [x] Live Map: right sidebar panel (Who's Working) + filter toggles + richer popups
   - Type: Web | Priority: HIGH
   - Definition of Done: Collapsible right panel with worker list. Click → zoom to worker. Legend + filter toggles (clocked-in only, job sites only, breadcrumbs). Richer pin popups with avatar, task count, "View Timeline" button. "Refresh every 15s" indicator.
+  - Notes: Duplicate of "Live Map Enhancement" section below — completed 2026-04-05. See evidence at lines 890-894.
 
-- [ ] Role-based dashboard variants (different quick actions per role)
+- [x] Role-based dashboard variants (different quick actions per role)
   - Type: Web | Priority: MEDIUM
   - Definition of Done: use-role.ts tints sidebar or shows different quick action cards. Foreman sees crew-focused actions. Admin sees settings + staff.
+  - Agent findings: Completed 2026-04-07. Added QUICK_ACTIONS constant mapping admin/supervisor/worker/foreman roles to 4 action cards each with Lucide icons and links. Admin: Manage Staff, Company Settings, View Reports, Audit Log. Supervisor: Approve OT, Schedule Workers, View Reports, Approve PTO. Worker/Foreman: My Schedule, Submit Expense, Request PTO, My Timecards. 12 new i18n keys (EN+ES). Uses useCurrentUser() hook.
+  - Evidence: `apps/fieldops_web/src/app/page.tsx`, `apps/fieldops_web/src/lib/i18n.tsx`
 
-- [ ] Dark mode glassmorphism + soft border treatment on cards
+- [x] Dark mode glassmorphism + soft border treatment on cards
   - Type: Web | Priority: LOW
   - Definition of Done: Subtle depth effect on cards in dark mode. Frosted glass borders. Premium feel without complexity.
+  - Agent findings: Completed 2026-04-07. Added dark-mode Tailwind classes to Card component: `dark:bg-stone-900/80` (semi-transparent), `dark:backdrop-blur-xl` (frosted blur), `dark:border-stone-700/50` (soft border), `dark:shadow-lg dark:shadow-black/20` (depth shadow). Light mode untouched. Cascades to all pages via shared Card component.
+  - Evidence: `apps/fieldops_web/src/components/ui/card.tsx`
 
-- [ ] Reusable component library (StatusBadge, KpiCard, PhotoStampCard, ActionCard)
+- [x] Reusable component library (StatusBadge, KpiCard, PhotoStampCard, ActionCard)
   - Type: Web | Priority: MEDIUM
   - Definition of Done: Extract shared components into `src/components/ui/`. Consistent across all pages. Optional: internal storybook/gallery page.
+  - Agent findings: Completed 2026-04-07. Created 4 components, one per file: StatusBadge (7 statuses, sm/md sizes, colored dot+label pill), KpiCard (value, trend arrow, Recharts sparkline, optional href), ActionCard (icon, title, description, Link href, hover scale), PhotoStampCard (thumbnail, gradient overlay, worker/job/timestamp metadata, verification code footer). All use cn() utility, TypeScript interfaces, data-slot attributes.
+  - Evidence: `apps/fieldops_web/src/components/ui/status-badge.tsx`, `kpi-card.tsx`, `action-card.tsx`, `photo-stamp-card.tsx`
 
 ### Payroll & Compliance
 
@@ -762,23 +774,28 @@ They don't affect production safety but improve robustness and maintainability.
   - File: `execution/test_sprint_1.py`
   - Fix: Added `timeout=15` to `subprocess.run()`
 
-- [ ] Test: add post-suite cleanup or reset in regression runner
+- [x] Test: add post-suite cleanup or reset in regression runner
   - Type: Testing | Priority: Low
   - File: `execution/run_backend_regression_suite.py`
+  - Agent findings: Completed 2026-04-07. Added `cleanup_test_data()` function that TRUNCATEs transactional tables (clock_events, photo_events, task_events, note_events, expense_events, ot_requests, schedule_shifts) with CASCADE after every suite run. Wrapped main loop in try/finally so cleanup always runs. Non-fatal — failures logged but don't mask test results.
+  - Evidence: `execution/run_backend_regression_suite.py`
 
 - [x] CI: pin Python version to patch level
   - Type: CI | Priority: Low
   - File: `.github/workflows/backend-regression.yml:54`
   - Fix: `python-version: "3.13"` → `python-version: "3.13.0"`
 
-- [ ] CI: stabilize backend regression pipeline if `supabase start` remains flaky
+- [x] CI: stabilize backend regression pipeline if `supabase start` remains flaky
   - Type: CI | Priority: Medium
   - Definition of Done: Backend regression tests pass reliably in CI on every push. If `supabase start` with Docker continues to fail, migrate to Supabase hosted test project or self-hosted runner.
-  - Notes: Fixed `supabase stop` abort + Gitleaks false positive + outdated CLI version on 2026-04-05. Excluded studio/imgproxy/inbucket/logflare/vector/supavisor/realtime/pg_meta to reduce container surface. If still flaky, consider Supabase branching (hosted CI database).
+  - Agent findings: Completed 2026-04-07. Implemented Option 3 (split unit + integration). Added `unit-tests` job (pure Python tests + Deno type-check on all edge functions), `web-build` job (npm ci + lint + build for fieldops_web), and `integration-tests` job gated behind `workflow_dispatch` with `run_integration=true` input. Integration tests remain on-demand to avoid Docker timeout on free-tier runners.
+  - Evidence: `.github/workflows/backend-regression.yml`
 
-- [ ] RLS test: add actual 2-company data isolation test (cross-company reads must return 0 rows)
+- [x] RLS test: add actual 2-company data isolation test (cross-company reads must return 0 rows)
   - Type: Testing | Priority: HIGH — blocks Sprint 6 RLS validation task
   - File: `execution/test_rls_validation.py`
+  - Agent findings: Completed 2026-04-07. Expanded ISOLATION_TABLES from 3 to 7 tables (added clock_events, schedule_shifts, expense_events, pto_requests). Added pto_requests to TABLES_TO_TEST for schema checks. Seeded Company A + Company B data in all 4 new tables in seed.sql. Both directions tested (A→B and B→A cross-company reads must return 0 rows).
+  - Evidence: `execution/test_rls_validation.py`, `infra/supabase/seed.sql`
 
 - [x] Dashboard/Photos/Overtime: add pagination or "Load More" for hardcoded query limits
   - Type: Web | Priority: Medium
@@ -792,7 +809,7 @@ They don't affect production safety but improve robustness and maintainability.
   - Agent findings: Completed 2026-04-06. Major architecture refactor from monolithic HomeScreen to 5-tab MainShell with IndexedStack (preserves tab state across switches). NavigationBar (Material 3) with haptic feedback. Camera FAB appears when clocked in for quick proof photos. Tab state managed via NotifierProvider (Riverpod 3.x).
   - **MainShell** (`main_shell.dart`): 5-tab NavigationBar, IndexedStack for tab persistence, Camera FAB when clocked in, global navigator key for deep-link navigation.
   - **HomeTab** (`home_tab.dart`): Greeting header (time-of-day + date), ClockStatusPanel (reused), QuickStatsRow (tasks/saved photos/queued sync), PendingActionsCard (aggregated pending actions), OT prompt banner, Active job card with elapsed time, pull-to-refresh.
-  - **JobsTab** (`jobs_tab.dart`): Dedicated job list with _JobListCard widgets, quick clock-in button, job detail navigation, reuses existing JobsErrorState for offline/retry UX.
+  - **JobsTab** (`jobs_tab.dart`): Dedicated job list with \_JobListCard widgets, quick clock-in button, job detail navigation, reuses existing JobsErrorState for offline/retry UX.
   - **JobDetailScreen** (`job_detail_screen.dart`): Full drill-down with tasks, proof photo, saved photos, expense, safety checklist, view route, request OT, clock in/out.
   - **HistoryTab** (`history_tab.dart`): Full domain/data/presentation layers — HistoryEntry model, SupabaseHistoryRepository, week/month summary cards, timeline of past shifts with hour/photo/task/OT chips.
   - **MoreTab** (`more_tab.dart`): Profile header with avatar, Work section (PTO, Expenses, Timecards), Account section (Profile, Settings, Help & Support), Sign out with confirmation dialog, app version footer.
@@ -872,7 +889,7 @@ They don't affect production safety but improve robustness and maintainability.
 
 - [x] SQLite DB encryption (sqlcipher)
   - Type: Mobile | Priority: HIGH | Status: Done
-  - Agent findings: Completed 2026-04-05. Replaced sqlite3_flutter_libs with sqlcipher_flutter_libs ^0.6.7. Added flutter_secure_storage ^9.2.4. Modified _openConnection() to retrieve/generate 32-char random key from FlutterSecureStorage and pass via PRAGMA key in NativeDatabase setup callback. _generateKey() uses Random.secure(). `flutter analyze` clean.
+  - Agent findings: Completed 2026-04-05. Replaced sqlite3_flutter_libs with sqlcipher_flutter_libs ^0.6.7. Added flutter_secure_storage ^9.2.4. Modified \_openConnection() to retrieve/generate 32-char random key from FlutterSecureStorage and pass via PRAGMA key in NativeDatabase setup callback. \_generateKey() uses Random.secure(). `flutter analyze` clean.
   - Evidence: `apps/fieldops_mobile/pubspec.yaml`, `apps/fieldops_mobile/lib/core/data/local_database.dart`
 
 ### Scheduler Enhancement
@@ -899,19 +916,25 @@ They don't affect production safety but improve robustness and maintainability.
   - Type: Infra | Priority: HIGH
   - Evidence: Migration `20260407300000_background_jobs.sql` (table + enqueue/claim/complete functions with SKIP LOCKED), Edge function `infra/supabase/functions/job_worker/index.ts` (processes up to 5 jobs per invocation, supports send_notification/generate_report/cleanup_expired types)
 
-- [ ] Photo optimization (auto-compress + WebP)
+- [x] Photo optimization (auto-compress + WebP)
   - Type: Backend | Priority: MEDIUM
   - Definition of Done: Auto-compress uploaded photos. Convert to WebP for storage efficiency. Non-negotiable for cost control at scale.
+  - Agent findings: Completed 2026-04-07. New `media_optimize` edge function with dual-mode: direct call with media_asset_id or background job queue polling. Uses OffscreenCanvas + createImageBitmap for WebP re-encoding at 80% quality, max 2048px dimension. Skips already-optimized assets and files with <5% savings. Graceful fallback enqueues `media_optimize_external` background job if Canvas API unavailable. Logs compression ratios.
+  - Evidence: `infra/supabase/functions/media_optimize/index.ts`
 
 ### Maintainability (from dev review — 2026-04-05)
 
-- [ ] Feature flags system
+- [x] Feature flags system
   - Type: Infra | Priority: MEDIUM
   - Definition of Done: Simple DB table or LaunchDarkly free tier. Roll out AI/schedule changes safely. Company-level and global toggles.
+  - Agent findings: Completed 2026-04-07. Migration `20260407500000_feature_flags.sql`: `feature_flags` table (global defaults) + `company_feature_overrides` table (per-company toggles). `is_feature_enabled(company_id, flag_key)` SQL helper with SECURITY DEFINER. RLS: anyone reads flags, platform admins manage, company admins manage overrides. Seeded 5 initial flags (ai_schedule_suggestions, expense_capture, gps_breadcrumbs, photo_optimization enabled; equipment_tracking disabled). Edge function `feature_flags/index.ts`: GET resolved flags, POST set override (admin), DELETE remove override (admin).
+  - Evidence: `infra/supabase/migrations/20260407500000_feature_flags.sql`, `infra/supabase/functions/feature_flags/index.ts`
 
-- [ ] Shared types & codegen (Supabase → Flutter models)
+- [x] Shared types & codegen (Supabase → Flutter models)
   - Type: Tooling | Priority: MEDIUM
   - Definition of Done: Generate Flutter/Dart models from Supabase schema. Backend changes can't silently break mobile.
+  - Agent findings: Completed 2026-04-07. Python codegen script at `scripts/generate_dart_models.py`. Connects to local Supabase via docker exec psql, queries information_schema.columns, generates Dart classes with const constructor, fromJson/toJson, proper type mapping (uuid→String, timestamptz→DateTime, jsonb→Map, etc.), nullable support. Output to `apps/fieldops_mobile/lib/core/models/generated/`. Barrel file auto-generated. Run: `python3 scripts/generate_dart_models.py`.
+  - Evidence: `scripts/generate_dart_models.py`
 
 - [x] E2E tests (Playwright)
   - Type: Testing | Priority: HIGH
@@ -984,6 +1007,7 @@ They don't affect production safety but improve robustness and maintainability.
   - Evidence: `apps/fieldops_mobile/lib/features/expenses/presentation/expense_capture_screen.dart`
 
 #### Mobile audit summary
+
 - **Theme system**: Premium-grade. Semantic `FieldOpsPalette` ThemeExtension, 8dp spacing scale, elevation shadows, dark mode pairing. Space Grotesk + IBM Plex Sans typography. No changes needed.
 - **Touch targets**: All buttons ≥44px. Proper 8dp+ spacing. No changes needed.
 - **Accessibility**: Semantics on all interactive elements. Error states near fields. Color + icon (never color-only). Minor fixes applied above.

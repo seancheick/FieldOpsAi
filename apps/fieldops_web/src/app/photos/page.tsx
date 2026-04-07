@@ -66,6 +66,7 @@ function PhotoFeedContent() {
   const { t } = useI18n();
   const searchParams = useSearchParams();
   const jobId = searchParams.get("job_id");
+  const activeTab = (searchParams.get("tab") || "feed").toLowerCase();
 
   const PHOTOS_PAGE_SIZE = 30;
 
@@ -90,6 +91,7 @@ function PhotoFeedContent() {
   // Bulk select state
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [codeCopied, setCodeCopied] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const loadPhotos = useCallback(async () => {
     setLoading(true);
@@ -355,6 +357,28 @@ function PhotoFeedContent() {
     });
   }
 
+  // Stats derived from all photos
+  const stats = useMemo(() => {
+    let verified = 0;
+    let unverified = 0;
+    let checkpoints = 0;
+    let beforeCount = 0;
+    let afterCount = 0;
+    for (const p of photos) {
+      const asset = p.displayAsset ?? p.media_assets;
+      const code = asset?.verification_code ?? p.media_assets?.verification_code;
+      const hash = asset?.sha256_hash ?? p.media_assets?.sha256_hash;
+      if (code || hash) verified++;
+      else unverified++;
+      if (p.is_checkpoint) checkpoints++;
+      const meta = asset?.metadata as Record<string, unknown> | undefined;
+      const mode = ((meta?.mode as string) ?? "").toLowerCase();
+      if (mode === "before") beforeCount++;
+      else if (mode === "after") afterCount++;
+    }
+    return { total: photos.length, verified, unverified, checkpoints, beforeCount, afterCount };
+  }, [photos]);
+
   // Derive unique workers and tasks for filter dropdowns
   const uniqueWorkers = useMemo(() => {
     const names = new Set<string>();
@@ -459,6 +483,52 @@ function PhotoFeedContent() {
     }
   }
 
+  /** Export Proof Pack — generates a JSON manifest + opens download links for selected photos */
+  async function exportProofPack() {
+    if (selectedPhotos.size === 0) return;
+    setExporting(true);
+    try {
+      const selected = filteredPhotos.filter((p) => selectedPhotos.has(p.id));
+      const manifest = {
+        export_type: "FieldOps Proof Pack",
+        exported_at: new Date().toISOString(),
+        job_id: jobId,
+        job_name: jobName,
+        total_photos: selected.length,
+        photos: selected.map((p) => {
+          const asset = p.displayAsset ?? p.media_assets;
+          const originalAsset = p.media_assets;
+          return {
+            id: p.id,
+            captured_at: p.occurred_at,
+            worker: (p.users as { full_name: string } | null)?.full_name ?? "Unknown",
+            task: (p.tasks as { name: string } | null)?.name ?? null,
+            is_checkpoint: p.is_checkpoint,
+            verification_code: asset?.verification_code ?? originalAsset?.verification_code ?? null,
+            sha256_hash: asset?.sha256_hash ?? originalAsset?.sha256_hash ?? null,
+            mode: ((asset?.metadata as Record<string, unknown>)?.mode as string) ?? "standard",
+          };
+        }),
+      };
+      const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `proof-pack-${jobName ?? jobId ?? "export"}-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      // Also open the photo downloads
+      selected.forEach((photo) => {
+        if (signedUrls[photo.id]) {
+          window.open(signedUrls[photo.id], "_blank");
+        }
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const lightboxPhoto = selectedPhotoIndex !== null ? filteredPhotos[selectedPhotoIndex] : null;
 
   return (
@@ -478,6 +548,64 @@ function PhotoFeedContent() {
           <p className="mt-1 text-sm text-slate-400">
             {t("photos.liveUpdates", { count: photos.length })}
           </p>
+        )}
+
+        {/* Sub-tabs (job-scoped) */}
+        {jobId && (
+          <div className="mt-4 flex gap-1 rounded-xl bg-stone-100 p-1">
+            <a
+              href={`/photos?job_id=${encodeURIComponent(jobId)}&tab=feed`}
+              className={`flex-1 rounded-lg px-3 py-2 text-center text-xs font-semibold transition-all ${
+                activeTab === "feed"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-400 hover:text-slate-600"
+              }`}
+            >
+              Feed
+            </a>
+            <a
+              href={`/timeline?job_id=${encodeURIComponent(jobId)}`}
+              className="flex-1 rounded-lg px-3 py-2 text-center text-xs font-semibold text-slate-400 transition-all hover:text-slate-600"
+            >
+              Timeline
+            </a>
+            <a
+              href={`/map?job_id=${encodeURIComponent(jobId)}`}
+              className="flex-1 rounded-lg px-3 py-2 text-center text-xs font-semibold text-slate-400 transition-all hover:text-slate-600"
+            >
+              Map
+            </a>
+          </div>
+        )}
+
+        {/* Stats summary bar */}
+        {!loading && !error && photos.length > 0 && (
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="rounded-xl border border-stone-200 bg-white px-4 py-3 text-center">
+              <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
+              <p className="text-xs text-slate-500">Total Photos</p>
+            </div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
+              <p className="text-2xl font-bold text-emerald-700">{stats.verified}</p>
+              <p className="text-xs text-emerald-600">Verified</p>
+            </div>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center">
+              <p className="text-2xl font-bold text-amber-700">{stats.unverified}</p>
+              <p className="text-xs text-amber-600">Pending</p>
+            </div>
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-center">
+              <p className="text-2xl font-bold text-blue-700">{stats.checkpoints}</p>
+              <p className="text-xs text-blue-600">Checkpoints</p>
+            </div>
+            <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-center">
+              <p className="text-2xl font-bold text-violet-700">{stats.beforeCount}</p>
+              <p className="text-xs text-violet-600">Before</p>
+            </div>
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-center">
+              <p className="text-2xl font-bold text-rose-700">{stats.afterCount}</p>
+              <p className="text-xs text-rose-600">After</p>
+            </div>
+          </div>
         )}
       </div>
 
@@ -543,12 +671,21 @@ function PhotoFeedContent() {
               {t("photos.selectAll")}
             </label>
             {selectedPhotos.size > 0 && (
-              <button
-                onClick={downloadSelected}
-                className="rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-600 transition-colors"
-              >
-                {t("photos.downloadSelected")} ({selectedPhotos.size})
-              </button>
+              <>
+                <button
+                  onClick={downloadSelected}
+                  className="rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-600 transition-colors"
+                >
+                  {t("photos.downloadSelected")} ({selectedPhotos.size})
+                </button>
+                <button
+                  onClick={exportProofPack}
+                  disabled={exporting}
+                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                >
+                  {exporting ? "Exporting..." : `Export Proof Pack (${selectedPhotos.size})`}
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -599,6 +736,10 @@ function PhotoFeedContent() {
           const originalAsset = photo.media_assets as PhotoEntry["media_assets"];
           const asset = photo.displayAsset ?? originalAsset;
           const verificationCode = asset?.verification_code ?? originalAsset?.verification_code;
+          const sha256 = asset?.sha256_hash ?? originalAsset?.sha256_hash;
+          const isVerified = !!(verificationCode || sha256);
+          const meta = asset?.metadata as Record<string, unknown> | undefined;
+          const photoMode = ((meta?.mode as string) ?? "").toLowerCase();
           const stampData =
             ((asset?.metadata as Record<string, Record<string, unknown>>)?.proof_stamp) ??
             ((originalAsset?.metadata as Record<string, Record<string, unknown>>)?.proof_stamp);
@@ -607,7 +748,11 @@ function PhotoFeedContent() {
           return (
             <div
               key={photo.id}
-              className="break-inside-avoid mb-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition-shadow hover:shadow-md"
+              className={`break-inside-avoid mb-4 overflow-hidden rounded-2xl border shadow-sm transition-shadow hover:shadow-md ${
+                isVerified
+                  ? "border-emerald-200 bg-white"
+                  : "border-stone-200 bg-white"
+              }`}
             >
               {/* Photo with stamp overlay */}
               <div
@@ -652,11 +797,25 @@ function PhotoFeedContent() {
                     ))}
                   </div>
                 )}
-                {(photo.is_checkpoint as boolean) && (
-                  <span className="absolute right-2 top-2 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
-                    {t("photos.checkpoint")}
-                  </span>
-                )}
+
+                {/* Top-right badges */}
+                <div className="absolute right-2 top-2 flex flex-col items-end gap-1">
+                  {(photo.is_checkpoint as boolean) && (
+                    <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                      {t("photos.checkpoint")}
+                    </span>
+                  )}
+                  {photoMode === "before" && (
+                    <span className="rounded-full bg-violet-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                      BEFORE
+                    </span>
+                  )}
+                  {photoMode === "after" && (
+                    <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                      AFTER
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Photo info */}
@@ -674,11 +833,24 @@ function PhotoFeedContent() {
                     {t("photos.task", { taskName })}
                   </p>
                 )}
-                {verificationCode && (
-                  <code className="mt-2 inline-block rounded bg-slate-100 px-2 py-0.5 text-xs font-mono text-slate-600">
-                    {verificationCode as string}
-                  </code>
-                )}
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  {isVerified ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                      Verified
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                      Pending
+                    </span>
+                  )}
+                  {verificationCode && (
+                    <code className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-mono text-slate-600">
+                      {verificationCode as string}
+                    </code>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -708,6 +880,10 @@ function PhotoFeedContent() {
         const lbOriginalAsset = lightboxPhoto.media_assets as PhotoEntry["media_assets"];
         const lbAsset = lightboxPhoto.displayAsset ?? lbOriginalAsset;
         const lbVerificationCode = lbAsset?.verification_code ?? lbOriginalAsset?.verification_code;
+        const lbSha256 = lbAsset?.sha256_hash ?? lbOriginalAsset?.sha256_hash;
+        const lbIsVerified = !!(lbVerificationCode || lbSha256);
+        const lbMeta = lbAsset?.metadata as Record<string, unknown> | undefined;
+        const lbMode = ((lbMeta?.mode as string) ?? "").toLowerCase();
         const lbStampData =
           ((lbAsset?.metadata as Record<string, Record<string, unknown>>)?.proof_stamp) ??
           ((lbOriginalAsset?.metadata as Record<string, Record<string, unknown>>)?.proof_stamp);
@@ -724,9 +900,27 @@ function PhotoFeedContent() {
             >
               {/* Header */}
               <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
-                <h3 className="text-lg font-bold text-slate-900">
-                  {t("photos.enlarged")}
-                </h3>
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-bold text-slate-900">
+                    {t("photos.enlarged")}
+                  </h3>
+                  {lbIsVerified ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                      <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                      Verified
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                      Pending Verification
+                    </span>
+                  )}
+                  {lbMode === "before" && (
+                    <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-700">Before</span>
+                  )}
+                  {lbMode === "after" && (
+                    <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">After</span>
+                  )}
+                </div>
                 <button
                   onClick={closeLightbox}
                   className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
@@ -801,6 +995,13 @@ function PhotoFeedContent() {
                     </button>
                   </div>
                 )}
+                {/* SHA-256 integrity hash — tamper-proof evidence */}
+                {lbSha256 && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 mb-1">Integrity Hash (SHA-256)</p>
+                    <code className="block text-xs font-mono text-emerald-800 break-all">{lbSha256}</code>
+                  </div>
+                )}
                 {lbStampLines.length > 0 && (
                   <div className="rounded-lg bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-600">
                     {lbStampLines.map((line, i) => (
@@ -815,6 +1016,10 @@ function PhotoFeedContent() {
                     {t("photos.checkpoint")}
                   </span>
                 )}
+                {/* Photo counter */}
+                <p className="text-xs text-slate-400 text-center pt-2">
+                  {selectedPhotoIndex + 1} of {filteredPhotos.length}
+                </p>
               </div>
             </div>
           </div>

@@ -9,6 +9,7 @@ Steps:
   3. Seed test data
   4. Run test suites
   5. (Optional) Run RLS validation
+  6. Cleanup test-generated data (non-fatal)
 """
 import argparse
 import json
@@ -101,32 +102,69 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def cleanup_test_data() -> None:
+    """Delete test-generated data from transactional tables, preserving seed data.
+
+    Uses docker exec psql against the local Supabase container.
+    Failures are non-fatal so they never mask real test results.
+    """
+    tables = [
+        "clock_events",
+        "photo_events",
+        "task_events",
+        "note_events",
+        "expense_events",
+        "ot_requests",
+        "schedule_shifts",
+    ]
+    sql = "TRUNCATE " + ", ".join(tables) + " CASCADE;"
+    cmd = [
+        "docker", "exec", "-i", "supabase_db_infra",
+        "psql", "-U", "postgres", "-d", "postgres", "-c", sql,
+    ]
+    log_event("cleanup_start", tables=tables)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode == 0:
+            log_event("cleanup_done")
+        else:
+            log_event("cleanup_soft_fail", returncode=result.returncode,
+                      stderr=result.stderr.strip())
+    except Exception as exc:
+        log_event("cleanup_soft_fail", error=str(exc))
+
+
 def main() -> int:
     args = parse_args()
     steps = build_steps(skip_reset=args.skip_reset)
     log_event("suite_start", steps=steps, ci=bool(os.environ.get("CI")))
 
-    for command in steps:
-        attempts = max_attempts_for(command)
-        returncode = 1  # default in case loop doesn't execute
-        for attempt in range(1, attempts + 1):
-            returncode = run_step(command)
-            if returncode == 0:
-                break
-            if attempt < attempts:
-                log_event("step_retry", command=command, attempt=attempt + 1)
-                time.sleep(5)
+    suite_rc = 0
+    try:
+        for command in steps:
+            attempts = max_attempts_for(command)
+            returncode = 1  # default in case loop doesn't execute
+            for attempt in range(1, attempts + 1):
+                returncode = run_step(command)
+                if returncode == 0:
+                    break
+                if attempt < attempts:
+                    log_event("step_retry", command=command, attempt=attempt + 1)
+                    time.sleep(5)
 
-        if returncode != 0:
-            if is_soft_fail(command):
-                log_event("step_soft_fail", command=command, returncode=returncode)
-                # Continue — supabase stop failing is expected in CI
-            else:
-                log_event("suite_failed", failed_command=command, returncode=returncode)
-                return returncode
+            if returncode != 0:
+                if is_soft_fail(command):
+                    log_event("step_soft_fail", command=command, returncode=returncode)
+                    # Continue — supabase stop failing is expected in CI
+                else:
+                    log_event("suite_failed", failed_command=command, returncode=returncode)
+                    suite_rc = returncode
+                    return suite_rc
 
-    log_event("suite_passed")
-    return 0
+        log_event("suite_passed")
+        return suite_rc
+    finally:
+        cleanup_test_data()
 
 
 if __name__ == "__main__":

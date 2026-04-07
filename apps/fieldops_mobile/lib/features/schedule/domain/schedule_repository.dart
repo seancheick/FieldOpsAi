@@ -1,3 +1,4 @@
+import 'package:fieldops_mobile/features/schedule/domain/crew_schedule_shift.dart';
 import 'package:fieldops_mobile/features/schedule/domain/worker_schedule_shift.dart';
 
 abstract class ScheduleRepository {
@@ -11,6 +12,16 @@ abstract class ScheduleRepository {
     required String shiftId,
     String? notes,
   });
+
+  /// Fetches shifts for the foreman's crew (today + tomorrow).
+  Future<List<CrewScheduleShift>> fetchCrewSchedule({
+    DateTime? from,
+    DateTime? to,
+  });
+
+  /// Saves the reordered crew schedule to the backend.
+  /// Returns true on success.
+  Future<bool> saveCrewReorder(List<CrewScheduleShift> shifts);
 }
 
 enum ScheduleRepositoryErrorType { offline, unknown }

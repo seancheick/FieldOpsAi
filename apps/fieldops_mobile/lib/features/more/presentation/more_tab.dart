@@ -1,10 +1,12 @@
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
+import 'package:fieldops_mobile/features/auth/domain/user_role.dart';
 import 'package:fieldops_mobile/features/auth/presentation/session_controller.dart';
 import 'package:fieldops_mobile/features/expenses/presentation/expense_history_screen.dart';
 import 'package:fieldops_mobile/features/more/presentation/help_screen.dart';
 import 'package:fieldops_mobile/features/more/presentation/profile_screen.dart';
 import 'package:fieldops_mobile/features/more/presentation/settings_screen.dart';
 import 'package:fieldops_mobile/features/pto/presentation/pto_request_screen.dart';
+import 'package:fieldops_mobile/features/schedule/presentation/foreman_schedule_screen.dart';
 import 'package:fieldops_mobile/features/timecards/presentation/timecards_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,6 +22,7 @@ class MoreTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
+    final role = ref.watch(userRoleProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -37,6 +40,15 @@ class MoreTab extends ConsumerWidget {
           _MenuSection(
             title: 'Work',
             items: [
+              if (role.canManageCrew)
+                _MenuItem(
+                  icon: Icons.groups_rounded,
+                  title: 'Crew Schedule',
+                  subtitle: 'Reorder today\'s crew shifts on-site',
+                  color: const Color(0xFF2563EB),
+                  onTap: () =>
+                      _push(context, const ForemanScheduleScreen()),
+                ),
               _MenuItem(
                 icon: Icons.beach_access_rounded,
                 title: 'Time Off (PTO)',

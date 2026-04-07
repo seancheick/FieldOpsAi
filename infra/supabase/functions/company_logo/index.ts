@@ -78,7 +78,7 @@ serve(async (req) => {
     // Rate limit
     const rateLimit = await applyRateLimit(
       supabaseAdmin,
-      userRecord.company_id,
+      user.id,
       ENDPOINT,
       requestId,
       LOGO_RATE_LIMIT,

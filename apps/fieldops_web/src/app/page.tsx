@@ -1,8 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
+import {
+  Users,
+  Settings,
+  BarChart3,
+  ShieldCheck,
+  Clock,
+  CalendarDays,
+  FileText,
+  CalendarOff,
+  Receipt,
+  CreditCard,
+} from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useCurrentUser } from "@/lib/use-role";
 import { getSupabase } from "@/lib/supabase";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import type { JobSummary } from "@/lib/types";
@@ -52,8 +66,31 @@ function getInitials(name: string): string {
   return (parts[0]?.[0] ?? "?").toUpperCase();
 }
 
+const QUICK_ACTIONS: Record<string, { label: string; href: string; icon: React.ElementType }[]> = {
+  admin: [
+    { label: "dashboard.manageStaff", href: "/settings/staff", icon: Users },
+    { label: "dashboard.companySettings", href: "/settings", icon: Settings },
+    { label: "dashboard.viewReports", href: "/reports", icon: BarChart3 },
+    { label: "dashboard.auditLog", href: "/admin", icon: ShieldCheck },
+  ],
+  supervisor: [
+    { label: "dashboard.approveOt", href: "/overtime", icon: Clock },
+    { label: "dashboard.scheduleWorkers", href: "/schedule", icon: CalendarDays },
+    { label: "dashboard.viewReports", href: "/reports", icon: BarChart3 },
+    { label: "dashboard.approvePto", href: "/pto", icon: CalendarOff },
+  ],
+  worker: [
+    { label: "dashboard.mySchedule", href: "/schedule", icon: CalendarDays },
+    { label: "dashboard.submitExpense", href: "/expenses", icon: Receipt },
+    { label: "dashboard.requestPto", href: "/pto", icon: FileText },
+    { label: "dashboard.myTimecards", href: "/timecards", icon: CreditCard },
+  ],
+};
+QUICK_ACTIONS.foreman = QUICK_ACTIONS.worker;
+
 export default function DashboardPage() {
   const { t } = useI18n();
+  const { role } = useCurrentUser();
   const JOBS_PAGE_SIZE = 20;
 
   const [jobs, setJobs] = useState<JobSummary[]>([]);
@@ -274,6 +311,32 @@ export default function DashboardPage() {
           sparkColor="#d97706"
         />
       </div>
+
+      {/* Role-Based Quick Actions */}
+      {role && QUICK_ACTIONS[role] && (
+        <div className="mb-6">
+          <h2 className="mb-3 text-sm font-semibold text-slate-600">
+            {t("dashboard.quickActions")}
+          </h2>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {QUICK_ACTIONS[role].map((action) => {
+              const Icon = action.icon;
+              return (
+                <Link
+                  key={action.href}
+                  href={action.href}
+                  className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3.5 shadow-sm transition-all transition-transform hover:scale-[1.02] active:scale-[0.98] hover:border-slate-300 hover:shadow-md"
+                >
+                  <Icon className="h-5 w-5 flex-shrink-0 text-slate-500" />
+                  <span className="text-sm font-medium text-slate-700">
+                    {t(action.label)}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {loading && (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

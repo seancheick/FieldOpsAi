@@ -187,3 +187,113 @@ VALUES (
     'b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1'
 )
 ON CONFLICT DO NOTHING;
+
+-- ─── RLS isolation test data: clock_events ─────────────────
+
+INSERT INTO clock_events (id, company_id, job_id, user_id, event_type, captured_at, received_at)
+VALUES (
+    'ca000001-0000-0000-0000-000000000001',
+    '11111111-1111-1111-1111-111111111111',
+    '33333333-3333-3333-3333-333333333333',
+    '22222222-2222-2222-2222-222222222222',
+    'clock_in',
+    now() - interval '2 hours',
+    now() - interval '2 hours'
+)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO clock_events (id, company_id, job_id, user_id, event_type, captured_at, received_at)
+VALUES (
+    'cb000001-0000-0000-0000-000000000001',
+    'b0b0b0b0-b0b0-b0b0-b0b0-b0b0b0b0b0b0',
+    'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2',
+    'b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1',
+    'clock_in',
+    now() - interval '1 hour',
+    now() - interval '1 hour'
+)
+ON CONFLICT DO NOTHING;
+
+-- ─── RLS isolation test data: schedule_shifts ──────────────
+
+INSERT INTO schedule_shifts (id, company_id, job_id, worker_id, shift_date, start_time, end_time, status)
+VALUES (
+    'sa000001-0000-0000-0000-000000000001',
+    '11111111-1111-1111-1111-111111111111',
+    '33333333-3333-3333-3333-333333333333',
+    '22222222-2222-2222-2222-222222222222',
+    CURRENT_DATE,
+    '08:00',
+    '17:00',
+    'draft'
+)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO schedule_shifts (id, company_id, job_id, worker_id, shift_date, start_time, end_time, status)
+VALUES (
+    'sb000001-0000-0000-0000-000000000001',
+    'b0b0b0b0-b0b0-b0b0-b0b0-b0b0b0b0b0b0',
+    'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2',
+    'b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1',
+    CURRENT_DATE,
+    '09:00',
+    '18:00',
+    'draft'
+)
+ON CONFLICT DO NOTHING;
+
+-- ─── RLS isolation test data: expense_events ───────────────
+
+INSERT INTO expense_events (id, company_id, user_id, job_id, amount, category, description, status)
+VALUES (
+    'ea000001-0000-0000-0000-000000000001',
+    '11111111-1111-1111-1111-111111111111',
+    '22222222-2222-2222-2222-222222222222',
+    '33333333-3333-3333-3333-333333333333',
+    25.50,
+    'materials',
+    'Test expense A',
+    'pending'
+)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO expense_events (id, company_id, user_id, job_id, amount, category, description, status)
+VALUES (
+    'eb000001-0000-0000-0000-000000000001',
+    'b0b0b0b0-b0b0-b0b0-b0b0-b0b0b0b0b0b0',
+    'b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1',
+    'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2',
+    42.00,
+    'fuel',
+    'Test expense B',
+    'pending'
+)
+ON CONFLICT DO NOTHING;
+
+-- ─── RLS isolation test data: pto_requests ─────────────────
+
+INSERT INTO pto_requests (id, company_id, user_id, type, start_date, end_date, status, notes)
+VALUES (
+    'pa000001-0000-0000-0000-000000000001',
+    '11111111-1111-1111-1111-111111111111',
+    '22222222-2222-2222-2222-222222222222',
+    'vacation',
+    CURRENT_DATE + interval '7 days',
+    CURRENT_DATE + interval '9 days',
+    'pending',
+    'Test PTO A'
+)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO pto_requests (id, company_id, user_id, type, start_date, end_date, status, notes)
+VALUES (
+    'pb000001-0000-0000-0000-000000000001',
+    'b0b0b0b0-b0b0-b0b0-b0b0-b0b0b0b0b0b0',
+    'b1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1',
+    'sick',
+    CURRENT_DATE + interval '3 days',
+    CURRENT_DATE + interval '4 days',
+    'pending',
+    'Test PTO B'
+)
+ON CONFLICT DO NOTHING;

@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-04-06T14:19:56.741Z",
+  "timestamp": "2026-04-07T15:13:42.412Z",
   "projectRoot": "/Users/seancheick/FieldsOps_ai",
   "structure": {
     "hasPackageJson": true,
@@ -7,5 +7,5 @@
     "hasClaudeConfig": true,
     "hasClaudeFlow": true
   },
-  "scannedAt": 1775485196741
+  "scannedAt": 1775574822412
 }

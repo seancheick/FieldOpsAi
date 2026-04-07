@@ -149,6 +149,7 @@ export default function CompanySettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [dirty, setDirty] = useState(false);
 
   /* ── Load company data ───────────────────────────────────── */
 
@@ -173,9 +174,37 @@ export default function CompanySettingsPage() {
       setLogoUrl(data.logo_url ?? null);
       setSettingsVersion(data.settings_version ?? 0);
 
-      // Merge loaded settings with defaults
-      const loaded = data.settings ?? {};
-      setSettings({ ...DEFAULT_SETTINGS, ...loaded });
+      // Normalize DB settings format → page format
+      const raw = data.settings ?? {};
+      const notifications = raw.notifications ?? {};
+      const otRules = raw.ot_rules ?? {};
+      const onboard = raw.onboarding_steps ?? {};
+
+      setSettings({
+        ...DEFAULT_SETTINGS,
+        // Direct-mapped keys
+        pay_period: raw.pay_period ?? DEFAULT_SETTINGS.pay_period,
+        time_rounding: raw.time_rounding ?? DEFAULT_SETTINGS.time_rounding,
+        gps_required: raw.gps_required ?? DEFAULT_SETTINGS.gps_required,
+        break_alerts: raw.break_alerts ?? DEFAULT_SETTINGS.break_alerts,
+        photo_on_clockin: raw.photo_on_clockin ?? DEFAULT_SETTINGS.photo_on_clockin,
+        // Renamed keys (DB → page)
+        stamp_mode: raw.stamp_branding === "name_only" ? "name" : raw.stamp_mode ?? DEFAULT_SETTINGS.stamp_mode,
+        geofence_radius: raw.geofence_radius_default_m ?? raw.geofence_radius ?? DEFAULT_SETTINGS.geofence_radius,
+        break_duration: raw.break_duration_min ?? raw.break_duration ?? DEFAULT_SETTINGS.break_duration,
+        ot_threshold_weekly: otRules.weekly_threshold ?? raw.ot_threshold_weekly ?? DEFAULT_SETTINGS.ot_threshold_weekly,
+        ot_jurisdiction: otRules.daily_threshold != null ? "california" : raw.ot_jurisdiction ?? DEFAULT_SETTINGS.ot_jurisdiction,
+        // Nested notifications → flat keys
+        ot_approach_alert: notifications.ot_approach ?? raw.ot_approach_alert ?? DEFAULT_SETTINGS.ot_approach_alert,
+        missed_clockin_alert: notifications.missed_clockin ?? raw.missed_clockin_alert ?? DEFAULT_SETTINGS.missed_clockin_alert,
+        shift_reminder: notifications.shift_reminder ?? raw.shift_reminder ?? DEFAULT_SETTINGS.shift_reminder,
+        // Onboarding key remap
+        onboarding_steps: {
+          upload_logo: onboard.logo_uploaded ?? onboard.upload_logo ?? false,
+          set_pay_period: onboard.pay_period_set ?? onboard.set_pay_period ?? false,
+          invite_first_staff: onboard.first_staff_invited ?? onboard.invite_first_staff ?? false,
+        },
+      });
     } finally {
       setLoading(false);
     }
@@ -223,6 +252,7 @@ export default function CompanySettingsPage() {
       if (error) throw error;
 
       setSettingsVersion((prev) => prev + 1);
+      setDirty(false);
       setToast({ type: "success", message: "Settings saved" });
     } catch {
       setToast({ type: "error", message: "Failed to save settings" });
@@ -236,6 +266,7 @@ export default function CompanySettingsPage() {
 
   function updateSetting<K extends keyof CompanySettings>(key: K, value: CompanySettings[K]) {
     setSettings((prev) => ({ ...prev, [key]: value }));
+    setDirty(true);
   }
 
   /* ── Access denied ───────────────────────────────────────── */
@@ -345,32 +376,32 @@ export default function CompanySettingsPage() {
               <Field
                 label="Company Name"
                 value={companyName}
-                onChange={setCompanyName}
+                onChange={(v) => { setCompanyName(v); setDirty(true); }}
                 required
               />
               <div className="grid gap-4 sm:grid-cols-2">
                 <SelectField
                   label="Industry"
                   value={industry}
-                  onChange={setIndustry}
+                  onChange={(v) => { setIndustry(v); setDirty(true); }}
                   options={INDUSTRY_VALUES.map((v) => ({ value: v, label: INDUSTRY_LABELS[v] ?? v }))}
                 />
                 <SelectField
                   label="Timezone"
                   value={timezone}
-                  onChange={setTimezone}
+                  onChange={(v) => { setTimezone(v); setDirty(true); }}
                   options={TIMEZONE_VALUES.map((v) => ({ value: v, label: TIMEZONE_LABELS[v] ?? v }))}
                 />
               </div>
-              <Field label="Address" value={address} onChange={setAddress} placeholder="123 Main St, City, State" />
+              <Field label="Address" value={address} onChange={(v) => { setAddress(v); setDirty(true); }} placeholder="123 Main St, City, State" />
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Phone" value={phone} onChange={setPhone} placeholder="(555) 123-4567" type="tel" />
-                <Field label="Email" value={email} onChange={setEmail} placeholder="office@company.com" type="email" />
+                <Field label="Phone" value={phone} onChange={(v) => { setPhone(v); setDirty(true); }} placeholder="(555) 123-4567" type="tel" />
+                <Field label="Email" value={email} onChange={(v) => { setEmail(v); setDirty(true); }} placeholder="office@company.com" type="email" />
               </div>
               <SelectField
                 label="Default Locale"
                 value={defaultLocale}
-                onChange={setDefaultLocale}
+                onChange={(v) => { setDefaultLocale(v); setDirty(true); }}
                 options={[
                   { value: "en", label: "English" },
                   { value: "es", label: "Spanish" },
@@ -552,21 +583,33 @@ export default function CompanySettingsPage() {
         )}
       </div>
 
-      {/* Save button + toast */}
+      {/* Save button + toast + unsaved indicator */}
       <div className="mt-6 flex items-center justify-between pb-8">
-        {toast && (
-          <span
-            className={`text-sm font-medium ${
-              toast.type === "success" ? "text-green-600" : "text-red-500"
-            }`}
-          >
-            {toast.message}
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {dirty && !toast && (
+            <span className="flex items-center gap-1.5 text-xs font-medium text-amber-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              Unsaved changes
+            </span>
+          )}
+          {toast && (
+            <span
+              className={`text-sm font-medium ${
+                toast.type === "success" ? "text-green-600" : "text-red-500"
+              }`}
+            >
+              {toast.message}
+            </span>
+          )}
+        </div>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="ml-auto rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
+          className={`rounded-xl px-8 py-3 text-sm font-semibold shadow-sm transition-all ${
+            dirty
+              ? "bg-amber-500 text-white hover:bg-amber-600"
+              : "bg-slate-900 text-white hover:bg-slate-800"
+          } disabled:opacity-50`}
         >
           {saving ? "Saving..." : "Save Changes"}
         </button>

@@ -68,7 +68,7 @@ serve(async (req) => {
 
       let query = supabaseAdmin
         .from("timecard_signatures")
-        .select("id, worker_id, supervisor_id, week_start, week_end, worker_signed_at, supervisor_signed_at, total_regular_hours, total_ot_hours, status, created_at, users!timecard_signatures_worker_id_fkey(full_name)")
+        .select("id, worker_id, supervisor_id, week_start, week_end, worker_signed_at, supervisor_signed_at, total_regular_hours, total_ot_hours, status, created_at")
         .eq("company_id", userRecord.company_id)
         .order("week_start", { ascending: false })
         .limit(50)
@@ -93,8 +93,31 @@ serve(async (req) => {
         return errorResponse(requestId, 500, "INTERNAL_ERROR", "Failed to fetch timecards")
       }
 
+      const workerIds = Array.from(new Set((timecards || []).map((t: any) => t.worker_id).filter(Boolean)))
+      const workerNameById = new Map<string, string>()
+      if (workerIds.length > 0) {
+        const { data: workers, error: workersError } = await supabaseAdmin
+          .from("users")
+          .select("id, full_name")
+          .in("id", workerIds)
+
+        if (workersError) {
+          logRequestError(ENDPOINT, requestId, workersError)
+          return errorResponse(requestId, 500, "INTERNAL_ERROR", "Failed to resolve worker names")
+        }
+
+        for (const w of (workers || [])) {
+          if (w?.id) workerNameById.set(w.id, w.full_name || "Unknown worker")
+        }
+      }
+
+      const shaped = (timecards || []).map((tc: any) => ({
+        ...tc,
+        users: { full_name: workerNameById.get(tc.worker_id) || "Unknown worker" },
+      }))
+
       logRequestResult(ENDPOINT, requestId, 200, { user_id: user.id, count: (timecards || []).length })
-      return jsonResponse({ timecards: timecards || [], request_id: requestId }, 200, requestId)
+      return jsonResponse({ timecards: shaped, request_id: requestId }, 200, requestId)
     }
 
     // ─── POST: Generate, sign, or countersign ────────────────

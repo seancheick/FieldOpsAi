@@ -86,7 +86,11 @@ function TimelineContent() {
   }, [jobId]);
 
   useEffect(() => {
-    if (!jobId) return;
+    if (!jobId) {
+      setLoading(false);
+      setError("no_job");
+      return;
+    }
 
     loadTimeline();
 
