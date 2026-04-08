@@ -2,7 +2,9 @@ import 'package:fieldops_mobile/app/theme/app_theme.dart';
 import 'package:fieldops_mobile/features/auth/domain/user_role.dart';
 import 'package:fieldops_mobile/features/auth/presentation/session_controller.dart';
 import 'package:fieldops_mobile/features/expenses/presentation/expense_history_screen.dart';
+import 'package:fieldops_mobile/features/foreman/presentation/crew_clock_screen.dart';
 import 'package:fieldops_mobile/features/more/presentation/help_screen.dart';
+import 'package:fieldops_mobile/features/time_corrections/presentation/time_correction_screen.dart';
 import 'package:fieldops_mobile/features/more/presentation/profile_screen.dart';
 import 'package:fieldops_mobile/features/more/presentation/settings_screen.dart';
 import 'package:fieldops_mobile/features/pto/presentation/pto_request_screen.dart';
@@ -48,6 +50,22 @@ class MoreTab extends ConsumerWidget {
                   color: const Color(0xFF2563EB),
                   onTap: () =>
                       _push(context, const ForemanScheduleScreen()),
+                ),
+              if (role.canManageCrew)
+                _MenuItem(
+                  icon: Icons.login_rounded,
+                  title: 'Crew Clock-In',
+                  subtitle: 'Clock crew members in or out on their behalf',
+                  color: const Color(0xFF0891B2),
+                  onTap: () => _push(context, const CrewClockScreen()),
+                ),
+              if (role.canManageCrew)
+                _MenuItem(
+                  icon: Icons.edit_calendar_rounded,
+                  title: 'Time Corrections',
+                  subtitle: 'Review and approve clock time adjustments',
+                  color: const Color(0xFFD97706),
+                  onTap: () => _push(context, const TimeCorrectionScreen()),
                 ),
               _MenuItem(
                 icon: Icons.beach_access_rounded,

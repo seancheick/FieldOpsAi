@@ -819,8 +819,10 @@ They don't affect production safety but improve robustness and maintainability.
   - **Test updates**: All 10 widget_test.dart tests updated for 5-tab navigation (navigate to Jobs tab before job assertions, Home tab for clock status). 71/71 tests pass. `flutter analyze` 0 issues.
   - Evidence: `apps/fieldops_mobile/lib/app/main_shell.dart`, `apps/fieldops_mobile/lib/features/home/presentation/home_tab.dart`, `apps/fieldops_mobile/lib/features/jobs/presentation/jobs_tab.dart`, `apps/fieldops_mobile/lib/features/jobs/presentation/job_detail_screen.dart`, `apps/fieldops_mobile/lib/features/history/**`, `apps/fieldops_mobile/lib/features/more/**`, `apps/fieldops_mobile/test/widget_test.dart`
 
-- [ ] Crew clock-in (foreman clocks for crew)
-  - Notes: Deferred to Sprint 8 — requires DB schema, edge function, mobile + web changes
+- [x] Crew clock-in (foreman clocks for crew)
+  - Type: Mobile | Priority: HIGH | Status: Done
+  - Agent findings: Completed 2026-04-08. CrewClockScreen groups crew by status (clocked-in/on-break/late/absent). Per-worker loading state via Riverpod 3 family AsyncNotifier (CrewClockController). Confirmation dialog before action. Wired into MoreTab Work section (canManageCrew gate). `flutter analyze` clean.
+  - Evidence: `apps/fieldops_mobile/lib/features/foreman/presentation/crew_clock_screen.dart`, `crew_clock_controller.dart`, `crew_clock_repository.dart`
 - [x] Shift wrap-up form (clock-out questions)
   - Type: Mobile | Priority: Medium | Status: Done
   - Agent findings: Completed 2026-04-05. Shift wrap-up summary on clock-out with task/note fields.
@@ -835,8 +837,14 @@ They don't affect production safety but improve robustness and maintainability.
   - Type: Mobile | Priority: HIGH | Status: Done
   - Agent findings: Completed 2026-04-05. SafetyChecklistScreen with numbered question cards, Yes/No/Flag toggle buttons, flagged warning banner, submit button. SafetyChecklistController with Notifier + sentinel copyWith. SafetyRepository + SupabaseSafetyRepository calling /safety edge function. Wired into JobCard with green "Safety Checklist" button when clocked in. `flutter analyze` clean.
   - Evidence: `apps/fieldops_mobile/lib/features/safety/**`, `apps/fieldops_mobile/lib/features/home/presentation/widgets/job_card.dart`
-- [ ] Budgeting / budget vs actual
-- [ ] Manual time entry override (with audit trail)
+- [x] Budgeting / budget vs actual
+  - Type: Full-stack | Priority: HIGH | Status: Done
+  - Agent findings: Completed 2026-04-08. JobBudgetScreen shows hours/cost progress bars, variance chips, labor breakdown. BudgetCard with isOverBudget/isApproachingLimit badges. JobBudgetSummary domain model. BudgetRepository + SupabaseBudgetRepository. Backend: budget edge function + migration 20260408000000_job_budgets.sql. Wired into JobDetailScreen as "Job Budget" action tile (canManageCrew gate). `flutter analyze` clean.
+  - Evidence: `apps/fieldops_mobile/lib/features/budgeting/**`, `infra/supabase/functions/budget/index.ts`, `infra/supabase/migrations/20260408000000_job_budgets.sql`
+- [x] Manual time entry override (with audit trail)
+  - Type: Full-stack | Priority: HIGH | Status: Done
+  - Agent findings: Completed 2026-04-08. TimeCorrectionScreen with 3-tab view (Pending/Approved/Denied). Approve/deny workflow with reason dialog. TimeCorrectionForm bottom sheet for creating corrections (event type, corrected time picker, reason, evidence notes). TimeCorrectionRepository + SupabaseTimeCorrectionRepository. Backend: time_corrections edge function + migration 20260408000001_time_corrections.sql. Wired into MoreTab Work section (canManageCrew gate). `flutter analyze` clean.
+  - Evidence: `apps/fieldops_mobile/lib/features/time_corrections/**`, `infra/supabase/functions/time_corrections/index.ts`, `infra/supabase/migrations/20260408000001_time_corrections.sql`
 - [ ] Email/SMS worker invites (deep link activation)
 - [ ] Photo annotation & markup (draw on photos)
 

@@ -1,5 +1,6 @@
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
 import 'package:fieldops_mobile/features/schedule/data/schedule_repository_provider.dart';
+import 'package:fieldops_mobile/features/schedule/domain/crew_schedule_shift.dart';
 import 'package:fieldops_mobile/features/schedule/domain/schedule_repository.dart';
 import 'package:fieldops_mobile/features/schedule/domain/worker_schedule_shift.dart';
 import 'package:fieldops_mobile/features/schedule/presentation/worker_schedule_screen.dart';
@@ -77,5 +78,18 @@ class FakeScheduleRepository implements ScheduleRepository {
     String? notes,
   }) async {
     return 'swap-1';
+  }
+
+  @override
+  Future<List<CrewScheduleShift>> fetchCrewSchedule({
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    return [];
+  }
+
+  @override
+  Future<bool> saveCrewReorder(List<CrewScheduleShift> shifts) async {
+    return true;
   }
 }

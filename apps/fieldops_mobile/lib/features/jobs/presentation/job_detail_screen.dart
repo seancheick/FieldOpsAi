@@ -1,5 +1,7 @@
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
+import 'package:fieldops_mobile/features/auth/domain/user_role.dart';
 import 'package:fieldops_mobile/features/breadcrumbs/presentation/breadcrumb_playback_screen.dart';
+import 'package:fieldops_mobile/features/budgeting/presentation/job_budget_screen.dart';
 import 'package:fieldops_mobile/features/camera/data/photo_draft_repository.dart';
 import 'package:fieldops_mobile/features/camera/domain/photo_capture_result.dart';
 import 'package:fieldops_mobile/features/camera/presentation/camera_capture_screen.dart';
@@ -35,6 +37,7 @@ class JobDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
+    final role = ref.watch(userRoleProvider);
     final isClockedInHere = clockState.isClockedInFor(job.jobId);
     final isSubmitting = clockState.isSubmitting(job.jobId);
     final draftCountAsync =
@@ -321,6 +324,26 @@ class JobDetailScreen extends ConsumerWidget {
               );
             },
           ),
+
+          if (role.canManageCrew) ...[
+            const SizedBox(height: 10),
+            _ActionTile(
+              icon: Icons.account_balance_wallet_rounded,
+              title: 'Job Budget',
+              subtitle: 'Budget vs actual hours and cost',
+              color: const Color(0xFF059669),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => JobBudgetScreen(
+                      jobId: job.jobId,
+                      jobName: job.jobName,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
 
           if (isClockedInHere) ...[
             const SizedBox(height: 10),
