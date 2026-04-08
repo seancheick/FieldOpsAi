@@ -1148,3 +1148,46 @@ They don't affect production safety but improve robustness and maintainability.
 - ✅ CI pipeline fixed (Gitleaks + lint, Docker tests deferred)
 
 **After Sprint 6:** Sprint 7 = field intelligence + code quality + scalability foundations.
+
+---
+
+## Completed this session (2026-04-07)
+
+- ✅ Foreman mobile schedule drag (ForemanScheduleScreen — ReorderableListView, haptic feedback, date section headers, optimistic reorder)
+- ✅ Gantt-style timeline overlay for multi-day jobs (mergeConsecutiveShifts, gradient merged bars, week/2-week/month views)
+- ✅ Role-based dashboard quick actions (4 actions per role: admin/supervisor/worker/foreman, i18n EN+ES)
+- ✅ Dark mode glassmorphism on Card component (cascades to all pages)
+- ✅ Reusable component library (StatusBadge, KpiCard, ActionCard, PhotoStampCard)
+- ✅ CI pipeline stabilized (split unit + integration, on-demand Docker gate)
+- ✅ RLS 2-company isolation expanded to 7 tables (clock_events, schedule_shifts, expense_events, pto_requests added)
+- ✅ Regression suite cleanup (TRUNCATE transactional tables after every run)
+- ✅ Crew schedule localization — 5 languages (EN/ES/FR/TH/ZH)
+- ✅ Timeline page: fixed missing job ID infinite load, photo link query param
+- ✅ Logo endpoint: rate limiting by user ID instead of company ID
+- ✅ Device tokens: RLS policy syntax corrected for supervisor read access
+- ✅ Timecard: worker name resolution fixed (separate fetch instead of join)
+- ✅ Photo optimization (WebP, 80% quality, OffscreenCanvas, max 2048px)
+- ✅ Feature flags system (DB table + per-company overrides + edge function)
+- ✅ Dart model codegen from Supabase schema (scripts/generate_dart_models.py)
+- ✅ E2E Playwright tests (auth, dashboard, nav, schedule, settings, workers)
+
+## Completed this session (2026-04-08)
+
+- ✅ Crew clock-in — foreman clocks crew in/out on their behalf (CrewClockScreen, CrewClockController Riverpod 3 family, confirmation dialog, per-worker loading state, wired into MoreTab)
+- ✅ Budgeting / budget vs actual — JobBudgetScreen with hours/cost progress bars, variance chips, labor breakdown (BudgetCard, JobBudgetSummary, BudgetRepository, Supabase edge function + migration, wired into JobDetailScreen)
+- ✅ Manual time entry override — TimeCorrectionScreen with Pending/Approved/Denied tabs, approve/deny workflow, TimeCorrectionForm bottom sheet, audit trail (TimeCorrectionRepository, Supabase edge function + migration, wired into MoreTab)
+- ✅ Fixed Riverpod 3 crew_clock_controller.dart (removed riverpod_annotation codegen, manual AsyncNotifier.family)
+- ✅ Fixed test mocks — added fetchCrewSchedule + saveCrewReorder to both FakeScheduleRepository classes
+- ✅ flutter analyze: 0 errors, 0 warnings across entire codebase
+- ✅ Committed: `0d25f80`
+
+## Sprint 7 Status (as of 2026-04-08)
+
+**Done:** Code quality hardening, scalability foundations, field intelligence features, foreman flows, reusable components, CI stabilization, crew clock-in, budgeting, time corrections.
+
+**Deferred to Sprint 8:**
+- `[ ]` Equipment tracking (GPS + machine hours) — schema + edge function + mobile UI required
+- `[ ]` Email/SMS worker invites (deep link activation)
+- `[ ]` Photo annotation & markup (draw on photos)
+
+**Ready for Sprint 8:** Billing (Stripe), integrations (QuickBooks, ADP, Procore), SOC 2 prep.
