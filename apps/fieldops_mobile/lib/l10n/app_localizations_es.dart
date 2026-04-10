@@ -156,26 +156,4 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get scheduleUnavailable => 'Horario no disponible';
-
-  @override
-  String get crewSchedule => 'Horario del equipo';
-
-  @override
-  String get pendingSupervisorApproval => 'Pendiente de aprobación del supervisor';
-
-  @override
-  String get noCrewShifts => 'Sin turnos de equipo';
-
-  @override
-  String get crewShiftsWillAppear =>
-      'Los turnos de tu equipo aparecerán aquí una vez publicados.';
-
-  @override
-  String get saveChanges => 'Guardar cambios';
-
-  @override
-  String get scheduleChangesSaved => 'Cambios de horario guardados';
-
-  @override
-  String get failedToSaveChanges => 'Error al guardar los cambios';
 }

@@ -373,48 +373,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Schedule unavailable'**
   String get scheduleUnavailable;
-
-  /// No description provided for @crewSchedule.
-  ///
-  /// In en, this message translates to:
-  /// **'Crew Schedule'**
-  String get crewSchedule;
-
-  /// No description provided for @pendingSupervisorApproval.
-  ///
-  /// In en, this message translates to:
-  /// **'Pending Supervisor Approval'**
-  String get pendingSupervisorApproval;
-
-  /// No description provided for @noCrewShifts.
-  ///
-  /// In en, this message translates to:
-  /// **'No crew shifts'**
-  String get noCrewShifts;
-
-  /// No description provided for @crewShiftsWillAppear.
-  ///
-  /// In en, this message translates to:
-  /// **'Shifts for your crew will appear here once they are published.'**
-  String get crewShiftsWillAppear;
-
-  /// No description provided for @saveChanges.
-  ///
-  /// In en, this message translates to:
-  /// **'Save Changes'**
-  String get saveChanges;
-
-  /// No description provided for @scheduleChangesSaved.
-  ///
-  /// In en, this message translates to:
-  /// **'Schedule changes saved'**
-  String get scheduleChangesSaved;
-
-  /// No description provided for @failedToSaveChanges.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to save changes'**
-  String get failedToSaveChanges;
 }
 
 class _AppLocalizationsDelegate

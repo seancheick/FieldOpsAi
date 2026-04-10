@@ -1,7 +1,10 @@
+import 'package:drift/native.dart';
 import 'package:fieldops_mobile/app/app.dart';
 import 'package:fieldops_mobile/core/config/fieldops_environment.dart';
+import 'package:fieldops_mobile/core/data/local_database.dart';
 import 'package:fieldops_mobile/features/auth/data/auth_repository_provider.dart';
 import 'package:fieldops_mobile/features/auth/domain/auth_repository.dart';
+import 'package:fieldops_mobile/features/auth/domain/user_role.dart';
 import 'package:fieldops_mobile/features/clock/data/clock_repository_provider.dart';
 import 'package:fieldops_mobile/features/clock/domain/clock_repository.dart';
 import 'package:fieldops_mobile/features/jobs/data/jobs_repository_provider.dart';
@@ -404,6 +407,17 @@ Widget _buildTestApp({
     overrides: [
       fieldOpsEnvironmentProvider.overrideWithValue(environment),
       authRepositoryProvider.overrideWithValue(repository),
+      // Stub Supabase-dependent providers so tests never call Supabase.instance.
+      userRoleProvider.overrideWithValue(UserRole.worker),
+      // Use an in-memory Drift database — avoids FlutterSecureStorage + SQLCipher
+      // which are unavailable in the test environment.
+      localDatabaseProvider.overrideWith(
+        (ref) {
+          final db = LocalDatabase.forTesting(NativeDatabase.memory());
+          ref.onDispose(db.close);
+          return db;
+        },
+      ),
       if (jobsRepository != null)
         jobsRepositoryProvider.overrideWithValue(jobsRepository),
       if (clockRepository != null)

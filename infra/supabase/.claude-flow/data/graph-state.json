@@ -1,0 +1,635 @@
+{
+  "version": 1,
+  "updatedAt": 1775848679029,
+  "nodeCount": 54,
+  "nodes": {
+    "mem-MEMORY-pipeline-overview": {
+      "id": "mem-MEMORY-pipeline-overview",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678970
+    },
+    "mem-MEMORY-audit-workflow--mandatory-afte": {
+      "id": "mem-MEMORY-audit-workflow--mandatory-afte",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678970
+    },
+    "mem-MEMORY-key-invariants": {
+      "id": "mem-MEMORY-key-invariants",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678970
+    },
+    "mem-MEMORY-key-fixes-made--sessions-": {
+      "id": "mem-MEMORY-key-fixes-made--sessions-",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678970
+    },
+    "mem-MEMORY-known-remaining-issues": {
+      "id": "mem-MEMORY-known-remaining-issues",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678970
+    },
+    "mem-MEMORY-iqm-structure-notes": {
+      "id": "mem-MEMORY-iqm-structure-notes",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678970
+    },
+    "mem-MEMORY-thorne-specific-notes": {
+      "id": "mem-MEMORY-thorne-specific-notes",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678970
+    },
+    "mem-reference_calcom_api----": {
+      "id": "mem-reference_calcom_api----",
+      "category": "reference_calcom_api",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678972
+    },
+    "mem-MEMORY----project-final-db-architectu": {
+      "id": "mem-MEMORY----project-final-db-architectu",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678973
+    },
+    "mem-feedback_accuracy_rules----": {
+      "id": "mem-feedback_accuracy_rules----",
+      "category": "feedback_accuracy_rules",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678974
+    },
+    "mem-feedback_no_bulk_api_enrichment----": {
+      "id": "mem-feedback_no_bulk_api_enrichment----",
+      "category": "feedback_no_bulk_api_enrichment",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678975
+    },
+    "mem-project_data_file_roles----": {
+      "id": "mem-project_data_file_roles----",
+      "category": "project_data_file_roles",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678975
+    },
+    "mem-project_data_file_roles-data-file-scoring-directions": {
+      "id": "mem-project_data_file_roles-data-file-scoring-directions",
+      "category": "project_data_file_roles",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678976
+    },
+    "mem-project_final_db_architecture----": {
+      "id": "mem-project_final_db_architecture----",
+      "category": "project_final_db_architecture",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678976
+    },
+    "mem-project_final_db_architecture-final-db-architecture---correc": {
+      "id": "mem-project_final_db_architecture-final-db-architecture---correc",
+      "category": "project_final_db_architecture",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678976
+    },
+    "mem-project_flutter_roadmap_v2----": {
+      "id": "mem-project_flutter_roadmap_v2----",
+      "category": "project_flutter_roadmap_v2",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678977
+    },
+    "mem-reference_flutter_repo----": {
+      "id": "mem-reference_flutter_repo----",
+      "category": "reference_flutter_repo",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678977
+    },
+    "mem-reference_supabase_project----": {
+      "id": "mem-reference_supabase_project----",
+      "category": "reference_supabase_project",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678977
+    },
+    "mem-MEMORY----component-extraction-prefer": {
+      "id": "mem-MEMORY----component-extraction-prefer",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678978
+    },
+    "mem-feedback_component_extraction----": {
+      "id": "mem-feedback_component_extraction----",
+      "category": "feedback_component_extraction",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678978
+    },
+    "mem-feedback_pipeline----": {
+      "id": "mem-feedback_pipeline----",
+      "category": "feedback_pipeline",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678978
+    },
+    "mem-MEMORY-project-architecture": {
+      "id": "mem-MEMORY-project-architecture",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678979
+    },
+    "mem-MEMORY-user-preferences": {
+      "id": "mem-MEMORY-user-preferences",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678979
+    },
+    "mem-MEMORY-historical--may-be-outdated-": {
+      "id": "mem-MEMORY-historical--may-be-outdated-",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678979
+    },
+    "mem-css-fixes-summary-root-cause--session-2---critic": {
+      "id": "mem-css-fixes-summary-root-cause--session-2---critic",
+      "category": "css-fixes-summary",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678980
+    },
+    "mem-css-fixes-summary-root-cause--session-1-": {
+      "id": "mem-css-fixes-summary-root-cause--session-1-",
+      "category": "css-fixes-summary",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678980
+    },
+    "mem-css-fixes-summary-fixes-applied": {
+      "id": "mem-css-fixes-summary-fixes-applied",
+      "category": "css-fixes-summary",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678980
+    },
+    "mem-css-fixes-summary-testing-checklist": {
+      "id": "mem-css-fixes-summary-testing-checklist",
+      "category": "css-fixes-summary",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678980
+    },
+    "mem-css-fixes-summary-fixes-applied--session-2-": {
+      "id": "mem-css-fixes-summary-fixes-applied--session-2-",
+      "category": "css-fixes-summary",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678980
+    },
+    "mem-css-fixes-summary-session-2-lesson--why-it-took-": {
+      "id": "mem-css-fixes-summary-session-2-lesson--why-it-took-",
+      "category": "css-fixes-summary",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678980
+    },
+    "mem-css-fixes-summary-session-3---final-3-fixes--all": {
+      "id": "mem-css-fixes-summary-session-3---final-3-fixes--all",
+      "category": "css-fixes-summary",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678980
+    },
+    "mem-css-fixes-summary-key-learning": {
+      "id": "mem-css-fixes-summary-key-learning",
+      "category": "css-fixes-summary",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678980
+    },
+    "mem-feedback_blog_post_qa----": {
+      "id": "mem-feedback_blog_post_qa----",
+      "category": "feedback_blog_post_qa",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678987
+    },
+    "mem-feedback_testimonials_format----": {
+      "id": "mem-feedback_testimonials_format----",
+      "category": "feedback_testimonials_format",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678987
+    },
+    "mem-project_homepage_architecture----": {
+      "id": "mem-project_homepage_architecture----",
+      "category": "project_homepage_architecture",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678988
+    },
+    "mem-MEMORY-memory-index": {
+      "id": "mem-MEMORY-memory-index",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678988
+    },
+    "mem-project_schema_drift----": {
+      "id": "mem-project_schema_drift----",
+      "category": "project_schema_drift",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678989
+    },
+    "mem-project_sprint_status----": {
+      "id": "mem-project_sprint_status----",
+      "category": "project_sprint_status",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678989
+    },
+    "mem-project_supabase_storage----": {
+      "id": "mem-project_supabase_storage----",
+      "category": "project_supabase_storage",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678990
+    },
+    "mem-MEMORY-project-overview": {
+      "id": "mem-MEMORY-project-overview",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678991
+    },
+    "mem-MEMORY-all-issues-found---fixed": {
+      "id": "mem-MEMORY-all-issues-found---fixed",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678991
+    },
+    "mem-MEMORY-critical-files-checklist": {
+      "id": "mem-MEMORY-critical-files-checklist",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678991
+    },
+    "mem-MEMORY-to-run": {
+      "id": "mem-MEMORY-to-run",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678991
+    },
+    "mem-MEMORY-architecture--post-modularizat": {
+      "id": "mem-MEMORY-architecture--post-modularizat",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678997
+    },
+    "mem-MEMORY-test-files--1870-total-": {
+      "id": "mem-MEMORY-test-files--1870-total-",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678997
+    },
+    "mem-MEMORY-safety-documentation": {
+      "id": "mem-MEMORY-safety-documentation",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678997
+    },
+    "mem-MEMORY-key-patterns": {
+      "id": "mem-MEMORY-key-patterns",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678997
+    },
+    "mem-MEMORY-analytics-engine": {
+      "id": "mem-MEMORY-analytics-engine",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678997
+    },
+    "mem-MEMORY-operational-upgrades": {
+      "id": "mem-MEMORY-operational-upgrades",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678997
+    },
+    "mem-MEMORY-scaling-upgrades": {
+      "id": "mem-MEMORY-scaling-upgrades",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678997
+    },
+    "mem-MEMORY-phase-2--structural-upgrades": {
+      "id": "mem-MEMORY-phase-2--structural-upgrades",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678997
+    },
+    "mem-MEMORY-references---citations--phase-": {
+      "id": "mem-MEMORY-references---citations--phase-",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678997
+    },
+    "mem-MEMORY-phase-1--knowledge-depth": {
+      "id": "mem-MEMORY-phase-1--knowledge-depth",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678997
+    },
+    "mem-MEMORY-constraints": {
+      "id": "mem-MEMORY-constraints",
+      "category": "core",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1775848678997
+    }
+  },
+  "edges": [
+    {
+      "sourceId": "mem-MEMORY-pipeline-overview",
+      "targetId": "mem-MEMORY-audit-workflow--mandatory-afte",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-audit-workflow--mandatory-afte",
+      "targetId": "mem-MEMORY-key-invariants",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-key-invariants",
+      "targetId": "mem-MEMORY-key-fixes-made--sessions-",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-key-fixes-made--sessions-",
+      "targetId": "mem-MEMORY-known-remaining-issues",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-known-remaining-issues",
+      "targetId": "mem-MEMORY-iqm-structure-notes",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-iqm-structure-notes",
+      "targetId": "mem-MEMORY-thorne-specific-notes",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-project_data_file_roles----",
+      "targetId": "mem-project_data_file_roles-data-file-scoring-directions",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-project_final_db_architecture----",
+      "targetId": "mem-project_final_db_architecture-final-db-architecture---correc",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-project-architecture",
+      "targetId": "mem-MEMORY-user-preferences",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-user-preferences",
+      "targetId": "mem-MEMORY-historical--may-be-outdated-",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-css-fixes-summary-root-cause--session-2---critic",
+      "targetId": "mem-css-fixes-summary-root-cause--session-1-",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-css-fixes-summary-root-cause--session-1-",
+      "targetId": "mem-css-fixes-summary-fixes-applied",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-css-fixes-summary-fixes-applied",
+      "targetId": "mem-css-fixes-summary-testing-checklist",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-css-fixes-summary-testing-checklist",
+      "targetId": "mem-css-fixes-summary-fixes-applied--session-2-",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-css-fixes-summary-fixes-applied--session-2-",
+      "targetId": "mem-css-fixes-summary-session-2-lesson--why-it-took-",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-css-fixes-summary-session-2-lesson--why-it-took-",
+      "targetId": "mem-css-fixes-summary-session-3---final-3-fixes--all",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-css-fixes-summary-session-3---final-3-fixes--all",
+      "targetId": "mem-css-fixes-summary-key-learning",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-project-overview",
+      "targetId": "mem-MEMORY-all-issues-found---fixed",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-all-issues-found---fixed",
+      "targetId": "mem-MEMORY-critical-files-checklist",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-critical-files-checklist",
+      "targetId": "mem-MEMORY-to-run",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-architecture--post-modularizat",
+      "targetId": "mem-MEMORY-test-files--1870-total-",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-test-files--1870-total-",
+      "targetId": "mem-MEMORY-safety-documentation",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-safety-documentation",
+      "targetId": "mem-MEMORY-key-patterns",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-key-patterns",
+      "targetId": "mem-MEMORY-analytics-engine",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-analytics-engine",
+      "targetId": "mem-MEMORY-operational-upgrades",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-operational-upgrades",
+      "targetId": "mem-MEMORY-scaling-upgrades",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-scaling-upgrades",
+      "targetId": "mem-MEMORY-phase-2--structural-upgrades",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-phase-2--structural-upgrades",
+      "targetId": "mem-MEMORY-references---citations--phase-",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-references---citations--phase-",
+      "targetId": "mem-MEMORY-phase-1--knowledge-depth",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-MEMORY-phase-1--knowledge-depth",
+      "targetId": "mem-MEMORY-constraints",
+      "type": "temporal",
+      "weight": 0.5
+    },
+    {
+      "sourceId": "mem-css-fixes-summary-root-cause--session-2---critic",
+      "targetId": "mem-css-fixes-summary-fixes-applied--session-2-",
+      "type": "similar",
+      "weight": 0.35684647302904565
+    },
+    {
+      "sourceId": "mem-css-fixes-summary-fixes-applied",
+      "targetId": "mem-css-fixes-summary-fixes-applied--session-2-",
+      "type": "similar",
+      "weight": 0.38372093023255816
+    }
+  ],
+  "pageRanks": {
+    "mem-MEMORY-pipeline-overview": 0.008038778058733202,
+    "mem-MEMORY-audit-workflow--mandatory-afte": 0.014871736296999689,
+    "mem-MEMORY-key-invariants": 0.020679750232414452,
+    "mem-MEMORY-key-fixes-made--sessions-": 0.025616565435858364,
+    "mem-MEMORY-known-remaining-issues": 0.02981286981306117,
+    "mem-MEMORY-iqm-structure-notes": 0.03337974669631376,
+    "mem-MEMORY-thorne-specific-notes": 0.03641157792760236,
+    "mem-reference_calcom_api----": 0.008038778058733202,
+    "mem-MEMORY----project-final-db-architectu": 0.008038778058733202,
+    "mem-feedback_accuracy_rules----": 0.008038778058733202,
+    "mem-feedback_no_bulk_api_enrichment----": 0.008038778058733202,
+    "mem-project_data_file_roles----": 0.008038778058733202,
+    "mem-project_data_file_roles-data-file-scoring-directions": 0.014871736296999689,
+    "mem-project_final_db_architecture----": 0.008038778058733202,
+    "mem-project_final_db_architecture-final-db-architecture---correc": 0.014871736296999689,
+    "mem-project_flutter_roadmap_v2----": 0.008038778058733202,
+    "mem-reference_flutter_repo----": 0.008038778058733202,
+    "mem-reference_supabase_project----": 0.008038778058733202,
+    "mem-MEMORY----component-extraction-prefer": 0.008038778058733202,
+    "mem-feedback_component_extraction----": 0.008038778058733202,
+    "mem-feedback_pipeline----": 0.008038778058733202,
+    "mem-MEMORY-project-architecture": 0.008038778058733202,
+    "mem-MEMORY-user-preferences": 0.014871736296999689,
+    "mem-MEMORY-historical--may-be-outdated-": 0.020679750232414452,
+    "mem-css-fixes-summary-root-cause--session-2---critic": 0.008038778058733202,
+    "mem-css-fixes-summary-root-cause--session-1-": 0.011455257177866445,
+    "mem-css-fixes-summary-fixes-applied": 0.017775743264707072,
+    "mem-css-fixes-summary-testing-checklist": 0.015593467946434805,
+    "mem-css-fixes-summary-fixes-applied--session-2-": 0.03226439596756457,
+    "mem-css-fixes-summary-session-2-lesson--why-it-took-": 0.03546352687498838,
+    "mem-css-fixes-summary-session-3---final-3-fixes--all": 0.03818280048676667,
+    "mem-css-fixes-summary-key-learning": 0.04049418448878743,
+    "mem-feedback_blog_post_qa----": 0.008038778058733202,
+    "mem-feedback_testimonials_format----": 0.008038778058733202,
+    "mem-project_homepage_architecture----": 0.008038778058733202,
+    "mem-MEMORY-memory-index": 0.008038778058733202,
+    "mem-project_schema_drift----": 0.008038778058733202,
+    "mem-project_sprint_status----": 0.008038778058733202,
+    "mem-project_supabase_storage----": 0.008038778058733202,
+    "mem-MEMORY-project-overview": 0.008038778058733202,
+    "mem-MEMORY-all-issues-found---fixed": 0.014871736296999689,
+    "mem-MEMORY-critical-files-checklist": 0.020679750232414452,
+    "mem-MEMORY-to-run": 0.025616565435858364,
+    "mem-MEMORY-architecture--post-modularizat": 0.008038778058733202,
+    "mem-MEMORY-test-files--1870-total-": 0.014871736296999689,
+    "mem-MEMORY-safety-documentation": 0.020679750232414452,
+    "mem-MEMORY-key-patterns": 0.025616565435858364,
+    "mem-MEMORY-analytics-engine": 0.02981286981306117,
+    "mem-MEMORY-operational-upgrades": 0.03337974669631376,
+    "mem-MEMORY-scaling-upgrades": 0.03641157792760236,
+    "mem-MEMORY-phase-2--structural-upgrades": 0.038988617894819985,
+    "mem-MEMORY-references---citations--phase-": 0.041179113415619986,
+    "mem-MEMORY-phase-1--knowledge-depth": 0.0430410622371821,
+    "mem-MEMORY-constraints": 0.04462365294248019
+  }
+}

@@ -1223,3 +1223,7 @@ Reusable rule:
 - Every test file must be in the CI suite, or it's dead code. When you create `test_*.py`, add it to the runner in the same PR. (Lesson 37)
 - Authentication ≠ authorization. Every admin page needs a server-side role check, not just a hidden nav link. (Lesson 38)
 - Idempotency must cover the full request (header + body + params), not just the key header. Grep for random UUID calls after fixing idempotency. (Lesson 39)
+- `Stream.periodic` does NOT emit at t=0. Always use an async generator (`yield` first value, then `await for`) when you need an immediate first emission. (Lesson 40)
+- Sprint tracker "Done" is not a source of truth. Always verify by running the code and checking the screen. Features marked complete can be missing entire views. (Lesson 41)
+- `AppLocalizations` missing getter = compile failure in test suite. Any l10n key referenced in code that isn't in the ARB file will silently break `flutter test`. Fix by hardcoding the string OR adding the ARB key — never skip. (Lesson 42)
+- `RepaintBoundary.toImage()` is the correct Flutter API for flattening a custom-paint canvas to a PNG with no extra packages. Pair with `getTemporaryDirectory()` from `path_provider`. (Lesson 43)

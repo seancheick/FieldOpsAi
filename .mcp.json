@@ -1,5 +1,8 @@
 {
   "mcpServers": {
+    "vercel": {
+      "url": "https://mcp.vercel.com"
+    },
     "claude-flow": {
       "command": "npx",
       "args": [

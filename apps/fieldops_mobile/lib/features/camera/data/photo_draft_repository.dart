@@ -129,17 +129,25 @@ final photoDraftRepositoryProvider = Provider<PhotoDraftRepository>((ref) {
 
 final pendingPhotoDraftCountProvider = StreamProvider<int>((ref) {
   final repository = ref.watch(photoDraftRepositoryProvider);
-  return Stream<int>.periodic(
-    const Duration(seconds: 5),
-  ).asyncMap((_) => repository.draftCount());
+  // Emit immediately at t=0 then refresh every 5 seconds.
+  return () async* {
+    yield await repository.draftCount();
+    await for (final _ in Stream<void>.periodic(const Duration(seconds: 5))) {
+      yield await repository.draftCount();
+    }
+  }();
 });
 
 final pendingPhotoDraftCountForJobProvider = StreamProvider.family<int, String>(
   (ref, jobId) {
     final repository = ref.watch(photoDraftRepositoryProvider);
-    return Stream<int>.periodic(
-      const Duration(seconds: 5),
-    ).asyncMap((_) => repository.draftCount(jobId: jobId));
+    // Emit immediately at t=0 then refresh every 5 seconds.
+    return () async* {
+      yield await repository.draftCount(jobId: jobId);
+      await for (final _ in Stream<void>.periodic(const Duration(seconds: 5))) {
+        yield await repository.draftCount(jobId: jobId);
+      }
+    }();
   },
 );
 

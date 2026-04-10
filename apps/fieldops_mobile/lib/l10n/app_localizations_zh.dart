@@ -154,26 +154,4 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduleUnavailable => 'Schedule unavailable';
-
-  @override
-  String get crewSchedule => 'Crew Schedule';
-
-  @override
-  String get pendingSupervisorApproval => 'Pending Supervisor Approval';
-
-  @override
-  String get noCrewShifts => 'No crew shifts';
-
-  @override
-  String get crewShiftsWillAppear =>
-      'Shifts for your crew will appear here once they are published.';
-
-  @override
-  String get saveChanges => 'Save Changes';
-
-  @override
-  String get scheduleChangesSaved => 'Schedule changes saved';
-
-  @override
-  String get failedToSaveChanges => 'Failed to save changes';
 }

@@ -56,57 +56,67 @@ class ScheduleCalendar extends StatelessWidget {
         ),
         const SizedBox(height: 4),
 
-        // Days grid
+        // Days grid — only render rows that contain at least one real day
         ...List.generate(6, (weekRow) {
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(7, (col) {
-              final dayIndex = weekRow * 7 + col + 1 - (startingWeekday - 1);
-              if (dayIndex < 1 || dayIndex > daysInMonth) {
-                return const SizedBox(width: 36, height: 36);
-              }
+          // Check if any cell in this row falls within the month.
+          final firstCellDay = weekRow * 7 + 1 - (startingWeekday - 1);
+          final lastCellDay = firstCellDay + 6;
+          if (lastCellDay < 1 || firstCellDay > daysInMonth) {
+            return const SizedBox.shrink(); // skip empty trailing weeks
+          }
 
-              final date = DateTime(year, month, dayIndex);
-              final hasShift = shiftDates.contains(date);
-              final isToday = date == todayDate;
-              final isSelected = selectedDate != null &&
-                  date.year == selectedDate!.year &&
-                  date.month == selectedDate!.month &&
-                  date.day == selectedDate!.day;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: List.generate(7, (col) {
+                final dayIndex = weekRow * 7 + col + 1 - (startingWeekday - 1);
+                if (dayIndex < 1 || dayIndex > daysInMonth) {
+                  return const SizedBox(width: 36, height: 36);
+                }
 
-              return GestureDetector(
-                onTap: () => onDateSelected?.call(date),
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? palette.signal
-                        : hasShift
-                            ? palette.signal.withValues(alpha: 0.12)
-                            : null,
-                    border: isToday
-                        ? Border.all(color: palette.signal, width: 1.5)
-                        : null,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '$dayIndex',
-                    style: textTheme.bodySmall?.copyWith(
+                final date = DateTime(year, month, dayIndex);
+                final hasShift = shiftDates.contains(date);
+                final isToday = date == todayDate;
+                final isSelected = selectedDate != null &&
+                    date.year == selectedDate!.year &&
+                    date.month == selectedDate!.month &&
+                    date.day == selectedDate!.day;
+
+                return GestureDetector(
+                  onTap: () => onDateSelected?.call(date),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
                       color: isSelected
-                          ? Colors.white
+                          ? palette.signal
                           : hasShift
-                              ? palette.signal
-                              : palette.slate,
-                      fontWeight: hasShift || isToday
-                          ? FontWeight.w700
-                          : FontWeight.w400,
+                              ? palette.signal.withValues(alpha: 0.12)
+                              : null,
+                      border: isToday
+                          ? Border.all(color: palette.signal, width: 1.5)
+                          : null,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$dayIndex',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: isSelected
+                            ? Colors.white
+                            : hasShift
+                                ? palette.signal
+                                : palette.slate,
+                        fontWeight: hasShift || isToday
+                            ? FontWeight.w700
+                            : FontWeight.w400,
+                      ),
                     ),
                   ),
-                ),
-              );
-            }),
+                );
+              }),
+            ),
           );
         }),
       ],

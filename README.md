@@ -212,6 +212,25 @@ npm run dev
 # → http://localhost:3000
 ```
 
+### 4.5 Wire Vercel MCP into Codex
+
+The repo-level `.mcp.json` now includes the official Vercel MCP endpoint for tools that read project MCP config.
+
+For Codex itself, register Vercel once in your local Codex config:
+
+```bash
+codex mcp add vercel --url https://mcp.vercel.com
+codex mcp list
+```
+
+On first use, Codex will open the Vercel OAuth flow so the MCP server can read your projects, deployments, logs, domains, and env metadata.
+
+If you want Codex to prefer that server in this repo, add this guidance to your local AGENTS instructions:
+
+```md
+Always use the Vercel MCP server when you need live Vercel project, deployment, domain, environment variable, or log data.
+```
+
 ---
 
 ### 5. Run backend tests

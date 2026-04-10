@@ -8,6 +8,7 @@ import 'package:fieldops_mobile/features/camera/data/proof_stamp_renderer.dart';
 import 'package:fieldops_mobile/features/camera/domain/media_repository.dart';
 import 'package:fieldops_mobile/features/camera/domain/photo_capture_result.dart';
 import 'package:fieldops_mobile/features/camera/presentation/camera_controller.dart';
+import 'package:fieldops_mobile/features/camera/presentation/photo_annotation_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -35,7 +36,33 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
   bool _isEnhancing = false;
   bool _isStamping = false;
   bool _enhanced = false;
+  bool _annotated = false;
   int _previewRevision = 0;
+
+  /// Tracks the current file path — may differ from widget.filePath after
+  /// annotation bakes a new composite PNG to a temp file.
+  late String _currentFilePath;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentFilePath = widget.filePath;
+  }
+
+  Future<void> _annotate() async {
+    final result = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
+        builder: (_) => PhotoAnnotationScreen(filePath: _currentFilePath),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _currentFilePath = result;
+        _annotated = true;
+        _previewRevision += 1;
+      });
+    }
+  }
 
   Future<void> _autoEnhance() async {
     if (_isEnhancing) return;
@@ -43,7 +70,7 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
     setState(() => _isEnhancing = true);
 
     try {
-      await _photoEnhancer.autoEnhanceFile(widget.filePath);
+      await _photoEnhancer.autoEnhanceFile(_currentFilePath);
       if (!mounted) return;
       setState(() {
         _enhanced = true;
@@ -64,7 +91,7 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
   Future<void> _saveForLater() async {
     final draftId = await ref
         .read(photoDraftRepositoryProvider)
-        .saveDraft(jobId: widget.jobId, filePath: widget.filePath);
+        .saveDraft(jobId: widget.jobId, filePath: _currentFilePath);
     if (!mounted) return;
     Navigator.of(
       context,
@@ -113,14 +140,14 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
           .read(captureControllerProvider.notifier)
           .uploadCapturedPhoto(
             jobId: widget.jobId,
-            filePath: widget.filePath,
+            filePath: _currentFilePath,
             stampMetadata: stampMetadata,
           );
 
       // Clean up the temp photo file after successful upload to prevent
       // orphaned files accumulating on disk.
       try {
-        final tempFile = File(widget.filePath);
+        final tempFile = File(_currentFilePath);
         if (await tempFile.exists()) await tempFile.delete();
       } on FileSystemException catch (_) {
         // Best-effort cleanup — don't block success path.
@@ -171,7 +198,7 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
                     fit: StackFit.expand,
                     children: [
                       Image.file(
-                        File(widget.filePath),
+                        File(_currentFilePath),
                         key: ValueKey('review-photo-$_previewRevision'),
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, _) {
@@ -211,6 +238,15 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
                           child: _ReviewChip(
                             icon: Icons.auto_fix_high_rounded,
                             label: 'Enhanced',
+                          ),
+                        ),
+                      if (_annotated)
+                        const Positioned(
+                          right: 16,
+                          bottom: 16,
+                          child: _ReviewChip(
+                            icon: Icons.brush_rounded,
+                            label: 'Annotated',
                           ),
                         ),
                       if (isBusy)
@@ -301,7 +337,22 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
                           label: const Text('Retake'),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: isBusy ? null : _annotate,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF38BDF8),
+                            side: const BorderSide(
+                              color: Color(0x6638BDF8),
+                            ),
+                            minimumSize: const Size.fromHeight(54),
+                          ),
+                          icon: const Icon(Icons.brush_rounded),
+                          label: Text(_annotated ? 'Annotated' : 'Annotate'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: isBusy ? null : _autoEnhance,
@@ -313,7 +364,7 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
                             minimumSize: const Size.fromHeight(54),
                           ),
                           icon: const Icon(Icons.auto_fix_high_rounded),
-                          label: Text(_enhanced ? 'Enhanced' : 'Auto Enhance'),
+                          label: Text(_enhanced ? 'Enhanced' : 'Enhance'),
                         ),
                       ),
                     ],

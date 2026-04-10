@@ -1,6 +1,5 @@
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
 import 'package:fieldops_mobile/app/widgets/skeleton_loader.dart';
-import 'package:fieldops_mobile/l10n/app_localizations.dart';
 import 'package:fieldops_mobile/features/schedule/domain/crew_schedule_shift.dart';
 import 'package:fieldops_mobile/features/schedule/domain/schedule_repository.dart';
 import 'package:fieldops_mobile/features/schedule/presentation/foreman_schedule_controller.dart';
@@ -13,14 +12,13 @@ class ForemanScheduleScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final controllerState = ref.watch(foremanScheduleControllerProvider);
     final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.crewSchedule),
+        title: const Text('Crew Schedule'),
         leading: const BackButton(),
       ),
       body: controllerState.when(
@@ -126,7 +124,7 @@ class _ApprovalBanner extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              AppLocalizations.of(context)!.pendingSupervisorApproval,
+              'Pending supervisor approval',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: palette.signal,
                     fontWeight: FontWeight.w600,
@@ -365,13 +363,12 @@ class _SaveBar extends ConsumerWidget {
                         .read(foremanScheduleControllerProvider.notifier)
                         .saveChanges();
                     if (context.mounted) {
-                      final l10n = AppLocalizations.of(context)!;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
                             success
-                                ? l10n.scheduleChangesSaved
-                                : l10n.failedToSaveChanges,
+                                ? 'Schedule changes saved'
+                                : 'Failed to save changes',
                           ),
                         ),
                       );
@@ -386,7 +383,7 @@ class _SaveBar extends ConsumerWidget {
                       color: Colors.white,
                     ),
                   )
-                : Text(AppLocalizations.of(context)!.saveChanges),
+                : const Text('Save Changes'),
           ),
         ),
       ),
@@ -401,7 +398,6 @@ class _CrewEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     return Column(
       children: [
         Icon(
@@ -411,12 +407,12 @@ class _CrewEmptyState extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          l10n.noCrewShifts,
+          'No crew shifts',
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 8),
         Text(
-          l10n.crewShiftsWillAppear,
+          'Crew shifts will appear here once published.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium,
         ),
@@ -441,7 +437,7 @@ class _CrewErrorState extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          AppLocalizations.of(context)!.scheduleUnavailable,
+          'Schedule unavailable',
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 8),

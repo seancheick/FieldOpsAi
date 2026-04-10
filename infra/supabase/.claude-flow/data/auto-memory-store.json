@@ -1,0 +1,704 @@
+[
+  {
+    "id": "mem-MEMORY-pipeline-overview",
+    "key": "pipeline-overview",
+    "content": "Three-stage: CLEAN → ENRICH → SCORE\n- Clean files: batch JSON arrays (e.g., `cleaned_batch_N.json` each contains 500 products)\n- Enriched files: `enriched_cleaned_batch_N.json` in `output_*_enriched/enriched/`\n- Core scripts: `scripts/enrich_supplements_v3.py`, `scripts/score_supplements.py`\n- Key data: `scripts/data/ingredient_quality_map.json` (498 parents), `scripts/data/top_manufacturers_data.json`\n- Tests: `python -m pytest scripts/tests/` — 1824 tests, all should pass",
+    "summary": "Pipeline Overview",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick--claude-worktrees-dsld-clean-peaceful-ritchie/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678970
+  },
+  {
+    "id": "mem-MEMORY-audit-workflow--mandatory-afte",
+    "key": "audit-workflow-mandatory-after-every-batch-",
+    "content": "After applying changes to any IQM batch, ALWAYS self-run this full sweep BEFORE reporting \"done\":\n1. **Score formula**: `score = bio_score + (3 if natural else 0)` — check every form\n2. **nat accuracy**: probiotics/live organisms = True, synthetic compounds = False, verify each\n3. **absorption_structured complete**: all 5 fields (value, range_low, range_high, quality, notes) — range must exist when value exists\n4. **Notes quality**: every non-unspecified form needs 80+ char clinically informativ",
+    "summary": "Audit Workflow (MANDATORY after every batch)",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick--claude-worktrees-dsld-clean-peaceful-ritchie/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678970
+  },
+  {
+    "id": "mem-MEMORY-key-invariants",
+    "key": "key-invariants",
+    "content": "- `unevaluated_records == 0` for all enriched products (verified across 26,898 products)\n- `ingredients_scorable + ingredients_skipped = activeIngredients + promoted_from_inactive`\n- `is_trusted_manufacturer = True` only when `match_type == \"exact\"` (fuzzy gets found=True but is_trusted=False)\n- ALLOWED_CROSS_ALIASES in test_ingredient_quality_map_schema.py: any new IQM cross-parent aliases must be added here",
+    "summary": "Key Invariants",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick--claude-worktrees-dsld-clean-peaceful-ritchie/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678970
+  },
+  {
+    "id": "mem-MEMORY-key-fixes-made--sessions-",
+    "key": "key-fixes-made-sessions-",
+    "content": "1. strain_id regex: added `\\b` word boundaries for `gg`, `k12`, `m18`\n2. Riboflavin 5'-phosphate sodium aliases added to IQM\n3. Thorne manufacturer aliases: \"Thorne Research\", \"Thorne Research Inc.\", \"Thorne FX\", \"Thorne Performance\"\n4. Phosphorus cross-parent: calcium phosphate, TCP, DCP, hydroxyapatite aliases → phosphorus/phosphate salts or dicalcium phosphate\n5. Vitamin C niacinamide ascorbate: new form added to vitamin_c parent\n6. Stub scores fixed: quercetin, naringin, 5-HTP, inulin, probi",
+    "summary": "Key Fixes Made (sessions)",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick--claude-worktrees-dsld-clean-peaceful-ritchie/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678970
+  },
+  {
+    "id": "mem-MEMORY-known-remaining-issues",
+    "key": "known-remaining-issues",
+    "content": "- Softgels 19,412-product enriched output pre-dates IQM fixes 12-15; re-enrichment kicked off to pick up new IQM entries (rosemary, holy_basil, chinese_skullcap, irish_sea_moss, HydroCurc, ginger hydroethanolic, hu zhang, omega-3 EE)\n- Ayurvedic herb gaps remain (37 unmapped herbs from \"Siddha Ghruta\" formulations); low priority\n- Zyflamend oregano/barberry/chinese_goldthread may still be unmapped; check after re-enrichment",
+    "summary": "Known Remaining Issues",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick--claude-worktrees-dsld-clean-peaceful-ritchie/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678970
+  },
+  {
+    "id": "mem-MEMORY-iqm-structure-notes",
+    "key": "iqm-structure-notes",
+    "content": "- 498 parents after all fixes\n- preferred_parent mechanism: derived from form_info['base_name'] (= ingredient name); overrides form-based parent via sort key priority\n- Stub scores: (unspecified) forms have bio_score/score=5 as conservative fallback\n- ALLOWED_CROSS_ALIASES whitelist covers intentional cross-parent aliases (calcium phosphate, niacinamide ascorbate, etc.)\n- New mushroom entries: maitake, shiitake, turkey_tail, chaga (each has fruiting_body, extract, unspecified forms)\n- New herb e",
+    "summary": "IQM Structure Notes",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick--claude-worktrees-dsld-clean-peaceful-ritchie/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678970
+  },
+  {
+    "id": "mem-MEMORY-thorne-specific-notes",
+    "key": "thorne-specific-notes",
+    "content": "- 274 Thorne products previously got is_trusted=False due to brand name alias gap (fixed)\n- TRAACS chelate forms: 1000+ now correctly mapped to specific IQM forms (zinc, chromium, boron, manganese, molybdenum, calcium, copper, magnesium)\n- Bororganic (boron glycinate brand) moved from boron/unspecified to boron/boron_glycinate\n- DimaCal (calcium malate brand) added to calcium/calcium_malate",
+    "summary": "Thorne-Specific Notes",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick--claude-worktrees-dsld-clean-peaceful-ritchie/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678970
+  },
+  {
+    "id": "mem-reference_calcom_api----",
+    "key": "-",
+    "content": "name: Cal.com API key\ndescription: Cal.com live API key for B&Br Technology booking embed - store in .env.local, never commit\ntype: reference\n---\n\nCal.com API key provided by Sean: `cal_live_42c2e43798cb49ab60d1a2e717d69dc1`\n\n**How to apply:** Store in `.env.local` as `NEXT_PUBLIC_CALCOM_API_KEY`. Use in the Contact page Cal.com embed component. Never commit to git — add `.env.local` to `.gitignore`.",
+    "summary": "---",
+    "namespace": "reference_calcom_api",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-Downloads-bbr-website/memory/reference_calcom_api.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678972
+  },
+  {
+    "id": "mem-MEMORY----project-final-db-architectu",
+    "key": "-project-final-db-architecture-md-project-final-db",
+    "content": "- [feedback_accuracy_rules.md](feedback_accuracy_rules.md) — Critical workflow rules: never assume always verify, no batch fixes, accuracy over speed (medical app)\n- [project_data_file_roles.md](project_data_file_roles.md) — Which data files give bonuses vs penalties: IQM = bonuses (active ingredients), harmful_additives/banned_recalled = penalties\n- [feedback_no_bulk_api_enrichment.md](feedback_no_bulk_api_enrichment.md) — NEVER bulk-apply API enrichment results — each entry must be verified ca",
+    "summary": "- [project_final_db_architecture.md](project_final_db_architecture.md) — Corrected architecture decisions for PharmaGuide final DB (score naming, real gaps, offline-first rules, cache sizing)",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-Downloads-dsld-clean/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678973
+  },
+  {
+    "id": "mem-feedback_accuracy_rules----",
+    "key": "-",
+    "content": "name: accuracy_and_batch_fix_rules\ndescription: Critical workflow rules — never assume always verify, no batch fixes on data files, accuracy over speed. User enforces these strictly.\ntype: feedback\n---\n\nNever assume, always verify. Read source code before changing anything. Do not rely on cached knowledge between sessions.\n\n**Why:** This is a medical-grade consumer app (PharmaGuide). Wrong scores or missed banned substances reach real users making health decisions. The user has seen batch operat",
+    "summary": "---",
+    "namespace": "feedback_accuracy_rules",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-Downloads-dsld-clean/memory/feedback_accuracy_rules.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678974
+  },
+  {
+    "id": "mem-feedback_no_bulk_api_enrichment----",
+    "key": "-",
+    "content": "name: No bulk API enrichment without case-by-case verification\ndescription: NEVER bulk-apply API enrichment results to data files — each entry must be verified individually for entity-level accuracy before writing\ntype: feedback\n---\n\nNever bulk-apply UMLS, GSRS, or PubChem API results to data files. The APIs routinely return related-but-wrong substances:\n\n- **Plant/compound collapse:** GSRS returns a constituent (e.g., thymoquinone) instead of the supplement ingredient (black seed oil)\n- **Plant",
+    "summary": "---",
+    "namespace": "feedback_no_bulk_api_enrichment",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-Downloads-dsld-clean/memory/feedback_no_bulk_api_enrichment.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678975
+  },
+  {
+    "id": "mem-project_data_file_roles----",
+    "key": "-",
+    "content": "name: data_file_scoring_roles\ndescription: Which data files give bonuses vs penalties — IQM is bonuses (active ingredients), harmful_additives and banned_recalled are penalties. Critical distinction.\ntype: project\n---",
+    "summary": "---",
+    "namespace": "project_data_file_roles",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-Downloads-dsld-clean/memory/project_data_file_roles.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678975
+  },
+  {
+    "id": "mem-project_data_file_roles-data-file-scoring-directions",
+    "key": "data-file-scoring-directions",
+    "content": "**BONUS files (add points):**\n- `ingredient_quality_map.json` — Active ingredients scored 1-18, contribute to Section A (max 25 pts). These are vitamins, minerals, botanicals, amino acids, fatty acids, etc. NEVER penalties.\n- `absorption_enhancers.json` — A4 bonus (0-3 pts)\n- `enhanced_delivery.json` — A3 bonus (0-3 pts)\n- `standardized_botanicals.json` — A5b bonus (0-1 pt)\n- `synergy_cluster.json` — A5c bonus (0-1 pt)\n- `backed_clinical_studies.json` — Section C bonus (0-20 pts)\n\n**PENALTY file",
+    "summary": "Data File Scoring Directions",
+    "namespace": "project_data_file_roles",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-Downloads-dsld-clean/memory/project_data_file_roles.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678976
+  },
+  {
+    "id": "mem-project_final_db_architecture----",
+    "key": "-",
+    "content": "name: final_db_architecture_decisions\ndescription: Corrected architecture decisions for PharmaGuide final DB — frozen naming, status/safety split, gaps, offline-first rules. Reference before ANY final DB work.\ntype: project\n---",
+    "summary": "---",
+    "namespace": "project_final_db_architecture",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-Downloads-dsld-clean/memory/project_final_db_architecture.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678976
+  },
+  {
+    "id": "mem-project_final_db_architecture-final-db-architecture---correc",
+    "key": "final-db-architecture-corrected-design-march-2026-",
+    "content": "**Three layers**: Pipeline output → Phone database → Backend services\n\n### Score Field Naming (FROZEN — team approved 2026-03-17)\n- DO NOT use \"sections A-E\" in final DB schema — those are internal scorer labels\n- Pipeline fields: `score_quality_80`, `score_display_80`, `score_display_100_equivalent`, `score_100_equivalent`\n- Section fields: `score_ingredient_quality`, `score_safety_purity`, `score_evidence_research`, `score_brand_trust` (each with `_max`)\n- Phone-computed only: `score_fit_20`, ",
+    "summary": "Final DB Architecture — Corrected Design (March 2026)",
+    "namespace": "project_final_db_architecture",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-Downloads-dsld-clean/memory/project_final_db_architecture.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678976
+  },
+  {
+    "id": "mem-project_flutter_roadmap_v2----",
+    "key": "-",
+    "content": "name: Flutter Roadmap v2.0 Architecture Decisions\ndescription: Key architecture decisions for PharmaGuide Flutter app roadmap — profile design, interaction layers, stack scoring, version breakdown\ntype: project\n---\n\nPharmaGuide Flutter complete roadmap v2.0 approved (2026-04-07). Spec at `docs/superpowers/specs/2026-04-07-flutter-complete-roadmap-design.md`.\n\n**Why:** Full competitive roadmap V1.0 through V3.1 (31 sprints, 7 releases) designed after evaluating external advisor recommendations ag",
+    "summary": "---",
+    "namespace": "project_flutter_roadmap_v2",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-Downloads-dsld-clean/memory/project_flutter_roadmap_v2.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678977
+  },
+  {
+    "id": "mem-reference_flutter_repo----",
+    "key": "-",
+    "content": "name: Flutter App Repo Location\ndescription: PharmaGuide Flutter app repo location and relationship to pipeline repo\ntype: reference\n---\n\nFlutter app repo: `/Users/seancheick/PharmaGuide ai`\nPipeline repo: `/Users/seancheick/Downloads/dsld_clean` (worktree at `/Users/seancheick/.claude-worktrees/dsld_clean/peaceful-ritchie`)\n\nConnection: Pipeline produces `pharmaguide_core.db` + detail blobs → uploaded to Supabase → Flutter app downloads on first launch and OTA updates.\n\nFlutter roadmap spec: `d",
+    "summary": "---",
+    "namespace": "reference_flutter_repo",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-Downloads-dsld-clean/memory/reference_flutter_repo.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678977
+  },
+  {
+    "id": "mem-reference_supabase_project----",
+    "key": "-",
+    "content": "name: Supabase Project Details\ndescription: PharmaGuide single Supabase project — pipeline syncs data, Flutter app reads from same project\ntype: reference\n---\n\nPharmaGuide Supabase project (org: blqijbksinnstoaooiwj):\n\n- Project ID: omayamxacvacrnvdvzhr\n- Name: PharmaGuide_Pipeline\n- URL: https://omayamxacvacrnvdvzhr.supabase.co\n- Region: East US (North Virginia)\n- Service role key: used by sync_to_supabase.py (stored in pipeline repo .env, never committed)\n- Anon/publishable key: used by Flutte",
+    "summary": "---",
+    "namespace": "reference_supabase_project",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-Downloads-dsld-clean/memory/reference_supabase_project.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678977
+  },
+  {
+    "id": "mem-MEMORY----component-extraction-prefer",
+    "key": "-component-extraction-preference-feedback-componen",
+    "content": "- [Development pipeline workflow](feedback_pipeline.md) — Notion check -> implement -> update Notion -> update SPRINT_TRACKER -> check roadmap -> lessons learned",
+    "summary": "- [Component extraction preference](feedback_component_extraction.md) — Always extract widgets to separate files, one per file",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-FieldsOps-ai/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678978
+  },
+  {
+    "id": "mem-feedback_component_extraction----",
+    "key": "-",
+    "content": "name: Component extraction preference\ndescription: User strongly prefers extracting every widget into its own file for maintainability and reusability\ntype: feedback\n---\n\nAlways extract widgets into separate files — one widget per file. User confirmed this is the right approach for maintainability and reuse across different sections.\n\n**Why:** Easier to maintain, easier to reuse components in different screens/sections.\n**How to apply:** Never leave multiple widget classes in one file. Extract t",
+    "summary": "---",
+    "namespace": "feedback_component_extraction",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-FieldsOps-ai/memory/feedback_component_extraction.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678978
+  },
+  {
+    "id": "mem-feedback_pipeline----",
+    "key": "-",
+    "content": "name: Development pipeline workflow\ndescription: User confirmed the exact workflow loop for every task — Notion check, implement, update Notion, update SPRINT_TRACKER, check roadmap alignment, add lessons learned\ntype: feedback\n---\n\nAlways follow this pipeline for every task:\n1. Check Notion to see what's next\n2. Implement the task with best practices\n3. Update Notion task status + agent notes\n4. Update SPRINT_TRACKER.md with evidence\n5. Check ROADMAP.md to ensure alignment\n6. Add any lessons to",
+    "summary": "---",
+    "namespace": "feedback_pipeline",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-FieldsOps-ai/memory/feedback_pipeline.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678978
+  },
+  {
+    "id": "mem-MEMORY-project-architecture",
+    "key": "project-architecture",
+    "content": "- [Homepage Architecture Decision](project_homepage_architecture.md) — Single Homepage.html, system-auto dark mode, no toggle",
+    "summary": "Project Architecture",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-Wordpress/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678979
+  },
+  {
+    "id": "mem-MEMORY-user-preferences",
+    "key": "user-preferences",
+    "content": "- [Testimonial Format](feedback_testimonials_format.md) — Doctor credentials format, \"trusted by physicians\" > \"5K joined\", skip video until MVP locked\n- [Blog Post QA Gaps](feedback_blog_post_qa.md) — Always embed internal links in HTML body, include pg-quick-facts and pg-inline-cta, keyword in subheading, concise H1",
+    "summary": "User Preferences",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-Wordpress/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678979
+  },
+  {
+    "id": "mem-MEMORY-historical--may-be-outdated-",
+    "key": "historical-may-be-outdated-",
+    "content": "- Previous CSS dark/light toggle work is obsolete — toggles were removed, site now uses system-auto `@media (prefers-color-scheme: dark)` only",
+    "summary": "Historical (may be outdated)",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-Wordpress/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678979
+  },
+  {
+    "id": "mem-css-fixes-summary-root-cause--session-2---critic",
+    "key": "root-cause-session-2-critical-lesson-",
+    "content": "The previous assistant made two critical mistakes:\n1. **Blog Hub Elements Missing**: Added dark mode for `.pg-post-content` (single post) but forgot dark mode had already been added to blog hub elements (featured cards, bento grid, start here pathway) with **no light mode resets**\n2. **Incomplete Light Mode Coverage**: When light mode resets WERE added, they only covered some elements, missing:\n   - .pg-cat-pills button styling (light grey text on dark backgrounds)\n   - Comparison/dosage tables\n",
+    "summary": "Root Cause (Session 2 - CRITICAL LESSON)",
+    "namespace": "css-fixes-summary",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-Wordpress/memory/css-fixes-summary.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678980
+  },
+  {
+    "id": "mem-css-fixes-summary-root-cause--session-1-",
+    "key": "root-cause-session-1-",
+    "content": "CSS variables were reset (via `html.light` in PharmaGuideGlobal.css) BUT specific color overrides for blog elements had no light mode counterparts.",
+    "summary": "Root Cause (Session 1)",
+    "namespace": "css-fixes-summary",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-Wordpress/memory/css-fixes-summary.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678980
+  },
+  {
+    "id": "mem-css-fixes-summary-fixes-applied",
+    "key": "fixes-applied",
+    "content": "### 1. PharmaGuideBlogHub.css (Added ~130 lines before END comment)\nAdded comprehensive `html.light` rules to reset all dark mode blog styles:\n- Post content colors (p, h2-h6, links, blockquotes)\n- Post title, category, meta colors\n- Callout box colors (info/warning/danger/success)\n- Key takeaways styling\n- FAQ accordion light mode appearance\n- TL;DR and Learn boxes\n- Disclaimer styling\n\n**CRITICAL**: These overrides prevent text color leakage and ensure readability when toggling light mode on d",
+    "summary": "Fixes Applied",
+    "namespace": "css-fixes-summary",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-Wordpress/memory/css-fixes-summary.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678980
+  },
+  {
+    "id": "mem-css-fixes-summary-testing-checklist",
+    "key": "testing-checklist",
+    "content": "- [ ] System dark → toggle light in blog: should show off-white bg with dark text\n- [ ] System light → no change needed (works correctly)\n- [ ] BlogHub lists: titles/excerpts should be readable\n- [ ] Single post page: same behavior\n- [ ] FAQ items: should remain normal size (~60px) in blog context\n- [ ] Homepage FAQ: should remain unaffected (wrapper context, not blog context)",
+    "summary": "Testing Checklist",
+    "namespace": "css-fixes-summary",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-Wordpress/memory/css-fixes-summary.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678980
+  },
+  {
+    "id": "mem-css-fixes-summary-fixes-applied--session-2-",
+    "key": "fixes-applied-session-2-",
+    "content": "### BlogHub CSS - Added 150+ lines of html.light rules\nComplete coverage for ALL elements with dark mode styling:\n- **Blog Hub Pages**: Featured cards, bento grid, start here, editorial, pathway cards\n- **Single Post**: Post title, category, meta, content links, blockquotes\n- **Special Boxes**: TL;DR, Learn box, Disclaimer, Callout boxes (info/warning/danger/success)\n- **Tables**: Comparison & dosage tables with thead/tbody styling\n- **Author & Editorial**: Author box, editorial standards and ba",
+    "summary": "Fixes Applied (Session 2)",
+    "namespace": "css-fixes-summary",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-Wordpress/memory/css-fixes-summary.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678980
+  },
+  {
+    "id": "mem-css-fixes-summary-session-2-lesson--why-it-took-",
+    "key": "session-2-lesson-why-it-took-so-long",
+    "content": "**Mistake**: Reactive fixing instead of comprehensive audit\n- Fixed blog content, then found blog hub elements missing\n- Fixed blog hub, then found CSS tokens missing\n- Fixed tokens, then found theme-specific classes missing\n- Should have done complete audit FIRST\n\n**The Right Way** (for future work):\n1. **Audit**: `grep \"html\\.dark\" *.css | sed 's/.*html\\.dark //' | sort | uniq` → Get full list\n2. **Compare**: `comm -23 dark.txt light.txt` → Find what's missing\n3. **Inventory**: Categorize by t",
+    "summary": "Session 2 Lesson: Why It Took So Long",
+    "namespace": "css-fixes-summary",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-Wordpress/memory/css-fixes-summary.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678980
+  },
+  {
+    "id": "mem-css-fixes-summary-session-3---final-3-fixes--all",
+    "key": "session-3-final-3-fixes-all-issues-resolved-",
+    "content": "### Remaining Issues Fixed:\n1. **App CTA Button** - Was unreadable in light mode (button background teal on light background)\n   - Fixed: Added light mode gradient background (white to light gray) and teal button with white text\n\n2. **Blog Post Title Links** - Were showing teal instead of dark text\n   - Root cause: `.wp-block-post-title a` had `color: inherit` but was inheriting from parent link color rules\n   - Fixed: Added explicit `color: #0f172a !important` for all title links in light mode\n",
+    "summary": "Session 3 - Final 3 Fixes (All issues resolved)",
+    "namespace": "css-fixes-summary",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-Wordpress/memory/css-fixes-summary.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678980
+  },
+  {
+    "id": "mem-css-fixes-summary-key-learning",
+    "key": "key-learning",
+    "content": "When implementing forced light/dark mode toggles (`html.light`/`html.dark`):\n1. **DO A COMPREHENSIVE AUDIT FIRST** - find all 512+ dark selectors before writing any light rules\n2. **Check CSS variables** - @media query tokens at :root need resets in html.light\n3. **Include theme-specific classes** - .ast-*, .elementor-*, WordPress blocks, link selectors\n4. **Test the INVERSE scenario** (system dark → toggle light) as well as normal\n5. **One batch is better than many** - adds dark, then light res",
+    "summary": "Key Learning",
+    "namespace": "css-fixes-summary",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-Wordpress/memory/css-fixes-summary.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678980
+  },
+  {
+    "id": "mem-feedback_blog_post_qa----",
+    "key": "-",
+    "content": "name: Blog Post Generation QA Gaps\ndescription: Mistakes caught in blog post generation — internal links missing from HTML body, missing pg-quick-facts, missing pg-inline-cta, keyword not in subheading\ntype: feedback\n---\n\nWhen generating blog posts with /pg-post-generate, always verify these BEFORE saving:\n\n1. **Internal links must be IN the article HTML body** — not just listed in the SEO package. The master prompt requires 2-5 internal links naturally embedded in the content. Check the HTML fo",
+    "summary": "---",
+    "namespace": "feedback_blog_post_qa",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-Wordpress/memory/feedback_blog_post_qa.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678987
+  },
+  {
+    "id": "mem-feedback_testimonials_format----",
+    "key": "-",
+    "content": "name: Testimonial Format Preference\ndescription: User wants doctor testimonials with specific credential format - one-liner quote plus stat, specialty and years of experience\ntype: feedback\n---\n\nFor testimonials, include specialty and credentials (e.g. \"Dr. X, PharmD\" or \"Internal Medicine, 12 years\"). Use format: short personal endorsement paired with a hard number/stat.\n\n**Why:** The word \"doctor\" does heavy lifting, but specificity builds even more trust. \"Trusted by physicians\" is a differen",
+    "summary": "---",
+    "namespace": "feedback_testimonials_format",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-Wordpress/memory/feedback_testimonials_format.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678987
+  },
+  {
+    "id": "mem-project_homepage_architecture----",
+    "key": "-",
+    "content": "name: Homepage Architecture Decision\ndescription: User chose single Homepage.html (combined file) over individual section files. System-auto dark mode via @media prefers-color-scheme. No toggle.\ntype: project\n---\n\nHomepage uses a single combined file (`Pages/Homepage.html`, ~8100 lines) pasted into one Elementor HTML embed widget in WordPress. Individual section files exist in `Pages/Homepage/` but are NOT used in production.\n\n**Why:** Single file avoids CSS cascade issues between multiple Eleme",
+    "summary": "---",
+    "namespace": "project_homepage_architecture",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-Wordpress/memory/project_homepage_architecture.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678988
+  },
+  {
+    "id": "mem-MEMORY-memory-index",
+    "key": "memory-index",
+    "content": "- [Schema Drift](project_schema_drift.md) — Pipeline DB has 61 cols, Drift defines 88; migration fills gaps\n- [Supabase Storage](project_supabase_storage.md) — Bucket 'pharmaguide', versioned path, manifest lookup\n- [Sprint Status](project_sprint_status.md) — Sprints 0-3 done; next: FitScore UI, stack wiring, QA",
+    "summary": "Memory Index",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-ai/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678988
+  },
+  {
+    "id": "mem-project_schema_drift----",
+    "key": "-",
+    "content": "name: Schema drift between pipeline DB and Drift table\ndescription: Pipeline SQLite exports 61 columns but Drift defines 88 — migration adds missing v1.3.0 columns on DB open\ntype: project\n---\n\nThe pipeline's pharmaguide_core.db currently exports 61 columns. The Drift ProductsCore table defines 88 (v1.3.0 additions for stack interaction, social sharing, search/filter, goal matching, dosing, allergen).\n\nA beforeOpen migration (_ensureV130Columns) adds the 26 missing columns via ALTER TABLE. Once ",
+    "summary": "---",
+    "namespace": "project_schema_drift",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-ai/memory/project_schema_drift.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678989
+  },
+  {
+    "id": "mem-project_sprint_status----",
+    "key": "-",
+    "content": "name: Sprint status as of 2026-04-08\ndescription: Sprints 0-3 done, 4-5b partially done. Next up: FitScore UI integration then stack wiring.\ntype: project\n---\n\nSprints 0-3 fully complete (97 tests, 63 files). Code review fixes committed.\n\n**Next priorities:**\n1. Run pipeline final build to populate all 88 columns\n2. Sprint 4: Integrate FitScore into product detail UI + explanation UI\n3. Sprint 5a: Wire add-to-stack + remove-from-stack + safety check gate\n4. Sprint 8: Dark mode audit, accessibili",
+    "summary": "---",
+    "namespace": "project_sprint_status",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-ai/memory/project_sprint_status.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678989
+  },
+  {
+    "id": "mem-project_supabase_storage----",
+    "key": "-",
+    "content": "name: Supabase storage layout for core DB\ndescription: Core DB is in bucket 'pharmaguide' at versioned path, not 'databases' — manifest lookup required\ntype: reference\n---\n\n- **Supabase project ID:** omayamxacvacrnvdvzhr (PharmaGuide_Pipeline)\n- **Second project:** ndvzfiemfgdthjlzursv (Pharmaguide_App) — created 2026-04-07\n- **Storage bucket:** `pharmaguide` (public)\n- **DB path pattern:** `v{db_version}/pharmaguide_core.db`\n- **Version lookup:** `SELECT db_version FROM public.export_manifest W",
+    "summary": "---",
+    "namespace": "project_supabase_storage",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-PharmaGuide-ai/memory/project_supabase_storage.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678990
+  },
+  {
+    "id": "mem-MEMORY-project-overview",
+    "key": "project-overview",
+    "content": "DeerFlow is an open-source \"super agent harness\" built on LangGraph and LangChain.\n- **Frontend**: Next.js 16 (port 3000)\n- **Backend**: Python + LangGraph (ports 2024, 8001)\n- **Nginx**: Unified proxy (port 2026)",
+    "summary": "Project Overview",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-deer-flow/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678991
+  },
+  {
+    "id": "mem-MEMORY-all-issues-found---fixed",
+    "key": "all-issues-found-fixed",
+    "content": "### 1. ✅ Frontend Environment Variables Missing\n- **File**: `/frontend/.env`\n- **Fix**: Added `BETTER_AUTH_SECRET=dev-secret-key`\n\n### 2. ✅ Hydration Mismatch Error\n- **File**: `/frontend/src/app/layout.tsx`\n- **Fix**: Added `suppressHydrationWarning` to body element\n\n### 3. ✅ Gemini API Rate Limit (429)\n- **Issue**: Free tier quota exhausted\n- **Fix**: Switched to `gemini-1.5-flash` via native API (`langchain_google_genai:ChatGoogleGenerativeAI`)\n- **File**: `config.yaml`\n\n### 4. ✅ Missing Exte",
+    "summary": "All Issues Found & Fixed",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-deer-flow/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678991
+  },
+  {
+    "id": "mem-MEMORY-critical-files-checklist",
+    "key": "critical-files-checklist",
+    "content": "- ✓ config.yaml - Model config with Gemini 1.5 Flash\n- ✓ .env - API keys (GEMINI_API_KEY set)\n- ✓ frontend/.env - Auth config\n- ✓ extensions_config.json - Skills enabled (just created)",
+    "summary": "Critical Files Checklist",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-deer-flow/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678991
+  },
+  {
+    "id": "mem-MEMORY-to-run",
+    "key": "to-run",
+    "content": "```bash\ncd /Users/seancheick/deer-flow\nmake dev\n```\nThen open: http://localhost:2026",
+    "summary": "To Run",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-deer-flow/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678991
+  },
+  {
+    "id": "mem-MEMORY-architecture--post-modularizat",
+    "key": "architecture-post-modularization-",
+    "content": "- `api/chat.js` — thin Vercel handler, imports from `/src`\n- `src/config/` — cors, systemPrompt, synonymMap, safetyPolicy, approvedClaims, references, knowledgeBase\n- `src/core/` — normalize, history, entities, entityClassifier, riskScore (+ resolveSeverity), router, state, requiredFields, twoTrack, unknownResolver, kbLookup, doseExtractor, confidence, temporalContext, formAdvisor\n- `src/gates/` — detection (42 detection functions), replies (all reply functions + ROUTE_REPLY_MAP), gateEngine, ga",
+    "summary": "Architecture (post-modularization)",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-pharmaguide-chatbot-api/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678997
+  },
+  {
+    "id": "mem-MEMORY-test-files--1870-total-",
+    "key": "test-files-1870-total-",
+    "content": "- `test/full-suite.test.js` — 505 tests, gate logic + routing\n- `test/edge-cases.test.js` — 171 tests, regex edge cases\n- `test/ux-scenarios.test.js` — 36 tests, UX flow routing\n- `test/safety-harness.test.js` — 50 tests, clinical IDs with route + reply validation\n- `test/validator.test.js` — 39 tests, post-response safety validator rules\n- `test/adversarial.test.js` — 65 tests, prompt injection + jailbreak + safety bypass\n- `test/golden-traces.test.js` — 60 tests, end-to-end route + reply conte",
+    "summary": "Test Files (1870 total)",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-pharmaguide-chatbot-api/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678997
+  },
+  {
+    "id": "mem-MEMORY-safety-documentation",
+    "key": "safety-documentation",
+    "content": "- `docs/safety-case/` — safety architecture, risk domains, validation rules, threat model, test coverage, failure modes\n- `docs/safety-case/RELEASE.json` — machine-readable release manifest (policy version, claims, test counts, forbidden keys)",
+    "summary": "Safety Documentation",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-pharmaguide-chatbot-api/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678997
+  },
+  {
+    "id": "mem-MEMORY-key-patterns",
+    "key": "key-patterns",
+    "content": "- Tests use `require()` from `/src` modules (no more vm.runInContext extraction)\n- Post-response validator (`safetyValidator.js`) runs on ALL responses (gate + LLM), 7 rules\n- Safety policy v1.1.0 — 21 clinical domains with evidence_refs to approved claims (added ototoxic, nsaid_chronic)\n- `isEmergency()` has context-awareness: educational framing (e.g. \"can indicate a heart attack\") won't trigger unless first-person present-tense signal present\n- 3 new gates: `isMedicalConditionQuery()`, `detec",
+    "summary": "Key Patterns",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-pharmaguide-chatbot-api/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678997
+  },
+  {
+    "id": "mem-MEMORY-analytics-engine",
+    "key": "analytics-engine",
+    "content": "- `entityClassifier.js` — maps med/supp names → coarse classes (SSRI, statin, mineral, etc.), names never stored\n- `analytics.js` — PHI-free event builder + HMAC-SHA256 IP hash + dashboard query helpers (12 functions)\n- `responseCache.js` — LRU cache (200 entries, 1hr TTL), 9 exclusion rules (no pregnancy/symptoms/doses/multi-turn/risk≥2/3+entities)\n- Analytics behind `ANALYTICS_ENABLED=true` env flag, suppressed in test\n- IP hashed with `ANALYTICS_SALT` env var (falls back to random per-process",
+    "summary": "Analytics Engine",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-pharmaguide-chatbot-api/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678997
+  },
+  {
+    "id": "mem-MEMORY-operational-upgrades",
+    "key": "operational-upgrades",
+    "content": "- `releaseGuard.js` — CI release gate: policy version, claims governance, forbidden keys, claims count checks\n- `scripts/check_release.js` — CLI script for release gate (`node scripts/check_release.js --date YYYY-MM-DD`)\n- `circuitBreaker.js` — CLOSED→OPEN→HALF_OPEN states, 5 failures to open, 30s cooldown, 2 successes to close\n- `safetyValidator.js` extended with `lintResponse()` — word count bands, prohibited jargon (bioavailability, hepatic, etc.), severity context check\n- `analytics.js` exte",
+    "summary": "Operational Upgrades",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-pharmaguide-chatbot-api/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678997
+  },
+  {
+    "id": "mem-MEMORY-scaling-upgrades",
+    "key": "scaling-upgrades",
+    "content": "- `gates.json` v2.0.0 + `gateEngine.js` — 12 DSL gates (was 6), new fields: confidence, reference_ids\n- New DSL gates: metformin-alcohol, renal-magnesium, isotretinoin-vita, ototoxic-tinnitus, nsaid-chronic, medical-condition\n- `resolveSeverity()` — 5 escalation rules: symptoms+serotonergic→red, pregnancy+teratogen→red, polypharmacy+elderly→bump, KB population flags (elderly/renal/pregnancy), validator→degrade\n- `sessionMemory.js` — thin session memory: populations + goal_category + med_list + s",
+    "summary": "Scaling Upgrades",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-pharmaguide-chatbot-api/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678997
+  },
+  {
+    "id": "mem-MEMORY-phase-2--structural-upgrades",
+    "key": "phase-2-structural-upgrades",
+    "content": "- `temporalContext.js` — washout/onset/half-life for ~30 meds (SSRIs, SNRIs, MAOIs, benzos, anticoagulants, NSAIDs, etc.) + brand alias map\n- `formAdvisor.js` — form-specific guidance: detectMentionedForm(), getSafeItemClarification() (clarifies non-serotonergic items in serotonin warnings), getRenalFormNote() (elemental % for renal context)\n- `resolveSeverity()` now KB-aware: queries populations.elderly/renal/pregnancy.safe from knowledgeBase.js\n- Temporal context injected into LLM messages via",
+    "summary": "Phase 2: Structural Upgrades",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-pharmaguide-chatbot-api/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678997
+  },
+  {
+    "id": "mem-MEMORY-references---citations--phase-",
+    "key": "references-citations-phase-0-",
+    "content": "- `references.js` — 30 curated clinical references, zero dependencies, covers all 21 safety domains\n- Every approved claim has `reference_ids` array → closes evidence chain: safetyPolicy → approvedClaims → references\n- `validateReferenceCoverage()` in approvedClaims.js checks claim→reference integrity\n- 10 highest-traffic gate replies have inline citations: `*(Author, Journal Year)*`\n- System prompt instructs LLM to cite sources when naming a specific risk/mechanism\n- Test count now 1870 (was 12",
+    "summary": "References & Citations (Phase 0)",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-pharmaguide-chatbot-api/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678997
+  },
+  {
+    "id": "mem-MEMORY-phase-1--knowledge-depth",
+    "key": "phase-1-knowledge-depth",
+    "content": "- `knowledgeBase.js` — 35 structured entries (supplements + medications), each with: aliases, forms, dose ranges, upper limits, timing, populations (pregnancy/renal/elderly), interactions, common goals, reference_ids\n- `kbLookup.js` — builds compact KB context (~300 tokens) for LLM injection, caps at 4 entries, includes population flags + interaction warnings\n- `doseExtractor.js` — parses doses from messages (3 patterns: \"500 mg magnesium\", \"magnesium 400mg\", \"50,000 IU/week of vitamin D\"), comp",
+    "summary": "Phase 1: Knowledge Depth",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-pharmaguide-chatbot-api/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678997
+  },
+  {
+    "id": "mem-MEMORY-constraints",
+    "key": "constraints",
+    "content": "- No new npm dependencies\n- Vercel serverless safe (no persistent state)\n- Fresh RegExp instances per call (no /g lastIndex bugs)\n- Audit logs: NO raw messages, NO entity names, NO PHI",
+    "summary": "Constraints",
+    "namespace": "core",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/seancheick/.claude/projects/-Users-seancheick-pharmaguide-chatbot-api/memory/MEMORY.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1775848678997
+  }
+]

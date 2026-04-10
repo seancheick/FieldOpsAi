@@ -10,11 +10,42 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class WorkerScheduleScreen extends ConsumerWidget {
+enum _CalendarView { month, week }
+
+class WorkerScheduleScreen extends ConsumerStatefulWidget {
   const WorkerScheduleScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WorkerScheduleScreen> createState() =>
+      _WorkerScheduleScreenState();
+}
+
+class _WorkerScheduleScreenState extends ConsumerState<WorkerScheduleScreen> {
+  _CalendarView _view = _CalendarView.month;
+  late DateTime _displayMonth;
+  late DateTime _selectedDay;
+
+  static const _monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+  static const _dayInitials = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _displayMonth = DateTime(now.year, now.month);
+    _selectedDay = DateTime(now.year, now.month, now.day);
+  }
+
+  DateTime get _weekStart {
+    final d = _selectedDay;
+    return d.subtract(Duration(days: d.weekday - 1));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheduleState = ref.watch(workerScheduleControllerProvider);
     final palette = context.palette;
@@ -24,111 +55,324 @@ class WorkerScheduleScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(l10n.mySchedule),
         leading: const BackButton(),
-      ),
-      body: RefreshIndicator(
-        onRefresh: () =>
-            ref.read(workerScheduleControllerProvider.notifier).reload(),
-        child: scheduleState.when(
-          data: (shifts) {
-            if (shifts.isEmpty) {
-              return ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(20),
-                children: const [
-                  SizedBox(height: 140),
-                  _ScheduleEmptyState(),
-                ],
-              );
-            }
-            // Build shift date set for calendar
-            final now = DateTime.now();
-            final shiftDates = shifts
-                .map((s) => DateTime(
-                      s.shiftDate.year,
-                      s.shiftDate.month,
-                      s.shiftDate.day,
-                    ))
-                .toSet();
-
-            return CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: palette.surfaceWhite,
-                        borderRadius: BorderRadius.circular(
-                          FieldOpsRadius.xxl,
-                        ),
-                        border: Border.all(color: palette.border),
-                      ),
-                      child: ScheduleCalendar(
-                        month: now.month,
-                        year: now.year,
-                        shiftDates: shiftDates,
-                      ),
-                    ),
-                  ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: SegmentedButton<_CalendarView>(
+              style: SegmentedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+              segments: const [
+                ButtonSegment(
+                  value: _CalendarView.month,
+                  icon: Icon(Icons.calendar_month_rounded, size: 18),
+                  label: Text('Month'),
                 ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(l10n.upcomingShifts, style: textTheme.headlineMedium),
-                        const SizedBox(height: 8),
-                        Text(
-                          l10n.scheduleHelp,
-                          style: textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  sliver: SliverReorderableList(
-                    itemCount: shifts.length,
-                    itemBuilder: (context, index) {
-                      final shift = shifts[index];
-                      return Padding(
-                        key: ValueKey(shift.id),
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _ScheduleCard(shift: shift, palette: palette),
-                      );
-                    },
-                    onReorder: (oldIndex, newIndex) {
-                      ref.read(workerScheduleControllerProvider.notifier).reorderShifts(oldIndex, newIndex);
-                    },
-                  ),
+                ButtonSegment(
+                  value: _CalendarView.week,
+                  icon: Icon(Icons.view_week_rounded, size: 18),
+                  label: Text('Week'),
                 ),
               ],
-            );
-          },
-          loading: () => const Padding(
-            padding: EdgeInsets.all(20),
-            child: SkeletonLoader(itemCount: 4),
+              selected: {_view},
+              onSelectionChanged: (s) => setState(() => _view = s.first),
+            ),
           ),
-          error: (error, _) {
-            final repositoryError =
-                error is ScheduleRepositoryException
-                    ? error
-                    : const ScheduleRepositoryException.unknown();
+        ],
+      ),
+      body: scheduleState.when(
+        data: (shifts) {
+          if (shifts.isEmpty) {
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(20),
-              children: [
-                const SizedBox(height: 140),
-                _ScheduleErrorState(message: repositoryError.message),
-              ],
+              children: const [SizedBox(height: 140), _ScheduleEmptyState()],
             );
-          },
+          }
+          final shiftDates = shifts
+              .map((s) => DateTime(s.shiftDate.year, s.shiftDate.month, s.shiftDate.day))
+              .toSet();
+
+          return _view == _CalendarView.week
+              ? _buildWeekView(shifts, shiftDates, palette, textTheme)
+              : _buildMonthView(shifts, shiftDates, palette, textTheme, l10n);
+        },
+        loading: () => const Padding(
+          padding: EdgeInsets.all(20),
+          child: SkeletonLoader(itemCount: 4),
         ),
+        error: (error, _) {
+          final msg = error is ScheduleRepositoryException
+              ? error
+              : const ScheduleRepositoryException.unknown();
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20),
+            children: [const SizedBox(height: 140), _ScheduleErrorState(message: msg.message)],
+          );
+        },
       ),
+    );
+  }
+
+  // ─── Month view ───────────────────────────────────────────────
+
+  Widget _buildMonthView(
+    List<WorkerScheduleShift> shifts,
+    Set<DateTime> shiftDates,
+    FieldOpsPalette palette,
+    TextTheme textTheme,
+    AppLocalizations l10n,
+  ) {
+    return RefreshIndicator(
+      onRefresh: () => ref.read(workerScheduleControllerProvider.notifier).reload(),
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: palette.surfaceWhite,
+                  borderRadius: BorderRadius.circular(FieldOpsRadius.xxl),
+                  border: Border.all(color: palette.border),
+                ),
+                child: Column(
+                  children: [
+                    // Month navigation
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => setState(() {
+                            _displayMonth = DateTime(_displayMonth.year, _displayMonth.month - 1);
+                          }),
+                          icon: const Icon(Icons.chevron_left_rounded),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        Expanded(
+                          child: Text(
+                            '${_monthNames[_displayMonth.month - 1]} ${_displayMonth.year}',
+                            textAlign: TextAlign.center,
+                            style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => setState(() {
+                            _displayMonth = DateTime(_displayMonth.year, _displayMonth.month + 1);
+                          }),
+                          icon: const Icon(Icons.chevron_right_rounded),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    ScheduleCalendar(
+                      month: _displayMonth.month,
+                      year: _displayMonth.year,
+                      shiftDates: shiftDates,
+                      selectedDate: _selectedDay,
+                      onDateSelected: (date) => setState(() {
+                        _selectedDay = _selectedDay == date ? _selectedDay : date;
+                      }),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(l10n.upcomingShifts, style: textTheme.headlineMedium),
+                  const SizedBox(height: 8),
+                  Text(l10n.scheduleHelp, style: textTheme.bodyMedium),
+                ],
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            sliver: SliverReorderableList(
+              itemCount: shifts.length,
+              itemBuilder: (context, index) {
+                final shift = shifts[index];
+                return Padding(
+                  key: ValueKey(shift.id),
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _ScheduleCard(shift: shift, palette: palette),
+                );
+              },
+              onReorder: (oldIndex, newIndex) {
+                ref.read(workerScheduleControllerProvider.notifier).reorderShifts(oldIndex, newIndex);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Week / Gantt view ────────────────────────────────────────
+
+  Widget _buildWeekView(
+    List<WorkerScheduleShift> shifts,
+    Set<DateTime> shiftDates,
+    FieldOpsPalette palette,
+    TextTheme textTheme,
+  ) {
+    final weekStart = _weekStart;
+    final days = List.generate(7, (i) => weekStart.add(Duration(days: i)));
+    final today = DateTime.now();
+    final todayNorm = DateTime(today.year, today.month, today.day);
+
+    final dayShifts = shifts.where((s) {
+      final d = DateTime(s.shiftDate.year, s.shiftDate.month, s.shiftDate.day);
+      return d == _selectedDay;
+    }).toList();
+
+    return Column(
+      children: [
+        // Week day picker
+        Container(
+          color: palette.surfaceWhite,
+          child: Column(
+            children: [
+              // Week navigation row
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => setState(() =>
+                        _selectedDay = _selectedDay.subtract(const Duration(days: 7))),
+                    icon: const Icon(Icons.chevron_left_rounded),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  Expanded(
+                    child: Text(
+                      '${_monthNames[weekStart.month - 1]} ${weekStart.year}',
+                      textAlign: TextAlign.center,
+                      style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => setState(() =>
+                        _selectedDay = _selectedDay.add(const Duration(days: 7))),
+                    icon: const Icon(Icons.chevron_right_rounded),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+              // Day buttons
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: days.map((day) {
+                    final isSelected = day == _selectedDay;
+                    final isToday = day == todayNorm;
+                    final hasShift = shiftDates.contains(day);
+
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedDay = day),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _dayInitials[day.weekday - 1],
+                            style: textTheme.labelSmall?.copyWith(
+                              color: isSelected ? palette.signal : palette.steel,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            width: 36,
+                            height: 36,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? palette.signal
+                                  : hasShift
+                                      ? palette.signal.withValues(alpha: 0.1)
+                                      : null,
+                              border: isToday && !isSelected
+                                  ? Border.all(color: palette.signal, width: 1.5)
+                                  : null,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${day.day}',
+                              style: textTheme.bodySmall?.copyWith(
+                                color: isSelected
+                                    ? Colors.white
+                                    : (isToday || hasShift)
+                                        ? palette.signal
+                                        : palette.slate,
+                                fontWeight: isSelected || isToday || hasShift
+                                    ? FontWeight.w700
+                                    : FontWeight.w400,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            width: 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: hasShift ? palette.signal : Colors.transparent,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              Divider(height: 1, color: palette.border),
+            ],
+          ),
+        ),
+
+        // Shifts for selected day
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () => ref.read(workerScheduleControllerProvider.notifier).reload(),
+            child: dayShifts.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(20),
+                    children: [
+                      const SizedBox(height: 60),
+                      Center(
+                        child: Column(
+                          children: [
+                            Icon(Icons.event_available_rounded, size: 40,
+                                color: palette.steel.withValues(alpha: 0.4)),
+                            const SizedBox(height: 12),
+                            Text('No shifts this day', style: textTheme.titleMedium),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                : ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                    itemCount: dayShifts.length,
+                    itemBuilder: (context, i) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _ScheduleCard(shift: dayShifts[i], palette: palette),
+                    ),
+                  ),
+          ),
+        ),
+      ],
     );
   }
 }
