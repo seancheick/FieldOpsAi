@@ -848,7 +848,7 @@ They don't affect production safety but improve robustness and maintainability.
 - [ ] Email/SMS worker invites (deep link activation)
 - [x] Photo annotation & markup (draw on photos)
   - Type: Mobile | Priority: Medium | Status: Done
-  - Agent findings: Completed 2026-04-08. PhotoAnnotationScreen (CustomPainter canvas, GestureDetector, 4 tools: freehand/arrow/circle/rectangle, 4 color swatches, thin/thick stroke, undo/clear). RepaintBoundary.toImage() → PNG temp file on confirm. Wired into PhotoReviewScreen with _currentFilePath state (annotations bake into file before upload), Annotate button in tool row, Annotated badge chip. flutter analyze clean.
+  - Agent findings: Completed 2026-04-08. PhotoAnnotationScreen (CustomPainter canvas, GestureDetector, 4 tools: freehand/arrow/circle/rectangle, 4 color swatches, thin/thick stroke, undo/clear). RepaintBoundary.toImage() → PNG temp file on confirm. Wired into PhotoReviewScreen with \_currentFilePath state (annotations bake into file before upload), Annotate button in tool row, Annotated badge chip. flutter analyze clean.
   - Evidence: `apps/fieldops_mobile/lib/features/camera/presentation/photo_annotation_screen.dart`, `apps/fieldops_mobile/lib/features/camera/presentation/photo_review_screen.dart`
 
 ### Mobile Enhancements (completed 2026-04-05)
@@ -1187,7 +1187,7 @@ They don't affect production safety but improve robustness and maintainability.
 ## Completed this session (2026-04-08, continued)
 
 - ✅ Photo annotation & markup — PhotoAnnotationScreen with CustomPainter canvas (freehand, arrow, circle, rectangle), color swatches, undo/clear, RepaintBoundary.toImage() → PNG bake on confirm
-- ✅ Wired into PhotoReviewScreen — Annotate button in tool row, _currentFilePath state so annotations persist into upload, Annotated badge chip
+- ✅ Wired into PhotoReviewScreen — Annotate button in tool row, \_currentFilePath state so annotations persist into upload, Annotated badge chip
 - ✅ Schedule calendar — fixed empty trailing row squeeze (SizedBox.shrink() guard on empty weeks)
 - ✅ Schedule week/Gantt view — added month navigation (prev/next), SegmentedButton month/week toggle, full week day-picker with shift dot indicators and filtered shift list for selected day
 - ✅ Photos tab draft count — fixed Stream.periodic first-emission delay; async generator now yields at t=0 so "Saved Photos" tile appears immediately on job detail load
@@ -1200,6 +1200,7 @@ They don't affect production safety but improve robustness and maintainability.
 **Done:** Code quality hardening, scalability foundations, field intelligence features, foreman flows, reusable components, CI stabilization, crew clock-in, budgeting, time corrections, photo annotation & markup, calendar month/week view, draft photo count fix, l10n compile fix.
 
 **Deferred to Sprint 8:**
+
 - `[ ]` Equipment tracking (GPS + machine hours) — schema + edge function + mobile UI required
 - `[ ]` Email/SMS worker invites (deep link activation)
 
