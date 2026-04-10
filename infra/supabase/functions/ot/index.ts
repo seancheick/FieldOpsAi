@@ -146,6 +146,10 @@ serve(async (req) => {
       const url = new URL(req.url)
       const jobId = url.searchParams.get("job_id")
       const status = url.searchParams.get("status") || "pending"
+      const offset = Number(url.searchParams.get("offset") || "0")
+      const limit = Number(url.searchParams.get("limit") || "50")
+      const safeOffset = Number.isFinite(offset) && offset >= 0 ? offset : 0
+      const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 100) : 50
 
       let query = supabaseAdmin
         .from("ot_requests")
@@ -165,7 +169,7 @@ serve(async (req) => {
         .eq("company_id", userRecord.company_id)
         .eq("status", status)
         .order("requested_at", { ascending: false })
-        .limit(50)
+        .range(safeOffset, safeOffset + safeLimit - 1)
 
       if (jobId) {
         query = query.eq("job_id", jobId)

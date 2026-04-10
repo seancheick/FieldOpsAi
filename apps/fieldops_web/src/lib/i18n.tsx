@@ -2,14 +2,14 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-export type Locale = "en" | "es";
+export type Locale = "en" | "es" | "th";
 
 type TranslationValue = string;
 type TranslationTree = {
   [key: string]: TranslationValue | TranslationTree;
 };
 
-const translations: Record<Locale, TranslationTree> = {
+const translations: Record<string, TranslationTree> = {
   en: {
     common: {
       backToDashboard: "Back to Dashboard",
@@ -76,6 +76,7 @@ const translations: Record<Locale, TranslationTree> = {
       language: "Language",
       english: "English",
       spanish: "Español",
+      thai: "Thai",
       search: "Search",
       searchPlaceholder: "Search pages...",
       searchGoTo: "Go to",
@@ -686,6 +687,7 @@ const translations: Record<Locale, TranslationTree> = {
       language: "Idioma",
       english: "English",
       spanish: "Español",
+      thai: "Tailandés",
       search: "Buscar",
       searchPlaceholder: "Buscar páginas...",
       searchGoTo: "Ir a",
@@ -1243,6 +1245,55 @@ const translations: Record<Locale, TranslationTree> = {
   },
 };
 
+translations.th = {
+  ...translations.en,
+  common: {
+    ...(translations.en.common as TranslationTree),
+    loading: "กำลังโหลด...",
+    refresh: "รีเฟรช",
+    retry: "ลองอีกครั้ง",
+    cancel: "ยกเลิก",
+    loadMore: "โหลดเพิ่ม",
+    loadingMore: "กำลังโหลด...",
+  },
+  shell: {
+    ...(translations.en.shell as TranslationTree),
+    commandCenter: "ศูนย์ควบคุม",
+    dashboard: "แดชบอร์ด",
+    map: "แผนที่สด",
+    workers: "คนงาน",
+    projects: "โครงการ",
+    schedule: "ตารางงาน",
+    timeline: "ไทม์ไลน์",
+    photos: "รูปถ่ายหน้างาน",
+    expenses: "ค่าใช้จ่าย",
+    costCodes: "รหัสต้นทุน",
+    overtime: "โอที",
+    pto: "วันลา",
+    timecards: "บัตรเวลา",
+    reports: "รายงาน",
+    company: "บริษัท",
+    billing: "การเรียกเก็บเงิน",
+    staff: "ทีมงาน",
+    onboarding: "เริ่มต้นใช้งาน",
+    overview: "ภาพรวม",
+    operations: "ปฏิบัติการ",
+    settings: "การตั้งค่า",
+    signOut: "ออกจากระบบ",
+    language: "ภาษา",
+    english: "English",
+    spanish: "Español",
+    thai: "ไทย",
+    search: "ค้นหา",
+    searchPlaceholder: "ค้นหาหน้า...",
+    searchGoTo: "ไปที่",
+    collapseSidebar: "ย่อแถบด้านข้าง",
+    expandSidebar: "ขยายแถบด้านข้าง",
+    openMenu: "เปิดเมนู",
+    closeMenu: "ปิดเมนู",
+  },
+};
+
 type LocaleContextValue = {
   locale: Locale;
   setLocale: (locale: Locale) => void;
@@ -1284,7 +1335,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = window.localStorage.getItem("fieldops-web-locale");
-    if (stored === "en" || stored === "es") {
+    if (stored === "en" || stored === "es" || stored === "th") {
       setLocaleState(stored);
       document.documentElement.lang = stored;
     }

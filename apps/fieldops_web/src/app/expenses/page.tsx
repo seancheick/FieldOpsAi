@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { callFunctionJson } from "@/lib/function-client";
 import { getSupabase } from "@/lib/supabase";
 import { SkeletonCard } from "@/components/ui/skeleton";
 
@@ -34,6 +35,10 @@ type ExpenseCardData = ExpenseEntry & {
   jobName: string;
   jobCode: string;
 };
+
+interface ExpensesResponse {
+  expenses?: ExpenseEntry[];
+}
 
 export default function ExpensesPage() {
   return (
@@ -70,26 +75,10 @@ function ExpensesContent() {
 
     try {
       const supabase = getSupabase();
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      if (!token) {
-        throw new Error("Missing session");
-      }
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/expenses?status=${filterStatus}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.message || t("expensesPage.failedToLoad"));
-      }
-
-      const expenseRows = (payload.expenses as ExpenseEntry[]) ?? [];
+      const payload = await callFunctionJson<ExpensesResponse>("expenses", {
+        query: { status: filterStatus },
+      });
+      const expenseRows = payload.expenses ?? [];
       const workerIds = Array.from(new Set(expenseRows.map((entry) => entry.submitted_by)));
       const jobIds = Array.from(new Set(expenseRows.map((entry) => entry.job_id)));
       const mediaIds = Array.from(
@@ -167,32 +156,19 @@ function ExpensesContent() {
   ) {
     setDecidingId(expenseId);
     try {
-      const supabase = getSupabase();
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/expenses`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-            "Idempotency-Key": crypto.randomUUID(),
-          },
-          body: JSON.stringify({
-            action: "decide",
-            expense_id: expenseId,
-            decision,
-            reason,
-          }),
+      await callFunctionJson("expenses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": crypto.randomUUID(),
         },
-      );
-
-      const body = await res.json();
-      if (!res.ok) {
-        throw new Error(body.message || t("expensesPage.failedToLoad"));
-      }
+        body: JSON.stringify({
+          action: "decide",
+          expense_id: expenseId,
+          decision,
+          reason,
+        }),
+      });
 
       await loadExpenses();
     } catch (err) {
@@ -209,32 +185,19 @@ function ExpensesContent() {
   ) {
     setReimbursingId(expenseId);
     try {
-      const supabase = getSupabase();
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/expenses`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-            "Idempotency-Key": crypto.randomUUID(),
-          },
-          body: JSON.stringify({
-            action: "reimburse",
-            expense_id: expenseId,
-            reference,
-            notes,
-          }),
+      await callFunctionJson("expenses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": crypto.randomUUID(),
         },
-      );
-
-      const body = await res.json();
-      if (!res.ok) {
-        throw new Error(body.message || t("expensesPage.failedToLoad"));
-      }
+        body: JSON.stringify({
+          action: "reimburse",
+          expense_id: expenseId,
+          reference,
+          notes,
+        }),
+      });
 
       await loadExpenses();
     } catch (err) {

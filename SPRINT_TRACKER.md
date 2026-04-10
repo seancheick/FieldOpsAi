@@ -523,12 +523,14 @@ Use shadcn/ui for all new elements (data tables, modals, tabs, forms).
   - Type: Web | Priority: MEDIUM
   - Definition of Done: Responsive masonry (3/2/1 col). Filters: date/worker/task/before-after. Hover → enlarged stamp + copy verification code. Bulk select + download.
   - Agent findings: Completed 2026-04-05. CSS columns masonry, 4-filter bar (date/worker/task/mode), lightbox modal with prev/next navigation + copy code, checkbox bulk select + download.
+  - Agent findings: Updated 2026-04-10. `/photos` now also serves as a project browser with folder-style icon/list modes. Opening a project keeps the user on the same page and switches between `Feed`, `Timeline`, and `Map` tabs instead of routing to the standalone timeline/map pages.
   - Evidence: `apps/fieldops_web/src/app/photos/page.tsx`
 
 - [x] Expenses/OT/PTO: summary KPI row at top + consistent card design
   - Type: Web | Priority: LOW
   - Definition of Done: "Pending Total: $1,245" / "3 pending requests" stat row. Same card layout across all 3 approval pages.
   - Agent findings: Completed 2026-04-05. Expenses: 4-card KPI row (pending total, count, approved this month, reimbursed). OT: 3-card row (pending, approved today, denied). PTO: 3-card row (pending, upcoming, days off this month). Consistent card design across all three.
+  - Agent findings: Updated 2026-04-10. Added a shared authenticated web function client and migrated OT, expenses, PTO, and cost-codes fetches toward the same function-backed path. OT list loading now uses `/ot` instead of direct table reads, reducing fetch drift and permission mismatch risk.
   - Evidence: `apps/fieldops_web/src/app/expenses/page.tsx`, `overtime/page.tsx`, `pto/page.tsx`
 
 - [x] Reports: visual charts (Recharts) + one-click PDF export + saved presets
@@ -684,6 +686,7 @@ Full research: `.claude/plans/rosy-puzzling-clover-agent-a5ebd4159a6e7ee7e.md`
   - Type: Web | Priority: MEDIUM
   - Definition of Done: Logo upload, stamp branding, settings tabs, access denied, invite flow, audit log viewer labels in both EN and ES.
   - Agent findings: Completed 2026-04-05. All new Sprint 6 UI components use t() with EN+ES keys. Added 60+ i18n keys across dashboard, workers, photos, reports, expenses, overtime, pto, timecards, settings, staff, onboarding, and shell namespaces.
+  - Agent findings: Updated 2026-04-10. Added Thai as a supported web locale for the shell/common navigation layer and wired it into the supervisor sidebar language selector with persistent locale storage.
   - Evidence: `apps/fieldops_web/src/lib/i18n.tsx`
 
 #### Phase 4: Super-Admin App (separate Next.js at apps/fieldops_admin/)

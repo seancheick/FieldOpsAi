@@ -5,12 +5,18 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 import { SkeletonPhotoGrid } from "@/components/ui/skeleton";
+import { ProjectBrowser } from "@/components/photos/project-browser";
+import { ProjectWorkspaceTabs } from "@/components/photos/project-workspace-tabs";
+import { PhotoTimelinePanel } from "@/components/photos/photo-timeline-panel";
+import { PhotoMapPanel } from "@/components/photos/photo-map-panel";
 
 interface PhotoEntry {
   id: string;
   occurred_at: string;
   media_asset_id: string;
   is_checkpoint: boolean;
+  gps_lat: number | null;
+  gps_lng: number | null;
   user_id: string;
   users: { full_name: string } | null;
   task_id: string | null;
@@ -62,7 +68,14 @@ export default function PhotosPage() {
   );
 }
 
-interface ProjectOption { id: string; name: string; code: string; status?: string; }
+interface ProjectOption {
+  id: string;
+  name: string;
+  code: string;
+  status?: string;
+  photoCount?: number;
+  lastPhotoAt?: string | null;
+}
 
 function PhotoFeedContent() {
   const { t } = useI18n();
@@ -79,14 +92,36 @@ function PhotoFeedContent() {
   const [jobName, setJobName] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
 
-  // Load all projects for the picker (all statuses so nothing is hidden)
+  const [projectSearch, setProjectSearch] = useState("");
+  const [projectBrowserView, setProjectBrowserView] = useState<"icons" | "list">("icons");
+
+  // Load all projects for the browser and enrich with photo counts / last activity.
   useEffect(() => {
     const supabase = getSupabase();
-    supabase
-      .from("jobs")
-      .select("id, name, code, status")
-      .order("name")
-      .then(({ data }) => setProjects((data as ProjectOption[]) ?? []));
+    Promise.all([
+      supabase.from("jobs").select("id, name, code, status").order("name"),
+      supabase.from("photo_events").select("job_id, occurred_at").order("occurred_at", { ascending: false }),
+    ]).then(([jobsResult, photosResult]) => {
+      const baseProjects = (jobsResult.data as ProjectOption[]) ?? [];
+      const statsByJob = new Map<string, { count: number; lastPhotoAt: string | null }>();
+
+      for (const row of photosResult.data ?? []) {
+        const jobKey = row.job_id as string;
+        const current = statsByJob.get(jobKey) ?? { count: 0, lastPhotoAt: null };
+        statsByJob.set(jobKey, {
+          count: current.count + 1,
+          lastPhotoAt: current.lastPhotoAt ?? (row.occurred_at as string),
+        });
+      }
+
+      setProjects(
+        baseProjects.map((project) => ({
+          ...project,
+          photoCount: statsByJob.get(project.id)?.count ?? 0,
+          lastPhotoAt: statsByJob.get(project.id)?.lastPhotoAt ?? null,
+        })),
+      );
+    });
   }, []);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const urlCacheRef = useRef<Record<string, string>>({});
@@ -105,7 +140,7 @@ function PhotoFeedContent() {
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
 
   // View mode state
-  const [viewMode, setViewMode] = useState<"gallery" | "sheet">("gallery");
+  const [feedViewMode, setFeedViewMode] = useState<"gallery" | "sheet">("gallery");
 
   // Bulk select state
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
@@ -117,7 +152,9 @@ function PhotoFeedContent() {
     setError(null);
 
     if (!jobId) {
-      setError("no_job");
+      setPhotos([]);
+      setJobName(null);
+      setHasMorePhotos(false);
       setLoading(false);
       return;
     }
@@ -139,6 +176,8 @@ function PhotoFeedContent() {
           occurred_at,
           media_asset_id,
           is_checkpoint,
+          gps_lat,
+          gps_lng,
           user_id,
           task_id,
           users!photo_events_user_id_fkey ( full_name ),
@@ -240,6 +279,8 @@ function PhotoFeedContent() {
           occurred_at,
           media_asset_id,
           is_checkpoint,
+          gps_lat,
+          gps_lng,
           user_id,
           task_id,
           users!photo_events_user_id_fkey ( full_name ),
@@ -354,6 +395,8 @@ function PhotoFeedContent() {
               occurred_at,
               media_asset_id,
               is_checkpoint,
+              gps_lat,
+              gps_lng,
               user_id,
               task_id,
               users!photo_events_user_id_fkey ( full_name ),
@@ -598,74 +641,36 @@ function PhotoFeedContent() {
           <span>&larr;</span> {t("common.backToDashboard")}
         </a>
 
-        {/* Project selector */}
-        <div className="mb-4 flex items-center gap-3">
-          <label className="text-sm font-semibold text-slate-600 whitespace-nowrap">
-            Select Project
-          </label>
-          <select
-            value={jobId ?? ""}
-            onChange={(e) => {
-              const id = e.target.value;
-              if (id) router.push(`/photos?job_id=${encodeURIComponent(id)}`);
-              else router.push("/photos");
-            }}
-            className="flex-1 max-w-sm rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
-          >
-            <option value="">— Choose a project —</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.code})
-              </option>
-            ))}
-          </select>
-          {projects.length === 0 && (
-            <a href="/projects" className="text-xs font-medium text-amber-600 hover:text-amber-700">
-              No active projects — create one →
-            </a>
-          )}
-        </div>
-
         <h2 className="text-2xl font-bold text-slate-900">
           {jobName ? t("photos.titleWithJob", { jobName }) : t("photos.title")}
         </h2>
         <p className="mt-1 text-slate-600">{t("photos.subtitle")}</p>
-        {photos.length > 0 && (
+        {jobId ? (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push("/photos")}
+                className="rounded-2xl border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm hover:bg-stone-50"
+              >
+                All Projects
+              </button>
+              <ProjectWorkspaceTabs
+                activeTab={activeTab === "timeline" || activeTab === "map" ? activeTab : "feed"}
+                onChange={(tab) => router.push(`/photos?job_id=${encodeURIComponent(jobId)}&tab=${tab}`)}
+              />
+            </div>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">
+              {photos.length > 0 ? t("photos.liveUpdates", { count: photos.length }) : "Project workspace ready"}
+            </div>
+          </div>
+        ) : (
           <p className="mt-1 text-sm text-slate-400">
-            {t("photos.liveUpdates", { count: photos.length })}
+            Open a project folder to review proof photos by feed, timeline, or map.
           </p>
         )}
 
-        {/* Sub-tabs (job-scoped) */}
-        {jobId && (
-          <div className="mt-4 flex gap-1 rounded-xl bg-stone-100 p-1">
-            <a
-              href={`/photos?job_id=${encodeURIComponent(jobId)}&tab=feed`}
-              className={`flex-1 rounded-lg px-3 py-2 text-center text-xs font-semibold transition-all ${
-                activeTab === "feed"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-400 hover:text-slate-600"
-              }`}
-            >
-              Feed
-            </a>
-            <a
-              href={`/timeline?job_id=${encodeURIComponent(jobId)}`}
-              className="flex-1 rounded-lg px-3 py-2 text-center text-xs font-semibold text-slate-400 transition-all hover:text-slate-600"
-            >
-              Timeline
-            </a>
-            <a
-              href={`/map?job_id=${encodeURIComponent(jobId)}`}
-              className="flex-1 rounded-lg px-3 py-2 text-center text-xs font-semibold text-slate-400 transition-all hover:text-slate-600"
-            >
-              Map
-            </a>
-          </div>
-        )}
-
         {/* Stats summary bar */}
-        {!loading && !error && photos.length > 0 && (
+        {jobId && !loading && !error && photos.length > 0 && (
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="rounded-xl border border-stone-200 bg-white px-4 py-3 text-center">
               <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
@@ -695,15 +700,26 @@ function PhotoFeedContent() {
         )}
       </div>
 
+      {!jobId && (
+        <ProjectBrowser
+          projects={projects}
+          search={projectSearch}
+          onSearchChange={setProjectSearch}
+          viewMode={projectBrowserView}
+          onViewModeChange={setProjectBrowserView}
+          onOpenProject={(projectId) => router.push(`/photos?job_id=${encodeURIComponent(projectId)}&tab=feed`)}
+        />
+      )}
+
       {/* View mode switcher */}
-      {photos.length > 0 && (
+      {jobId && activeTab === "feed" && photos.length > 0 && (
         <div className="mb-4 flex gap-1 rounded-xl bg-stone-100 p-1 w-fit">
           {(["gallery", "sheet"] as const).map((mode) => (
             <button
               key={mode}
-              onClick={() => setViewMode(mode)}
+              onClick={() => setFeedViewMode(mode)}
               className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
-                viewMode === mode
+                feedViewMode === mode
                   ? "bg-white text-slate-900 shadow-sm"
                   : "text-slate-500 hover:text-slate-700"
               }`}
@@ -719,7 +735,7 @@ function PhotoFeedContent() {
       )}
 
       {/* Filter bar */}
-      {photos.length > 0 && (
+      {jobId && activeTab === "feed" && photos.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 bg-white p-3">
           {/* Date */}
           <label className="flex items-center gap-1.5 text-sm text-slate-600">
@@ -822,25 +838,7 @@ function PhotoFeedContent() {
         </div>
       )}
 
-      {error === "no_job" && (
-        <div className="rounded-xl border border-stone-200 bg-white p-10 text-center">
-          <div className="text-4xl mb-3">📂</div>
-          <p className="font-medium text-slate-700">No project selected</p>
-          <p className="mt-1 text-sm text-slate-400">
-            Use the <span className="font-semibold text-slate-600">Select Project</span> dropdown above to view photos for a project.
-          </p>
-          {projects.length === 0 && (
-            <a
-              href="/projects"
-              className="mt-4 inline-block rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600"
-            >
-              Create your first project →
-            </a>
-          )}
-        </div>
-      )}
-
-      {error && error !== "no_job" && (
+      {error && jobId && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
           <button
@@ -852,18 +850,49 @@ function PhotoFeedContent() {
         </div>
       )}
 
-      {loading && (
+      {loading && jobId && (
         <SkeletonPhotoGrid count={6} />
       )}
 
-      {!loading && !error && photos.length === 0 && (
+      {!loading && !error && jobId && photos.length === 0 && (
         <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-slate-500">
           {t("photos.noPhotos")}
         </div>
       )}
 
+      {!loading && !error && jobId && activeTab === "timeline" && (
+        <PhotoTimelinePanel
+          photos={photos.map((photo) => {
+            const asset = photo.displayAsset ?? photo.media_assets;
+            const meta = asset?.metadata as Record<string, unknown> | undefined;
+            return {
+              id: photo.id,
+              occurredAt: photo.occurred_at,
+              workerName: (photo.users as { full_name: string } | null)?.full_name ?? t("photos.unknownWorker"),
+              taskName: (photo.tasks as { name: string } | null)?.name ?? null,
+              mode: ((meta?.mode as string) ?? "standard").toLowerCase(),
+              isCheckpoint: photo.is_checkpoint,
+              verificationCode: asset?.verification_code ?? null,
+            };
+          })}
+        />
+      )}
+
+      {!loading && !error && jobId && activeTab === "map" && (
+        <PhotoMapPanel
+          photos={photos.map((photo) => ({
+            id: photo.id,
+            occurredAt: photo.occurred_at,
+            workerName: (photo.users as { full_name: string } | null)?.full_name ?? t("photos.unknownWorker"),
+            gpsLat: photo.gps_lat,
+            gpsLng: photo.gps_lng,
+            imageUrl: signedUrls[photo.id],
+          }))}
+        />
+      )}
+
       {/* Sheet view */}
-      {viewMode === "sheet" && filteredPhotos.length > 0 && (
+      {jobId && activeTab === "feed" && feedViewMode === "sheet" && filteredPhotos.length > 0 && (
         <div className="mb-6 overflow-x-auto rounded-2xl border border-stone-200 bg-white">
           <table className="w-full text-sm">
             <thead>
@@ -932,7 +961,7 @@ function PhotoFeedContent() {
       )}
 
       {/* Masonry photo grid */}
-      {viewMode === "gallery" && <div className="columns-1 sm:columns-2 lg:columns-3 gap-4">
+      {jobId && activeTab === "feed" && feedViewMode === "gallery" && <div className="columns-1 sm:columns-2 lg:columns-3 gap-4">
         {filteredPhotos.map((photo, index) => {
           const workerName =
             (photo.users as { full_name: string } | null)?.full_name ??
@@ -1064,7 +1093,7 @@ function PhotoFeedContent() {
       </div>}
 
       {/* Load More */}
-      {hasMorePhotos && (
+      {jobId && activeTab === "feed" && hasMorePhotos && (
         <div className="mt-6 flex justify-center">
           <button
             onClick={loadMorePhotos}
@@ -1077,7 +1106,7 @@ function PhotoFeedContent() {
       )}
 
       {/* Lightbox modal */}
-      {lightboxPhoto && selectedPhotoIndex !== null && (() => {
+      {jobId && activeTab === "feed" && lightboxPhoto && selectedPhotoIndex !== null && (() => {
         const lbWorker =
           (lightboxPhoto.users as { full_name: string } | null)?.full_name ??
           t("photos.unknownWorker");

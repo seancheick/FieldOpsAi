@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { getSupabase } from "@/lib/supabase";
+import { callFunctionJson } from "@/lib/function-client";
 import { SkeletonCard } from "@/components/ui/skeleton";
 
 interface PTORequest {
@@ -19,6 +19,10 @@ interface PTORequest {
   decision_reason: string | null;
   created_at: string;
   users: { full_name: string } | null;
+}
+
+interface PTOListResponse {
+  requests?: PTORequest[];
 }
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -46,19 +50,10 @@ export default function PTOPage() {
   const loadRequests = useCallback(async () => {
     setError(null);
     try {
-      const supabase = getSupabase();
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-      if (!token) throw new Error("Not authenticated");
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/pto?status=${filter}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Failed to load");
-
-      setRequests(data.requests ?? []);
+      const payload = await callFunctionJson<PTOListResponse>("pto", {
+        query: { status: filter },
+      });
+      setRequests(payload.requests ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load PTO requests");
     } finally {
@@ -73,32 +68,18 @@ export default function PTOPage() {
 
   async function handleDecision(requestId: string, decision: "approved" | "denied") {
     try {
-      const supabase = getSupabase();
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-      if (!token) return;
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/pto`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            action: "decide",
-            pto_request_id: requestId,
-            decision,
-            reason: decisionReason || undefined,
-          }),
+      await callFunctionJson("pto", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Decision failed");
-      }
+        body: JSON.stringify({
+          action: "decide",
+          pto_request_id: requestId,
+          decision,
+          reason: decisionReason || undefined,
+        }),
+      });
 
       setDecidingId(null);
       setDecisionReason("");

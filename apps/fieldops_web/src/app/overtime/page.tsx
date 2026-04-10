@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { getSupabase } from "@/lib/supabase";
+import { callFunctionJson } from "@/lib/function-client";
 import { SkeletonCard } from "@/components/ui/skeleton";
 
 interface OTRequest {
@@ -16,6 +16,10 @@ interface OTRequest {
   status: string;
   users: { full_name: string } | null;
   jobs: { name: string; code: string } | null;
+}
+
+interface OTListResponse {
+  ot_requests?: OTRequest[];
 }
 
 export default function OvertimePage() {
@@ -53,26 +57,14 @@ function OvertimeContent() {
     setError(null);
 
     try {
-      const supabase = getSupabase();
-      const { data, error: err } = await supabase
-        .from("ot_requests")
-        .select(`
-          id,
-          job_id,
-          worker_id,
-          requested_at,
-          total_hours_at_request,
-          notes,
-          status,
-          users!ot_requests_worker_id_fkey ( full_name ),
-          jobs!ot_requests_job_id_fkey ( name, code )
-        `)
-        .eq("status", filterStatus)
-        .order("requested_at", { ascending: false })
-        .limit(OT_PAGE_SIZE);
-
-      if (err) throw err;
-      const result = (data as unknown as OTRequest[]) ?? [];
+      const payload = await callFunctionJson<OTListResponse>("ot", {
+        query: {
+          status: filterStatus,
+          offset: 0,
+          limit: OT_PAGE_SIZE,
+        },
+      });
+      const result = payload.ot_requests ?? [];
       setRequests(result);
       setHasMoreRequests(result.length === OT_PAGE_SIZE);
     } catch (e) {
@@ -85,26 +77,14 @@ function OvertimeContent() {
   const loadMoreRequests = useCallback(async () => {
     setLoadingMore(true);
     try {
-      const supabase = getSupabase();
-      const { data, error: err } = await supabase
-        .from("ot_requests")
-        .select(`
-          id,
-          job_id,
-          worker_id,
-          requested_at,
-          total_hours_at_request,
-          notes,
-          status,
-          users!ot_requests_worker_id_fkey ( full_name ),
-          jobs!ot_requests_job_id_fkey ( name, code )
-        `)
-        .eq("status", filterStatus)
-        .order("requested_at", { ascending: false })
-        .range(requests.length, requests.length + OT_PAGE_SIZE - 1);
-
-      if (err) throw err;
-      const newItems = (data as unknown as OTRequest[]) ?? [];
+      const payload = await callFunctionJson<OTListResponse>("ot", {
+        query: {
+          status: filterStatus,
+          offset: requests.length,
+          limit: OT_PAGE_SIZE,
+        },
+      });
+      const newItems = payload.ot_requests ?? [];
       setRequests((prev) => [...prev, ...newItems]);
       setHasMoreRequests(newItems.length === OT_PAGE_SIZE);
     } catch (e) {
@@ -125,32 +105,19 @@ function OvertimeContent() {
   ) {
     setDecidingId(requestId);
     try {
-      const supabase = getSupabase();
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/ot`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-            "Idempotency-Key": crypto.randomUUID(),
-          },
-          body: JSON.stringify({
-            action: "decide",
-            ot_request_id: requestId,
-            decision,
-            reason,
-          }),
+      await callFunctionJson("ot", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": crypto.randomUUID(),
         },
-      );
-
-      if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.message || t("overtimePage.decisionFailed"));
-      }
+        body: JSON.stringify({
+          action: "decide",
+          ot_request_id: requestId,
+          decision,
+          reason,
+        }),
+      });
 
       await loadRequests();
     } catch (e) {

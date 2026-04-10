@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { signOut } from "@/lib/auth";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type Locale } from "@/lib/i18n";
 import {
   LayoutDashboard,
   MapPin,
@@ -354,11 +354,12 @@ export function Sidebar() {
               </label>
               <select
                 value={locale}
-                onChange={(event) => setLocale(event.target.value as "en" | "es")}
+                onChange={(event) => setLocale(event.target.value as Locale)}
                 className="mb-3 w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-[12px] font-medium text-slate-500"
               >
                 <option value="en">{t("shell.english")}</option>
                 <option value="es">{t("shell.spanish")}</option>
+                <option value="th">{t("shell.thai")}</option>
               </select>
               {companyLogoUrl && (
                 <img

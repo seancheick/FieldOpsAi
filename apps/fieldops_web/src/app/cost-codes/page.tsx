@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
+import { callFunctionJson } from "@/lib/function-client";
 import { getSupabase } from "@/lib/supabase";
 
 interface Job {
@@ -16,6 +17,15 @@ interface CostCodeBreakdown {
   worker_count: number;
 }
 
+interface CostCodesResponse {
+  cost_codes?: string[];
+}
+
+interface CostCodeReportResponse {
+  breakdown?: CostCodeBreakdown[];
+  total_hours?: number;
+}
+
 export default function CostCodesPage() {
   const { t } = useI18n();
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -25,31 +35,6 @@ export default function CostCodesPage() {
   const [totalHours, setTotalHours] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const fetchFunction = useCallback(async (path: string) => {
-    const supabase = getSupabase();
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
-    if (!token) {
-      throw new Error("Missing session");
-    }
-
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/cost_codes${path}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.message || t("costCodesPage.failedToLoad"));
-    }
-
-    return payload;
-  }, [t]);
 
   const loadPage = useCallback(async () => {
     setLoading(true);
@@ -67,8 +52,8 @@ export default function CostCodesPage() {
       const activeJobs = (jobData as Job[]) ?? [];
       setJobs(activeJobs);
 
-      const codesPayload = await fetchFunction("");
-      setCodes((codesPayload.cost_codes as string[]) ?? []);
+      const codesPayload = await callFunctionJson<CostCodesResponse>("cost_codes");
+      setCodes(codesPayload.cost_codes ?? []);
 
       const jobId = selectedJobId || activeJobs[0]?.id || "";
       if (!jobId) {
@@ -81,8 +66,13 @@ export default function CostCodesPage() {
         setSelectedJobId(jobId);
       }
 
-      const reportPayload = await fetchFunction(`?job_id=${jobId}&report=profitability`);
-      setBreakdown((reportPayload.breakdown as CostCodeBreakdown[]) ?? []);
+      const reportPayload = await callFunctionJson<CostCodeReportResponse>("cost_codes", {
+        query: {
+          job_id: jobId,
+          report: "profitability",
+        },
+      });
+      setBreakdown(reportPayload.breakdown ?? []);
       setTotalHours(
         typeof reportPayload.total_hours === "number" ? reportPayload.total_hours : 0,
       );
@@ -91,7 +81,7 @@ export default function CostCodesPage() {
     } finally {
       setLoading(false);
     }
-  }, [fetchFunction, selectedJobId, t]);
+  }, [selectedJobId, t]);
 
   useEffect(() => {
     loadPage();
