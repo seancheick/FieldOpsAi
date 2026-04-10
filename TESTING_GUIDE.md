@@ -57,6 +57,85 @@ This creates:
 - Two active jobs with geofences
 - Worker assignments
 
+---
+
+## Hosted Staging (Persistent Real-Life Testing)
+
+For real phone testing, do not rely on local Docker data. Use a hosted Supabase
+staging project so auth, storage, schedules, photos, and worker accounts persist.
+
+### Single source of truth
+
+Put your hosted values in the repo root [`.env`](/Users/seancheick/FieldsOps_ai/.env):
+
+```bash
+SUPABASE_URL="https://your-project-ref.supabase.co"
+SUPABASE_ANON_KEY="your-anon-key"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+NEXT_PUBLIC_MAPTILER_KEY="your-maptiler-key"
+NEXT_PUBLIC_SENTRY_DSN=""
+NEXT_PUBLIC_POSTHOG_KEY=""
+NEXT_PUBLIC_POSTHOG_HOST="https://app.posthog.com"
+SENTRY_DSN=""
+```
+
+Then sync the repo-local runtime config:
+
+```bash
+cd /Users/seancheick/FieldsOps_ai
+python3 scripts/sync_runtime_env.py
+```
+
+This writes:
+
+- web: [apps/fieldops_web/.env.local](/Users/seancheick/FieldsOps_ai/apps/fieldops_web/.env.local)
+- mobile: [apps/fieldops_mobile/env/staging.json](/Users/seancheick/FieldsOps_ai/apps/fieldops_mobile/env/staging.json)
+
+### Full SQL snapshot option
+
+If you want one copy-paste SQL file for an empty hosted project instead of
+replaying the migration chain manually, generate:
+
+```bash
+cd /Users/seancheick/FieldsOps_ai
+python3 scripts/generate_supabase_sql_snapshot.py
+```
+
+Outputs:
+
+- [infra/supabase/generated/full_schema.sql](/Users/seancheick/FieldsOps_ai/infra/supabase/generated/full_schema.sql)
+- [infra/supabase/generated/full_schema_with_seed.sql](/Users/seancheick/FieldsOps_ai/infra/supabase/generated/full_schema_with_seed.sql)
+
+Use:
+
+- `full_schema.sql` for hosted staging / production bootstrap
+- `full_schema_with_seed.sql` only for local/demo/test environments
+
+### Web against hosted Supabase
+
+```bash
+cd /Users/seancheick/FieldsOps_ai/apps/fieldops_web
+npm run dev
+```
+
+### Mobile against hosted Supabase
+
+```bash
+cd /Users/seancheick/FieldsOps_ai/apps/fieldops_mobile
+flutter run --dart-define-from-file=env/staging.json
+```
+
+### Vercel
+
+Your Vercel deployment should use the same hosted values in the Vercel project:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_MAPTILER_KEY`
+- optional: `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`
+
+Use hosted staging before production. Production should be a separate Supabase project.
+
 ### Run backend regression tests
 
 ```bash

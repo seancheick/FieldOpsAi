@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import path from "node:path";
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: path.join(__dirname, "../.."),
   eslint: {
     // Next.js still runs its legacy internal lint path during build.
     // Use the explicit ESLint CLI gate from package.json as the source of truth.

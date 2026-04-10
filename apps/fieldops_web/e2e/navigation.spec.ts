@@ -3,7 +3,6 @@ import { test, expect } from '@playwright/test';
 test.describe('Navigation', () => {
   test('sidebar should render all nav items', async ({ page }) => {
     await page.goto('/');
-    const sidebar = page.locator('nav[aria-label]').first();
     // Check key nav items exist
     await expect(page.locator('a[href="/"]')).toBeVisible();
     await expect(page.locator('a[href="/workers"]')).toBeVisible();

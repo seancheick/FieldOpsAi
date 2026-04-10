@@ -1,16 +1,55 @@
-# fieldops_mobile
+# FieldOps Mobile
 
-A new Flutter project.
+Worker mobile app for FieldOps AI.
 
-## Getting Started
+## Hosted staging setup
 
-This project is a starting point for a Flutter application.
+This app reads Supabase config from Dart defines. The repo now generates those
+defines from the root [`.env`](/Users/seancheick/FieldsOps_ai/.env) so web and mobile
+stay on the same backend.
 
-A few resources to get you started if this is your first Flutter project:
+1. Put your hosted Supabase values in the repo root `.env`
+2. Run:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```bash
+cd /Users/seancheick/FieldsOps_ai
+python3 scripts/sync_runtime_env.py
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+3. Start the app:
+
+```bash
+cd /Users/seancheick/FieldsOps_ai/apps/fieldops_mobile
+flutter run --dart-define-from-file=env/staging.json
+```
+
+Optional:
+
+```bash
+flutter run --dart-define-from-file=env/staging.json --dart-define=SENTRY_DSN=...
+```
+
+## iPhone
+
+1. Install Xcode and Flutter
+2. Connect your iPhone with a cable
+3. Open `ios/Runner.xcworkspace` in Xcode
+4. Set your Apple Team under `Runner > Signing & Capabilities`
+5. Run:
+
+```bash
+flutter devices
+flutter run --dart-define-from-file=env/staging.json
+```
+
+## Android
+
+1. Install Android Studio and the Android SDK
+2. Enable Developer Options and USB debugging
+3. Connect your Android phone
+4. Run:
+
+```bash
+flutter devices
+flutter run --dart-define-from-file=env/staging.json
+```

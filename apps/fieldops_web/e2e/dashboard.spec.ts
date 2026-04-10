@@ -11,7 +11,7 @@ test.describe('Dashboard', () => {
   test('should show loading skeletons initially', async ({ page }) => {
     await page.goto('/');
     // Skeletons should appear briefly
-    const skeleton = page.locator('[class*="animate-pulse"]');
+    await expect(page.locator('[class*="animate-pulse"]').first()).toBeAttached();
     // May or may not catch it depending on load speed
   });
 });

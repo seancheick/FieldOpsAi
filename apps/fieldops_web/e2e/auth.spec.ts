@@ -7,7 +7,7 @@ test.describe('Authentication', () => {
     await expect(page).toHaveURL(/login|auth/);
   });
 
-  test('should show sign out button when authenticated', async ({ page }) => {
+  test('should show sign out button when authenticated', async () => {
     // This test would need auth fixtures — skip with annotation for now
     test.skip(true, 'Requires auth fixtures');
   });
