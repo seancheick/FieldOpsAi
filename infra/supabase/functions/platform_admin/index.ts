@@ -78,35 +78,45 @@ serve(async (req) => {
   logRequestStart(ENDPOINT, requestId, req)
 
   try {
-    // ── Auth: verify caller is a platform admin ──────────────
+    const payload = req.method === "POST" ? await req.json() : null
+    const allowUnauthedClaim = req.method === "POST" && payload?.action === "claim_invite"
+
     const authHeader = req.headers.get("Authorization")
-    if (!authHeader) {
+    if (!authHeader && !allowUnauthedClaim) {
       return errorResponse(requestId, 401, "UNAUTHORIZED", "Missing Authorization header")
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || ""
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || ""
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    })
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, authHeader
+      ? { global: { headers: { Authorization: authHeader } } }
+      : undefined)
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    const jwt = authHeader.replace("Bearer ", "")
-    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt)
-    if (authError || !user) {
-      return errorResponse(requestId, 401, "UNAUTHORIZED", "Invalid auth token")
-    }
+    let user: { id: string } | null = null
+    let platformAdmin: { id: string; role: string; is_active: boolean } | null = null
 
-    const { data: platformAdmin } = await supabaseAdmin
-      .from("platform_admins")
-      .select("id, role, is_active")
-      .eq("auth_user_id", user.id)
-      .eq("is_active", true)
-      .single()
+    if (!allowUnauthedClaim) {
+      const jwt = authHeader!.replace("Bearer ", "")
+      const { data: authData, error: authError } = await supabase.auth.getUser(jwt)
+      if (authError || !authData.user) {
+        return errorResponse(requestId, 401, "UNAUTHORIZED", "Invalid auth token")
+      }
+      user = authData.user
 
-    if (!platformAdmin) {
-      return errorResponse(requestId, 403, "FORBIDDEN", "Not a platform administrator")
+      const { data: adminRecord } = await supabaseAdmin
+        .from("platform_admins")
+        .select("id, role, is_active")
+        .eq("auth_user_id", user.id)
+        .eq("is_active", true)
+        .single()
+
+      if (!adminRecord) {
+        return errorResponse(requestId, 403, "FORBIDDEN", "Not a platform administrator")
+      }
+
+      platformAdmin = adminRecord
     }
 
     // ══════════════════════════════════════════════════════════
@@ -121,9 +131,8 @@ serve(async (req) => {
         const status = url.searchParams.get("status")
 
         let query = supabaseAdmin
-          .from("companies")
-          .select("id, name, slug, industry, timezone, status, created_at, deleted_at")
-          .is("deleted_at", null)
+          .from("company_summary")
+          .select("*")
           .order("created_at", { ascending: false })
           .limit(100)
 
@@ -259,19 +268,51 @@ serve(async (req) => {
         const { data: logs, error: logsError } = await query
         if (logsError) throw logsError
 
-        const nextCursor = (logs && logs.length === limit)
-          ? logs[logs.length - 1].created_at
+        const actorIds = [...new Set((logs || []).map((log) => log.actor_id).filter(Boolean))]
+        const actorEmails = new Map<string, string>()
+
+        if (actorIds.length > 0) {
+          const [{ data: platformActors }, { data: companyActors }] = await Promise.all([
+            supabaseAdmin
+              .from("platform_admins")
+              .select("auth_user_id, email")
+              .in("auth_user_id", actorIds),
+            supabaseAdmin
+              .from("users")
+              .select("id, email")
+              .in("id", actorIds),
+          ])
+
+          for (const actor of platformActors || []) {
+            if (actor?.auth_user_id && actor?.email) {
+              actorEmails.set(actor.auth_user_id, actor.email)
+            }
+          }
+          for (const actor of companyActors || []) {
+            if (actor?.id && actor?.email) {
+              actorEmails.set(actor.id, actor.email)
+            }
+          }
+        }
+
+        const enrichedLogs = (logs || []).map((log) => ({
+          ...log,
+          actor_email: log.actor_id ? (actorEmails.get(log.actor_id) || null) : null,
+        }))
+
+        const nextCursor = (enrichedLogs.length === limit)
+          ? enrichedLogs[enrichedLogs.length - 1].created_at
           : null
 
         logRequestResult(ENDPOINT, requestId, 200, {
           actor_id: user.id,
           action: "audit",
-          count: (logs || []).length,
+          count: enrichedLogs.length,
         })
         return jsonResponse({
           status: "success",
-          audit_logs: logs || [],
-          count: (logs || []).length,
+          audit_logs: enrichedLogs,
+          count: enrichedLogs.length,
           next_cursor: nextCursor,
           request_id: requestId,
         }, 200, requestId)
@@ -285,7 +326,6 @@ serve(async (req) => {
     // POST routes — action in request body
     // ══════════════════════════════════════════════════════════
     if (req.method === "POST") {
-      const payload = await req.json()
       const { action } = payload
 
       if (!action) {
@@ -542,14 +582,13 @@ serve(async (req) => {
           .insert({
             email,
             invite_token: inviteToken,
-            invited_by: user.id,
+            created_by: platformAdmin.id,
             expires_at: expiresAt,
-            claimed: false,
           })
 
         if (inviteError) throw inviteError
 
-        const claimUrl = `${Deno.env.get("APP_URL") || ""}/platform/claim?token=${inviteToken}`
+        const claimUrl = `${Deno.env.get("APP_URL") || ""}/claim?token=${inviteToken}`
 
         await logPlatformAction(supabaseAdmin, req, {
           actor_id: user.id,
@@ -596,7 +635,7 @@ serve(async (req) => {
         // Validate invite
         const { data: invite, error: inviteError } = await supabaseAdmin
           .from("platform_admin_invites")
-          .select("id, email, invite_token, expires_at, claimed")
+          .select("id, email, invite_token, expires_at, claimed_at")
           .eq("invite_token", invite_token)
           .single()
 
@@ -604,7 +643,7 @@ serve(async (req) => {
           return errorResponse(requestId, 404, "NOT_FOUND", "Invite not found")
         }
 
-        if (invite.claimed) {
+        if (invite.claimed_at) {
           return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Invite has already been claimed")
         }
 
@@ -653,7 +692,7 @@ serve(async (req) => {
             auth_user_id: authUser.user.id,
             full_name,
             email,
-            role: "admin",
+            role: "platform_admin",
             is_active: true,
           })
 
@@ -667,9 +706,7 @@ serve(async (req) => {
         const { error: claimError } = await supabaseAdmin
           .from("platform_admin_invites")
           .update({
-            claimed: true,
             claimed_at: new Date().toISOString(),
-            claimed_by: authUser.user.id,
           })
           .eq("id", invite.id)
 

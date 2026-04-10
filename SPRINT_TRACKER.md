@@ -699,10 +699,12 @@ Full research: `.claude/plans/rosy-puzzling-clover-agent-a5ebd4159a6e7ee7e.md`
 - [x] Company list page (/companies)
   - Type: Web | Priority: HIGH
   - Definition of Done: Shows all companies from company_summary view. Columns: name, status, payment_status, user count, created date. Filter by status. Action buttons.
+  - Agent findings: Hardened 2026-04-10. Switched platform_admin list endpoint to `company_summary` so company rows now carry real `payment_status`, `active_user_count`, and `total_user_count` instead of partial company-table fields.
 
 - [x] Company detail page (/companies/[id])
   - Type: Web | Priority: HIGH
   - Definition of Done: Full company data. User list. Activate/deactivate toggle (bans/unbans all users via GoTrue). Audit log viewer for that company.
+  - Agent findings: Hardened 2026-04-10. Fixed UI/API contract mismatch from `update_company` to `toggle_company` and aligned audit payload consumption with the edge function’s `audit_logs` response.
 
 - [x] Create company page (/companies/new)
   - Type: Web | Priority: HIGH
@@ -711,6 +713,7 @@ Full research: `.claude/plans/rosy-puzzling-clover-agent-a5ebd4159a6e7ee7e.md`
 - [x] Platform admin management (/admins)
   - Type: Web | Priority: MEDIUM
   - Definition of Done: List platform admins. Generate invite links. Deactivate admins.
+  - Agent findings: Hardened 2026-04-10. Fixed invite schema mismatch (`created_by` / `claimed_at`), made `claim_invite` callable without an existing platform-admin session, added in-app `/claim` route, and aligned the UI to the returned `claim_url`.
 
 #### Deferred to Future Sprints (documented)
 
@@ -718,7 +721,8 @@ Full research: `.claude/plans/rosy-puzzling-clover-agent-a5ebd4159a6e7ee7e.md`
 - [ ] Multi-state compliance engine — top 10 states (Phase 2)
 - [ ] White-label / custom domain (Phase 3)
 - [ ] Smart Groups / dynamic user grouping (Phase 3)
-- [ ] Stripe billing integration (Sprint 8)
+- [-] Stripe billing foundation (Sprint 8)
+  - Agent findings: In progress 2026-04-10. Added migration scaffolding for `stripe_subscription_id`, `billing_email`, and `billing_plan`; created `billing_portal` and `stripe_webhook` edge-function foundations; added tenant billing page at `/settings/billing`. Pricing, checkout, and entitlement enforcement are still open.
 - [ ] JSONB diff compression in audit log
 - [ ] Audit log retention cron (90-day purge)
 - [ ] Mobile settings viewer (read-only, Phase 2)

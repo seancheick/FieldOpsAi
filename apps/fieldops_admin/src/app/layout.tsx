@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import AdminAuthGuard from "@/components/admin-auth-guard";
-import AdminSidebar from "@/components/admin-sidebar";
+import AdminShell from "@/components/admin-shell";
 
 export const metadata: Metadata = {
   title: "FieldOps Admin",
@@ -16,12 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-stone-50 text-stone-900 antialiased">
-        <AdminAuthGuard>
-          <div className="flex h-screen">
-            <AdminSidebar />
-            <main className="flex-1 overflow-y-auto p-8">{children}</main>
-          </div>
-        </AdminAuthGuard>
+        <AdminShell>{children}</AdminShell>
       </body>
     </html>
   );

@@ -55,6 +55,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/timecards", icon: FileSignature, labelKey: "shell.timecards", section: "operations" },
   { href: "/reports", icon: FileText, labelKey: "shell.reports", section: "reports" },
   { href: "/settings", icon: Settings, labelKey: "shell.company", section: "settings" },
+  { href: "/settings/billing", icon: DollarSign, labelKey: "shell.billing", section: "settings", adminOnly: true },
   { href: "/settings/staff", icon: UserPlus, labelKey: "shell.staff", section: "settings", adminOnly: true },
   { href: "/onboarding", icon: Clipboard, labelKey: "shell.onboarding", section: "settings", adminOnly: true },
 ];

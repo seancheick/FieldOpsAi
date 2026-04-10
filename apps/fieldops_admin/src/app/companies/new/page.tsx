@@ -46,6 +46,7 @@ export default function NewCompanyPage() {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
+          "Idempotency-Key": crypto.randomUUID(),
         },
         body: JSON.stringify({
           action: "create_company",
@@ -54,7 +55,7 @@ export default function NewCompanyPage() {
           industry: industry || null,
           timezone,
           admin_email: adminEmail,
-          admin_full_name: adminName,
+          admin_name: adminName,
         }),
       });
 

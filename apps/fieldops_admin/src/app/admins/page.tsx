@@ -81,7 +81,7 @@ export default function AdminsPage() {
       }
 
       const data = await res.json();
-      const link = data.invite_link ?? data.link ?? "";
+      const link = data.claim_url ?? "";
 
       if (link) {
         setInviteResult(link);

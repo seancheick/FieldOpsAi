@@ -77,8 +77,8 @@ export default function CompanyDetailPage() {
       ]);
 
       setCompany(companyData.company ?? companyData);
-      setUsers(companyData.users ?? usersData.users ?? usersData);
-      setAudit(auditData.audit ?? auditData);
+      setUsers(usersData.users ?? usersData);
+      setAudit(auditData.audit_logs ?? auditData.audit ?? auditData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -111,7 +111,7 @@ export default function CompanyDetailPage() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            action: "update_company",
+            action: "toggle_company",
             company_id: companyId,
             status: newStatus,
           }),
