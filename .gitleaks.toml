@@ -23,4 +23,6 @@ regexes = [
   '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24i''',
   # Supabase local dev service_role key (well-known, published in Supabase docs)
   '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSI''',
+  # MapTiler public demo key — free-tier key used as fallback, safe to commit
+  '''3EVTjBsPJIuw0UVfaNvL''',
 ]
