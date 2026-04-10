@@ -245,11 +245,14 @@ serve(async (req) => {
         return errorResponse(requestId, 400, "INVALID_PAYLOAD", "timecard_id and signature are required")
       }
 
-      // Fetch the timecard
+      // Fetch the timecard — scope to the caller's company so a worker
+      // from Company A cannot sign a timecard from Company B even if they
+      // somehow learn the UUID.
       const { data: timecard } = await supabaseAdmin
         .from("timecard_signatures")
         .select("id, worker_id, status, company_id")
         .eq("id", timecard_id)
+        .eq("company_id", userRecord.company_id)
         .maybeSingle()
 
       if (!timecard) {

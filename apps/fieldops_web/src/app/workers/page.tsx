@@ -15,6 +15,13 @@ interface WorkerStatus {
   hours_today: number;
 }
 
+const STATUS_ORDER: Record<WorkerStatus["status"], number> = {
+  clocked_in: 0,
+  on_break: 1,
+  clocked_out: 2,
+  no_show: 3,
+};
+
 export default function WorkersPage() {
   const { t } = useI18n();
   const [workers, setWorkers] = useState<WorkerStatus[]>([]);
@@ -36,7 +43,6 @@ export default function WorkersPage() {
         .from("users")
         .select("id, full_name, role, is_active")
         .eq("is_active", true)
-        .in("role", ["worker", "foreman"])
         .order("full_name");
 
       // Fetch today's latest clock event per worker
@@ -89,7 +95,8 @@ export default function WorkersPage() {
         if (latest) {
           if (latest.subtype === "clock_in") status = "clocked_in";
           else if (latest.subtype === "break_start") status = "on_break";
-          else if (latest.subtype === "clock_out" || latest.subtype === "break_end") status = "clocked_out";
+          else if (latest.subtype === "break_end") status = "clocked_in";
+          else if (latest.subtype === "clock_out") status = "clocked_out";
         }
 
         return {
@@ -152,8 +159,6 @@ export default function WorkersPage() {
     clocked_out: { label: t("workers.clockedOut"), color: "bg-stone-100 text-stone-500", dot: "bg-stone-400", avatarBg: "bg-stone-400" },
     no_show: { label: t("workers.noShow"), color: "bg-red-100 text-red-700", dot: "bg-red-500", avatarBg: "bg-red-500" },
   };
-
-  const STATUS_ORDER: Record<string, number> = { clocked_in: 0, on_break: 1, clocked_out: 2, no_show: 3 };
 
   const filtered = useMemo(() => {
     let list = workers;

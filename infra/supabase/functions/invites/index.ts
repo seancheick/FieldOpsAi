@@ -2,11 +2,19 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
 import {
+  applyRateLimit,
   CORS_HEADERS,
   errorResponse,
   jsonResponse,
   makeRequestId,
 } from "../_shared/api.ts"
+
+const ENDPOINT = "invites"
+// Supervisors can send at most 10 invites per hour. inviteUserByEmail
+// consumes Supabase email quota and is an abuse vector on compromised
+// accounts.
+const INVITE_RATE_LIMIT = 10
+const INVITE_RATE_WINDOW_SECONDS = 3600
 
 /**
  * Worker invite system.
@@ -75,6 +83,27 @@ serve(async (req) => {
       if (!allowedRoles.includes(workerRole)) {
         const allowed = allowedRoles.join(", ")
         return errorResponse(requestId, 400, "INVALID_PAYLOAD", `role must be one of: ${allowed}`)
+      }
+
+      // Throttle invite sending — compromised supervisor accounts could
+      // otherwise loop this endpoint and burn email quota.
+      const rateLimit = await applyRateLimit(
+        supabaseAdmin,
+        user.id,
+        ENDPOINT,
+        requestId,
+        INVITE_RATE_LIMIT,
+        INVITE_RATE_WINDOW_SECONDS,
+      )
+      if (rateLimit.limited) {
+        return errorResponse(
+          requestId,
+          429,
+          "RATE_LIMITED",
+          `Invite rate limit exceeded (${INVITE_RATE_LIMIT}/hour)`,
+          [],
+          rateLimit.headers,
+        )
       }
 
       // Create invite via Supabase Auth

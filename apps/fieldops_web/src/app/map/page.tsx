@@ -52,8 +52,6 @@ export default function MapPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [filterClockedIn, setFilterClockedIn] = useState(false);
   const [filterJobSitesOnly, setFilterJobSitesOnly] = useState(false);
-  const [filterBreadcrumbs, setFilterBreadcrumbs] = useState(false);
-
   const loadData = useCallback(async () => {
     try {
       const supabase = getSupabase();
@@ -277,14 +275,6 @@ export default function MapPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadData]);
-
-  // Auto-refresh every 15 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadData();
-    }, 15_000);
-    return () => clearInterval(interval);
   }, [loadData]);
 
   const clockedIn = workers.filter((w) => w.event_subtype === "clock_in").length;

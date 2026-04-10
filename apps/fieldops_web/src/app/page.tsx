@@ -178,13 +178,16 @@ export default function DashboardPage() {
       // Deduplicate workers by user_id (latest event wins)
       if (workersRes.data) {
         const seen = new Map<string, ActiveWorker>();
+        const processed = new Set<string>();
         const firstClock = new Map<string, string>();
         for (const ev of workersRes.data) {
           const uid = ev.user_id as string;
           const user = ev.users as unknown as { id: string; full_name: string };
           if (!firstClock.has(uid)) firstClock.set(uid, ev.occurred_at as string);
-          if (seen.has(uid)) continue;
+          if (processed.has(uid)) continue;
+          processed.add(uid);
           const sub = ev.event_subtype as string;
+          // clock_out means the worker is no longer active — mark processed and skip
           if (sub === "clock_out") continue;
           const status: "working" | "break" = sub === "break_start" ? "break" : "working";
           const clockIn = firstClock.get(uid) ?? ev.occurred_at as string;
@@ -438,7 +441,7 @@ export default function DashboardPage() {
         <div className="rounded-2xl border border-dashed border-stone-200 bg-white p-10 text-center">
           <p className="text-sm text-slate-400">{t("dashboard.noActiveJobs")}</p>
           <a
-            href="/onboarding"
+            href="/projects"
             className="mt-3 inline-block rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white"
           >
             {t("dashboard.createFirstJob")}

@@ -28,6 +28,15 @@ serve(async (req) => {
       return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Use POST for /media_optimize")
     }
 
+    // Require CRON_SECRET for all invocations. This endpoint runs with the
+    // service-role key and bypasses RLS; it must never be callable by an
+    // unauthenticated client. The cron scheduler is configured to send this
+    // header on every scheduled call.
+    const cronSecret = Deno.env.get("CRON_SECRET") || ""
+    if (!cronSecret || req.headers.get("x-cron-secret") !== cronSecret) {
+      return errorResponse(requestId, 401, "UNAUTHORIZED", "Invalid or missing cron secret")
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || ""
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)

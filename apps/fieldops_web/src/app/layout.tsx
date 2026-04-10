@@ -21,7 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={cn("font-sans", geist.variable)}>
-      <body className="bg-stone-50 text-slate-900 antialiased">
+      <body className="bg-stone-50 text-slate-900 antialiased" suppressHydrationWarning>
         <Providers>
           <AuthGuard>
             <div className="flex h-screen overflow-hidden">

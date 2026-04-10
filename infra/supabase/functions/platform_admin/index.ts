@@ -559,7 +559,10 @@ serve(async (req) => {
           after: { email, expires_at: expiresAt },
         })
 
-        console.log(`[platform_admin] Invite created for ${email}. Claim URL: ${claimUrl}`)
+        // NOTE: Do NOT log the claim URL or invite token — anyone with
+        // log-viewer access could claim platform-admin privileges. The
+        // token is already returned in the API response body to the
+        // authenticated admin who created the invite.
 
         const responseBody = {
           status: "success",
@@ -613,13 +616,11 @@ serve(async (req) => {
           return errorResponse(requestId, 403, "FORBIDDEN", "Email does not match invite")
         }
 
-        // Check if auth account already exists
-        const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({
-          page: 1,
-          perPage: 1,
-        })
-        // More targeted check: try to get user by email
-        // Supabase doesn't have a direct "get by email" on admin, so we use a different approach
+        // Check if an active platform_admin already exists for this email.
+        // We rely on the platform_admins table rather than listUsers() so
+        // that the check is scoped to platform-level access, not any auth
+        // account. A separate createUser() call below handles the
+        // "auth.users already has this email" case via its error message.
         const { data: existingUserRecord } = await supabaseAdmin
           .from("platform_admins")
           .select("id")

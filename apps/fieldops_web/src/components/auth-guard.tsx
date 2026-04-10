@@ -13,6 +13,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [signingIn, setSigningIn] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
   const { t } = useI18n();
 
   useEffect(() => {
@@ -51,6 +53,27 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       setError(err instanceof Error ? err.message : t("auth.signInFailed"));
     } finally {
       setSigningIn(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      setError("Enter your email address above, then click Forgot password.");
+      return;
+    }
+    setSendingReset(true);
+    setError(null);
+    try {
+      const supabase = getSupabase();
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (resetError) throw resetError;
+      setResetSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send reset email");
+    } finally {
+      setSendingReset(false);
     }
   }
 
@@ -114,6 +137,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               </div>
             )}
 
+            {resetSent && (
+              <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
+                Password reset email sent. Check your inbox.
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={signingIn}
@@ -121,6 +150,17 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             >
               {signingIn ? t("auth.signingIn") : t("auth.signIn")}
             </button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={sendingReset}
+                className="text-xs text-slate-400 hover:text-slate-600 disabled:opacity-50"
+              >
+                {sendingReset ? "Sending…" : "Forgot password?"}
+              </button>
+            </div>
           </form>
         </div>
       </div>

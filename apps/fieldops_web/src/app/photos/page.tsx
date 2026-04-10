@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 import { SkeletonPhotoGrid } from "@/components/ui/skeleton";
@@ -62,8 +62,11 @@ export default function PhotosPage() {
   );
 }
 
+interface ProjectOption { id: string; name: string; code: string; status?: string; }
+
 function PhotoFeedContent() {
   const { t } = useI18n();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const jobId = searchParams.get("job_id");
   const activeTab = (searchParams.get("tab") || "feed").toLowerCase();
@@ -74,6 +77,17 @@ function PhotoFeedContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jobName, setJobName] = useState<string | null>(null);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+
+  // Load all projects for the picker (all statuses so nothing is hidden)
+  useEffect(() => {
+    const supabase = getSupabase();
+    supabase
+      .from("jobs")
+      .select("id, name, code, status")
+      .order("name")
+      .then(({ data }) => setProjects((data as ProjectOption[]) ?? []));
+  }, []);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const urlCacheRef = useRef<Record<string, string>>({});
   const [hasMorePhotos, setHasMorePhotos] = useState(false);
@@ -84,9 +98,14 @@ function PhotoFeedContent() {
   const [filterWorker, setFilterWorker] = useState("");
   const [filterTask, setFilterTask] = useState("");
   const [filterMode, setFilterMode] = useState("");
+  const [filterCheckpoint, setFilterCheckpoint] = useState(false);
+  const [filterVerified, setFilterVerified] = useState<"all" | "verified" | "unverified">("all");
 
   // Lightbox state
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
+
+  // View mode state
+  const [viewMode, setViewMode] = useState<"gallery" | "sheet">("gallery");
 
   // Bulk select state
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
@@ -309,9 +328,9 @@ function PhotoFeedContent() {
   }, [jobId, photos.length, t]);
 
   useEffect(() => {
-    if (!jobId) return;
-
     loadPhotos();
+
+    if (!jobId) return;
 
     const supabase = getSupabase();
     const channel = supabase
@@ -324,20 +343,49 @@ function PhotoFeedContent() {
           table: "photo_events",
           filter: `job_id=eq.${jobId}`,
         },
-        () => {
-          loadPhotos();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "media_assets",
-          filter: `job_id=eq.${jobId}`,
-        },
-        () => {
-          loadPhotos();
+        async (payload) => {
+          // Fetch the full new row with joins instead of reloading all photos
+          const newId = (payload.new as { id?: string })?.id;
+          if (!newId) return;
+          const { data } = await supabase
+            .from("photo_events")
+            .select(`
+              id,
+              occurred_at,
+              media_asset_id,
+              is_checkpoint,
+              user_id,
+              task_id,
+              users!photo_events_user_id_fkey ( full_name ),
+              tasks ( name ),
+              media_assets!photo_events_media_asset_id_fkey (
+                id,
+                verification_code,
+                storage_path,
+                bucket_name,
+                sha256_hash,
+                kind,
+                stamped_media_id,
+                metadata
+              )
+            `)
+            .eq("id", newId)
+            .maybeSingle();
+          if (!data) return;
+          const photo = data as unknown as PhotoEntry;
+          const resolved: ResolvedPhotoEntry = { ...photo, displayAsset: photo.media_assets ?? null };
+          const asset = resolved.displayAsset;
+          if (asset?.storage_path && asset?.bucket_name) {
+            const { data: urlData } = await supabase.storage
+              .from(asset.bucket_name)
+              .createSignedUrl(asset.storage_path, 3600);
+            if (urlData?.signedUrl) {
+              const cacheKey = buildSignedUrlCacheKey(resolved.id, asset);
+              urlCacheRef.current[cacheKey] = urlData.signedUrl;
+              setSignedUrls((prev) => ({ ...prev, [resolved.id]: urlData.signedUrl }));
+            }
+          }
+          setPhotos((prev) => [resolved, ...prev]);
         }
       )
       .subscribe();
@@ -423,9 +471,18 @@ function PhotoFeedContent() {
         const mode = (meta?.mode as string) ?? "standard";
         if (mode.toLowerCase() !== filterMode.toLowerCase()) return false;
       }
+      // Checkpoint-only filter
+      if (filterCheckpoint && !photo.is_checkpoint) return false;
+      // Verified/unverified filter
+      if (filterVerified !== "all") {
+        const asset = photo.displayAsset ?? photo.media_assets;
+        const isVerified = !!(asset?.verification_code || asset?.sha256_hash);
+        if (filterVerified === "verified" && !isVerified) return false;
+        if (filterVerified === "unverified" && isVerified) return false;
+      }
       return true;
     });
-  }, [photos, filterDate, filterWorker, filterTask, filterMode]);
+  }, [photos, filterDate, filterWorker, filterTask, filterMode, filterCheckpoint, filterVerified]);
 
   // Bulk selection helpers
   function togglePhotoSelection(id: string) {
@@ -540,6 +597,35 @@ function PhotoFeedContent() {
         >
           <span>&larr;</span> {t("common.backToDashboard")}
         </a>
+
+        {/* Project selector */}
+        <div className="mb-4 flex items-center gap-3">
+          <label className="text-sm font-semibold text-slate-600 whitespace-nowrap">
+            Select Project
+          </label>
+          <select
+            value={jobId ?? ""}
+            onChange={(e) => {
+              const id = e.target.value;
+              if (id) router.push(`/photos?job_id=${encodeURIComponent(id)}`);
+              else router.push("/photos");
+            }}
+            className="flex-1 max-w-sm rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
+          >
+            <option value="">— Choose a project —</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.code})
+              </option>
+            ))}
+          </select>
+          {projects.length === 0 && (
+            <a href="/projects" className="text-xs font-medium text-amber-600 hover:text-amber-700">
+              No active projects — create one →
+            </a>
+          )}
+        </div>
+
         <h2 className="text-2xl font-bold text-slate-900">
           {jobName ? t("photos.titleWithJob", { jobName }) : t("photos.title")}
         </h2>
@@ -609,6 +695,29 @@ function PhotoFeedContent() {
         )}
       </div>
 
+      {/* View mode switcher */}
+      {photos.length > 0 && (
+        <div className="mb-4 flex gap-1 rounded-xl bg-stone-100 p-1 w-fit">
+          {(["gallery", "sheet"] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+                viewMode === mode
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {mode === "gallery" ? (
+                <><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>Gallery</>
+              ) : (
+                <><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18M10 3v18" /></svg>Sheet</>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Filter bar */}
       {photos.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 bg-white p-3">
@@ -659,6 +768,28 @@ function PhotoFeedContent() {
             <option value="standard">{t("photos.standard")}</option>
           </select>
 
+          {/* Verified filter */}
+          <select
+            value={filterVerified}
+            onChange={(e) => setFilterVerified(e.target.value as "all" | "verified" | "unverified")}
+            className="rounded-lg border border-stone-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+          >
+            <option value="all">All verification</option>
+            <option value="verified">Verified only</option>
+            <option value="unverified">Unverified only</option>
+          </select>
+
+          {/* Checkpoint toggle */}
+          <label className="flex items-center gap-1.5 text-sm text-slate-600 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={filterCheckpoint}
+              onChange={(e) => setFilterCheckpoint(e.target.checked)}
+              className="h-4 w-4 rounded border-stone-300 text-blue-500 focus:ring-blue-400"
+            />
+            Checkpoints only
+          </label>
+
           {/* Select All + Bulk Download */}
           <div className="ml-auto flex items-center gap-3">
             <label className="flex items-center gap-1.5 text-sm text-slate-600 cursor-pointer select-none">
@@ -692,14 +823,20 @@ function PhotoFeedContent() {
       )}
 
       {error === "no_job" && (
-        <div className="rounded-xl border border-stone-200 bg-white p-8 text-center">
-          <p className="text-slate-500">{t("photos.noJob")}</p>
-          <a
-            href="/"
-            className="mt-4 inline-block rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600"
-          >
-            {t("timeline.goToDashboard")}
-          </a>
+        <div className="rounded-xl border border-stone-200 bg-white p-10 text-center">
+          <div className="text-4xl mb-3">📂</div>
+          <p className="font-medium text-slate-700">No project selected</p>
+          <p className="mt-1 text-sm text-slate-400">
+            Use the <span className="font-semibold text-slate-600">Select Project</span> dropdown above to view photos for a project.
+          </p>
+          {projects.length === 0 && (
+            <a
+              href="/projects"
+              className="mt-4 inline-block rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600"
+            >
+              Create your first project →
+            </a>
+          )}
         </div>
       )}
 
@@ -725,8 +862,77 @@ function PhotoFeedContent() {
         </div>
       )}
 
+      {/* Sheet view */}
+      {viewMode === "sheet" && filteredPhotos.length > 0 && (
+        <div className="mb-6 overflow-x-auto rounded-2xl border border-stone-200 bg-white">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-stone-100 bg-stone-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Photo</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Worker</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Task</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Time</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Type</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Code</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredPhotos.map((photo, index) => {
+                const worker = (photo.users as { full_name: string } | null)?.full_name ?? t("photos.unknownWorker");
+                const task = (photo.tasks as { name: string } | null)?.name ?? null;
+                const asset = photo.displayAsset ?? photo.media_assets;
+                const code = asset?.verification_code ?? photo.media_assets?.verification_code;
+                const hash = asset?.sha256_hash ?? photo.media_assets?.sha256_hash;
+                const isVerified = !!(code || hash);
+                const meta = asset?.metadata as Record<string, unknown> | undefined;
+                const mode = ((meta?.mode as string) ?? "standard").toLowerCase();
+                const url = signedUrls[photo.id];
+                return (
+                  <tr
+                    key={photo.id}
+                    onClick={() => openLightbox(index)}
+                    className="cursor-pointer border-b border-stone-50 hover:bg-stone-50 transition-colors"
+                  >
+                    <td className="px-4 py-2">
+                      {url ? (
+                        <img src={url} alt="" className="h-12 w-16 rounded-lg object-cover" />
+                      ) : (
+                        <div className="flex h-12 w-16 items-center justify-center rounded-lg bg-stone-100 text-xl">📸</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 font-medium text-slate-800">{worker}</td>
+                    <td className="px-4 py-2 text-slate-500">{task ?? <span className="text-stone-300">—</span>}</td>
+                    <td className="px-4 py-2 text-slate-500 whitespace-nowrap">{formatTime(photo.occurred_at)}</td>
+                    <td className="px-4 py-2">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                        mode === "before" ? "bg-violet-100 text-violet-700" :
+                        mode === "after" ? "bg-rose-100 text-rose-700" :
+                        "bg-stone-100 text-slate-500"
+                      }`}>{mode}</span>
+                    </td>
+                    <td className="px-4 py-2">
+                      {isVerified ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">✓ Verified</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Pending</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      {code ? (
+                        <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono text-slate-600">{code as string}</code>
+                      ) : <span className="text-stone-300">—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* Masonry photo grid */}
-      <div className="columns-1 sm:columns-2 lg:columns-3 gap-4">
+      {viewMode === "gallery" && <div className="columns-1 sm:columns-2 lg:columns-3 gap-4">
         {filteredPhotos.map((photo, index) => {
           const workerName =
             (photo.users as { full_name: string } | null)?.full_name ??
@@ -855,7 +1061,7 @@ function PhotoFeedContent() {
             </div>
           );
         })}
-      </div>
+      </div>}
 
       {/* Load More */}
       {hasMorePhotos && (

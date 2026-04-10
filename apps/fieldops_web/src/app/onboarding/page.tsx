@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
+import { getSupabase } from "@/lib/supabase";
 
 interface WorkerEntry {
   id: string;
@@ -48,6 +49,15 @@ const TIMEZONE_VALUES = [
 
 const STORAGE_KEY = "onboarding_progress";
 
+/** Convert a display name to a simple job code: "Downtown Reno" → "DOWNTOWN-RENO" */
+function toJobCode(name: string): string {
+  return name
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 20);
+}
+
 export default function OnboardingPage() {
   const { t } = useI18n();
   const [step, setStep] = useState(0);
@@ -60,6 +70,13 @@ export default function OnboardingPage() {
   const [jobAddress, setJobAddress] = useState("");
   const [jobCode, setJobCode] = useState("");
   const [resumed, setResumed] = useState(false);
+
+  // Saving state for async DB writes
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Track which steps have already been written to avoid duplicate Supabase calls
+  const savedSteps = useRef<Set<number>>(new Set());
 
   // Restore progress from localStorage on mount
   useEffect(() => {
@@ -76,6 +93,9 @@ export default function OnboardingPage() {
         if (data.jobName) setJobName(data.jobName);
         if (data.jobAddress) setJobAddress(data.jobAddress);
         if (data.jobCode) setJobCode(data.jobCode);
+        if (data.savedSteps) {
+          savedSteps.current = new Set(data.savedSteps);
+        }
         if (data.step > 0) {
           setResumed(true);
           setTimeout(() => setResumed(false), 3000);
@@ -86,12 +106,23 @@ export default function OnboardingPage() {
     }
   }, []);
 
-  // Auto-save progress on every step change
+  // Auto-save progress on every state change
   useEffect(() => {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ step, companyName, companyLogo, timezone, industry, workers, jobName, jobAddress, jobCode }),
+        JSON.stringify({
+          step,
+          companyName,
+          companyLogo,
+          timezone,
+          industry,
+          workers,
+          jobName,
+          jobAddress,
+          jobCode,
+          savedSteps: Array.from(savedSteps.current),
+        }),
       );
     } catch {
       // ignore quota errors
@@ -110,15 +141,7 @@ export default function OnboardingPage() {
   function addWorker() {
     setWorkers((prev) => [
       ...prev,
-      {
-        id: crypto.randomUUID(),
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        address: "",
-        notes: "",
-      },
+      { id: crypto.randomUUID(), firstName: "", lastName: "", email: "", phone: "", address: "", notes: "" },
     ]);
   }
 
@@ -130,6 +153,144 @@ export default function OnboardingPage() {
 
   function removeWorker(id: string) {
     setWorkers((prev) => prev.filter((worker) => worker.id !== id));
+  }
+
+  // ── Step 0: Save company details ──────────────────────────
+  async function saveCompanyStep() {
+    if (savedSteps.current.has(0)) {
+      setStep(1);
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      // Get the user's company_id from the users table
+      const { data: userRecord, error: userErr } = await supabase
+        .from("users")
+        .select("company_id")
+        .eq("id", session.user.id)
+        .single();
+      if (userErr || !userRecord) throw new Error("Could not load your account");
+
+      // Update the company record with the details filled in the wizard
+      const { error: updateErr } = await supabase
+        .from("companies")
+        .update({
+          name: companyName.trim(),
+          timezone,
+          logo_url: companyLogo.trim() || null,
+          settings: { industry },
+        })
+        .eq("id", userRecord.company_id);
+
+      if (updateErr) throw updateErr;
+
+      savedSteps.current.add(0);
+      setStep(1);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Failed to save company details");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ── Step 1: Send invites for workers with an email ────────
+  async function saveTeamStep() {
+    if (savedSteps.current.has(1)) {
+      setStep(2);
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const workersWithEmail = workers.filter((w) => w.email.trim());
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+
+      // Fire-and-forget invites — don't block on any individual failure
+      const inviteResults = await Promise.allSettled(
+        workersWithEmail.map(async (worker) => {
+          const res = await fetch(`${supabaseUrl}/functions/v1/invites`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              email: worker.email.trim(),
+              full_name: `${worker.firstName} ${worker.lastName}`.trim(),
+              role: "worker",
+            }),
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.message || `Failed to invite ${worker.email}`);
+          }
+        }),
+      );
+
+      // Surface the first invite error as a warning but still proceed
+      const failed = inviteResults.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+      if (failed.length > 0 && workersWithEmail.length > 0) {
+        setSaveError(`${failed.length} invite(s) failed: ${(failed[0].reason as Error).message}. You can re-invite later from Settings.`);
+      }
+
+      savedSteps.current.add(1);
+      setStep(2);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Failed to send invites");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ── Step 2: Create the first job ──────────────────────────
+  async function saveJobStep() {
+    if (savedSteps.current.has(2)) {
+      setStep(3);
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const { data: userRecord, error: userErr } = await supabase
+        .from("users")
+        .select("id, company_id")
+        .eq("id", session.user.id)
+        .single();
+      if (userErr || !userRecord) throw new Error("Could not load your account");
+
+      const code = (jobCode.trim() || toJobCode(jobName)).slice(0, 20) || "JOB-001";
+
+      const { error: jobErr } = await supabase.from("jobs").insert({
+        company_id: userRecord.company_id,
+        name: jobName.trim(),
+        code,
+        status: "active",
+        address_line_1: jobAddress.trim() || null,
+        created_by: userRecord.id,
+      });
+
+      if (jobErr) throw jobErr;
+
+      savedSteps.current.add(2);
+      setStep(3);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Failed to create job");
+    } finally {
+      setSaving(false);
+    }
   }
 
   const canProceedStep0 = companyName.trim().length > 0;
@@ -145,6 +306,13 @@ export default function OnboardingPage() {
           {t("onboardingPage.resuming")}
         </div>
       )}
+
+      {saveError && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-700">
+          {saveError}
+        </div>
+      )}
+
       <div className="mb-8">
         <div className="flex items-center justify-between">
           {steps.map((entry, index) => (
@@ -245,17 +413,17 @@ export default function OnboardingPage() {
 
           <div className="mt-8 flex items-center justify-between">
             <button
-              onClick={() => setStep(1)}
+              onClick={() => { setSaveError(null); setStep(1); }}
               className="text-sm font-medium text-slate-400 hover:text-slate-600"
             >
               {t("onboardingPage.skipForNow")} &rarr;
             </button>
             <button
-              onClick={() => setStep(1)}
-              disabled={!canProceedStep0}
+              onClick={saveCompanyStep}
+              disabled={!canProceedStep0 || saving}
               className="rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-slate-800 disabled:opacity-40"
             >
-              {t("onboardingPage.continue")}
+              {saving ? "Saving…" : t("onboardingPage.continue")}
             </button>
           </div>
         </div>
@@ -290,10 +458,7 @@ export default function OnboardingPage() {
           )}
 
           {workers.map((worker, index) => (
-            <div
-              key={worker.id}
-              className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"
-            >
+            <div key={worker.id} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-400">
                   {t("onboardingPage.workerLabel", { index: index + 1 })}
@@ -334,6 +499,7 @@ export default function OnboardingPage() {
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-600">
                     {t("onboardingPage.email")}
+                    <span className="ml-1 font-normal text-slate-400">(required to send invite)</span>
                   </label>
                   <input
                     type="email"
@@ -394,20 +560,26 @@ export default function OnboardingPage() {
             </button>
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setStep(2)}
+                onClick={() => { setSaveError(null); setStep(2); }}
                 className="text-sm font-medium text-slate-400 hover:text-slate-600"
               >
                 {t("onboardingPage.skipForNow")} &rarr;
               </button>
               <button
-                onClick={() => setStep(2)}
-                disabled={!canProceedStep1}
+                onClick={saveTeamStep}
+                disabled={!canProceedStep1 || saving}
                 className="rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-40"
               >
-                {t("onboardingPage.continue")}
+                {saving ? "Sending invites…" : t("onboardingPage.continue")}
               </button>
             </div>
           </div>
+
+          {workers.filter((w) => !w.email.trim()).length > 0 && (
+            <p className="text-xs text-slate-400">
+              Workers without an email address will not receive an invite — you can add them manually later from Settings → Staff.
+            </p>
+          )}
         </div>
       )}
 
@@ -430,12 +602,13 @@ export default function OnboardingPage() {
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                   {t("onboardingPage.jobCode")}
+                  <span className="ml-1 font-normal text-slate-400">(auto-generated if blank)</span>
                 </label>
                 <input
                   type="text"
                   value={jobCode}
                   onChange={(event) => setJobCode(event.target.value)}
-                  placeholder={t("onboardingPage.placeholders.jobCode")}
+                  placeholder={jobName ? toJobCode(jobName) : t("onboardingPage.placeholders.jobCode")}
                   className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5"
                 />
               </div>
@@ -483,11 +656,11 @@ export default function OnboardingPage() {
               {t("onboardingPage.back")}
             </button>
             <button
-              onClick={() => setStep(3)}
-              disabled={!canProceedStep2}
+              onClick={saveJobStep}
+              disabled={!canProceedStep2 || saving}
               className="rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-40"
             >
-              {t("onboardingPage.continue")}
+              {saving ? "Creating job…" : t("onboardingPage.continue")}
             </button>
           </div>
         </div>

@@ -33,6 +33,15 @@ const ROLE_DEFINITIONS = [
   { value: "admin", labelKey: "staffPage.roles.admin.label", descriptionKey: "staffPage.roles.admin.description" },
 ] as const;
 
+type RoleTab = "all" | "admin" | "supervisor" | "crew";
+
+const ROLE_TABS: { key: RoleTab; label: string; roles: string[] }[] = [
+  { key: "all", label: "All", roles: [] },
+  { key: "admin", label: "Admin", roles: ["admin"] },
+  { key: "supervisor", label: "Supervisor", roles: ["supervisor"] },
+  { key: "crew", label: "Team Crew", roles: ["worker", "foreman"] },
+];
+
 export default function StaffPage() {
   const { t } = useI18n();
   const [staff, setStaff] = useState<StaffMember[]>([]);
@@ -43,6 +52,7 @@ export default function StaffPage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Set<string>>(new Set());
+  const [activeRoleTab, setActiveRoleTab] = useState<RoleTab>("all");
 
   // Role gate: only admin users can access staff management
   useEffect(() => {
@@ -218,6 +228,12 @@ export default function StaffPage() {
   const activeCount = staff.filter((member) => member.is_active).length;
   const roleLabel = (role: string) => roles.find((entry) => entry.value === role)?.label ?? role;
 
+  const tabFilteredStaff = useMemo(() => {
+    const tab = ROLE_TABS.find((t) => t.key === activeRoleTab);
+    if (!tab || tab.roles.length === 0) return staff;
+    return staff.filter((m) => tab.roles.includes(m.role));
+  }, [staff, activeRoleTab]);
+
   const ROLE_TOOLTIPS: Record<string, string> = {
     worker: t("staff.workerRole"),
     supervisor: t("staff.supervisorRole"),
@@ -235,10 +251,10 @@ export default function StaffPage() {
   }
 
   function toggleSelectAll() {
-    if (selectedStaff.size === staff.length) {
+    if (selectedStaff.size === tabFilteredStaff.length && tabFilteredStaff.length > 0) {
       setSelectedStaff(new Set());
     } else {
-      setSelectedStaff(new Set(staff.map((m) => m.id)));
+      setSelectedStaff(new Set(tabFilteredStaff.map((m) => m.id)));
     }
   }
 
@@ -297,6 +313,33 @@ export default function StaffPage() {
         </button>
       </div>
 
+      {/* Role tab bar */}
+      <div className="mb-5 flex gap-1 rounded-xl bg-stone-100 p-1">
+        {ROLE_TABS.map((tab) => {
+          const count = tab.roles.length === 0
+            ? staff.length
+            : staff.filter((m) => tab.roles.includes(m.role)).length;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveRoleTab(tab.key)}
+              className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
+                activeRoleTab === tab.key
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {tab.label}
+              <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                activeRoleTab === tab.key ? "bg-amber-100 text-amber-700" : "bg-stone-200 text-slate-500"
+              }`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Bulk action bar */}
       {selectedStaff.size > 0 && (
         <div className="mb-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
@@ -324,24 +367,28 @@ export default function StaffPage() {
             </div>
           )}
 
-          {!loading && staff.length === 0 && (
+          {!loading && tabFilteredStaff.length === 0 && (
             <div className="rounded-2xl border-2 border-dashed border-stone-200 bg-white p-10 text-center">
-              <p className="text-sm text-slate-400">{t("staffPage.noStaff")}</p>
-              <button
-                onClick={startAdd}
-                className="mt-3 rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white"
-              >
-                + {t("staffPage.addFirstStaff")}
-              </button>
+              <p className="text-sm text-slate-400">
+                {staff.length === 0 ? t("staffPage.noStaff") : `No ${ROLE_TABS.find(t => t.key === activeRoleTab)?.label ?? ""} members yet.`}
+              </p>
+              {staff.length === 0 && (
+                <button
+                  onClick={startAdd}
+                  className="mt-3 rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white"
+                >
+                  + {t("staffPage.addFirstStaff")}
+                </button>
+              )}
             </div>
           )}
 
           {/* Select all header */}
-          {staff.length > 0 && (
+          {tabFilteredStaff.length > 0 && (
             <div className="mb-2 flex items-center gap-2 px-1">
               <input
                 type="checkbox"
-                checked={selectedStaff.size === staff.length && staff.length > 0}
+                checked={selectedStaff.size === tabFilteredStaff.length && tabFilteredStaff.length > 0}
                 onChange={toggleSelectAll}
                 className="h-4 w-4 rounded border-stone-300 accent-slate-900"
               />
@@ -350,7 +397,7 @@ export default function StaffPage() {
           )}
 
           <div className="space-y-2">
-            {staff.map((member) => {
+            {tabFilteredStaff.map((member) => {
               const isEditing = editing?.id === member.id;
               const isChecked = selectedStaff.has(member.id);
               return (

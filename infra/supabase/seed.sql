@@ -70,10 +70,12 @@ INSERT INTO public.users (id, company_id, role, full_name, email)
 VALUES ('aaaaaaaa-0000-0000-0000-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'admin', 'Test Admin', 'admin@test.com')
 ON CONFLICT DO NOTHING;
 
--- Also add to platform_admins for super-admin / platform-level access
-INSERT INTO platform_admins (auth_user_id, email, full_name, role, is_active)
-VALUES ('aaaaaaaa-0000-0000-0000-aaaaaaaaaaaa', 'admin@test.com', 'Test Admin', 'platform_admin', true)
-ON CONFLICT DO NOTHING;
+-- NOTE: platform_admin bootstrap removed from seed to prevent hardcoded-password
+-- backdoor risk if full_schema_with_seed.sql is ever applied to a hosted
+-- environment. Create your real platform_admin via the Supabase SQL editor
+-- using your real auth.users.id — see docs/GO_LIVE.md (if present) or run:
+--   INSERT INTO platform_admins (auth_user_id, email, full_name, role, is_active)
+--   VALUES ('<your-real-auth-uid>', '<you@company.com>', '<Your Name>', 'platform_admin', true);
 
 INSERT INTO jobs (id, company_id, name, code, created_by)
 VALUES (

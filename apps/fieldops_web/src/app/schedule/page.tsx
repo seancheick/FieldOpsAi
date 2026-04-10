@@ -2,8 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
-import interactionPlugin from "@fullcalendar/interaction";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import interactionPlugin, { type EventResizeDoneArg } from "@fullcalendar/interaction";
 import resourceTimelinePlugin from "@fullcalendar/resource-timeline";
+import type {
+  EventClickArg,
+  EventDropArg,
+} from "@fullcalendar/core";
 import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 import {
@@ -107,7 +112,6 @@ interface ScheduleEntry {
 
 type ViewMode = "day" | "week" | "twoWeek" | "month";
 
-const DAY_LABELS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 const VIEW_MODES: ViewMode[] = ["day", "week", "twoWeek", "month"];
 
 function asDateKey(value: Date) {
@@ -347,8 +351,7 @@ export default function SchedulePage() {
   const rangeStart = asDateKey(visibleDates[0]);
   const rangeEnd = asDateKey(visibleDates[visibleDates.length - 1]);
 
-  const isMonthView = viewMode === "month";
-  const currentMonth = parseDate(anchorDate).getUTCMonth();
+  const isMonthGrid = viewMode === "month";
 
   const filteredWorkers = useMemo(() => {
     if (!searchText.trim()) return workers;
@@ -361,7 +364,10 @@ export default function SchedulePage() {
     const individualEvents = entries.map((entry) => ({
       id: entry.id,
       resourceId: entry.job_id,
-      title: entry.worker_name,
+      // Month grid: show "Worker · Job" so context is clear without job rows
+      title: isMonthGrid
+        ? `${entry.worker_name}${entry.job_name ? ` · ${entry.job_name}` : ""}`
+        : entry.worker_name,
       start: buildEventDateTime(entry.date, formatTime(entry.start_time)),
       end: buildEventDateTime(entry.date, formatTime(entry.end_time)),
       backgroundColor: entry.status === "draft" ? "#f8e2b4" : "#dcfce7",
@@ -389,7 +395,7 @@ export default function SchedulePage() {
     );
 
     return [...remaining, ...merged];
-  }, [entries, viewMode]);
+  }, [entries, isMonthGrid, viewMode]);
 
   const resources = useMemo(
     () =>
@@ -480,11 +486,11 @@ export default function SchedulePage() {
     if (viewMode === "day") return "resourceTimelineDay";
     if (viewMode === "week") return "resourceTimelineWeek";
     if (viewMode === "twoWeek") return "resourceTimelineWeek";
-    return "resourceTimelineMonth";
+    return "dayGridMonth"; // proper month calendar grid
   }, [viewMode]);
 
   const currentSlotDuration = useMemo(() => {
-    if (viewMode === "month" || viewMode === "twoWeek") return "24:00:00";
+    if (viewMode === "twoWeek") return "24:00:00";
     if (viewMode === "day") return "00:30:00";
     return "01:00:00"; // week view
   }, [viewMode]);
@@ -493,9 +499,14 @@ export default function SchedulePage() {
     if (calendarRef.current) {
       const api = calendarRef.current.getApi();
       api.changeView(calendarView);
-      api.setOption("slotDuration", currentSlotDuration);
+      api.gotoDate(anchorDate);
+      if (!isMonthGrid) {
+        api.setOption("slotDuration", currentSlotDuration);
+        api.setOption("slotMinTime", "05:00:00");
+        api.setOption("slotMaxTime", "20:00:00");
+      }
     }
-  }, [calendarView, currentSlotDuration]);
+  }, [calendarView, currentSlotDuration, isMonthGrid, anchorDate]);
 
   const visibleRange = useMemo(
     () => ({ start: rangeStart, end: addDays(rangeEnd, 1) }),
@@ -508,6 +519,12 @@ export default function SchedulePage() {
 
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveWorker(null);
+    if (isMonthGrid) {
+      // Month view has no resource rows; cannot drop a worker here.
+      // Switch to week view so the user can place the shift on the Gantt.
+      setViewMode("week")
+      return
+    }
     const { active, delta } = event;
     if (event.activatorEvent) {
       const ev = event.activatorEvent as MouseEvent | TouchEvent;
@@ -556,7 +573,7 @@ export default function SchedulePage() {
     }
   };
 
-  async function handleEventDrop(info: any) {
+  async function handleEventDrop(info: EventDropArg) {
     if (!info.event.id) return;
     // Merged multi-day bars are not directly editable via drag — revert
     if (info.event.extendedProps?.isMergedBar) {
@@ -568,8 +585,11 @@ export default function SchedulePage() {
     if (!jobId) return;
 
     const date = info.event.startStr.slice(0, 10);
-    const startTime = info.event.start?.toISOString().slice(11, 16);
-    const endTime = info.event.end?.toISOString().slice(11, 16);
+    const ds = info.event.start
+    const de = info.event.end
+    // Use UTC hours/minutes — events are stored as T07:00:00Z (UTC), not local time
+    const startTime = ds ? `${String(ds.getUTCHours()).padStart(2, "0")}:${String(ds.getUTCMinutes()).padStart(2, "0")}` : "07:00"
+    const endTime = de ? `${String(de.getUTCHours()).padStart(2, "0")}:${String(de.getUTCMinutes()).padStart(2, "0")}` : "15:30"
     if (!startTime || !endTime) return;
 
     await updateEntry(info.event.id, {
@@ -580,7 +600,34 @@ export default function SchedulePage() {
     });
   }
 
-  function handleEventClick(clickInfo: any) {
+  async function handleEventResize(info: EventResizeDoneArg) {
+    if (!info.event.id) return;
+    if (info.event.extendedProps?.isMergedBar) {
+      info.revert?.();
+      return;
+    }
+
+    const shiftedResource = info.event.getResources()[0];
+    const jobId = shiftedResource?.id ?? info.event.extendedProps.job_id;
+    if (!jobId) return;
+
+    const date = info.event.startStr.slice(0, 10);
+    const rs = info.event.start
+    const re = info.event.end
+    // Use UTC hours/minutes — events are stored as T07:00:00Z (UTC), not local time
+    const startTime = rs ? `${String(rs.getUTCHours()).padStart(2, "0")}:${String(rs.getUTCMinutes()).padStart(2, "0")}` : "07:00"
+    const endTime = re ? `${String(re.getUTCHours()).padStart(2, "0")}:${String(re.getUTCMinutes()).padStart(2, "0")}` : "15:30"
+    if (!startTime || !endTime) return;
+
+    await updateEntry(info.event.id, {
+      job_id: jobId,
+      date,
+      start_time: startTime,
+      end_time: endTime,
+    });
+  }
+
+  function handleEventClick(clickInfo: EventClickArg) {
     const entry = entries.find((entry) => entry.id === clickInfo.event.id);
     if (entry) {
       openEditForm(entry);
@@ -690,23 +737,6 @@ export default function SchedulePage() {
     }
   }
 
-  async function removeEntry(id: string) {
-    setBusyAction(id);
-    setError(null);
-    setSuccessMessage(null);
-    try {
-      await postSchedule({ action: "delete", shift_id: id });
-      await loadSchedule();
-      setSuccessMessage(t("schedulePage.draftRemoved"));
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("schedulePage.failedToRemove"),
-      );
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
   async function updateEntry(
     id: string,
     changes: Partial<
@@ -791,8 +821,8 @@ export default function SchedulePage() {
     setError(null);
     setSuccessMessage(null);
     try {
-      const prevStart = previousAnchor(rangeStart, "week");
-      const prevEnd = previousAnchor(rangeEnd, "week");
+      const prevStart = previousAnchor(rangeStart, viewMode);
+      const prevEnd = previousAnchor(rangeEnd, viewMode);
       await postSchedule({
         action: "copy_week",
         source_start: prevStart,
@@ -1084,7 +1114,19 @@ export default function SchedulePage() {
                   />
                 );
               })}
-              {filteredWorkers.length === 0 && (
+              {filteredWorkers.length === 0 && workers.length === 0 && !loading && (
+                <div className="rounded-2xl border border-dashed border-stone-300 bg-white/80 px-4 py-6 text-center">
+                  <p className="text-sm font-medium text-slate-600 mb-1">No workers yet</p>
+                  <p className="text-xs text-slate-400 mb-3">Invite your crew to get started</p>
+                  <a
+                    href="/settings/staff"
+                    className="inline-block rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                  >
+                    Invite Workers →
+                  </a>
+                </div>
+              )}
+              {filteredWorkers.length === 0 && workers.length > 0 && (
                 <div className="rounded-2xl border border-dashed border-stone-300 bg-white/80 px-4 py-3 text-sm text-slate-500">
                   {t("schedulePage.noWorkersFound")}
                 </div>
@@ -1093,27 +1135,34 @@ export default function SchedulePage() {
           </aside>
 
           <div className="relative min-w-0 overflow-x-auto rounded-2xl border border-stone-200 bg-white">
-              <div className="min-w-[800px]">
+              <div className={isMonthGrid ? "min-w-[700px]" : "min-w-[800px]"}>
                 <FullCalendar
                   ref={calendarRef}
-                  plugins={[interactionPlugin, resourceTimelinePlugin]}
+                  plugins={[dayGridPlugin, resourceTimelinePlugin, interactionPlugin]}
                   initialView={calendarView}
-                  visibleRange={visibleRange}
-                  resources={resources}
+                  {...(!isMonthGrid && { visibleRange })}
+                  {...(!isMonthGrid && { resources })}
+                  {...(!isMonthGrid && {
+                    slotMinTime: "05:00:00",
+                    slotMaxTime: "20:00:00",
+                    slotDuration: currentSlotDuration,
+                    resourceAreaHeaderContent: t("schedulePage.jobs") || "Jobs",
+                    resourceAreaWidth: "260px",
+                  })}
                   events={events}
                   editable
                   droppable
                   eventDurationEditable
                   eventResizableFromStart
                   height="auto"
-                  slotMinTime="05:00:00"
-                  slotMaxTime="20:00:00"
-                  slotDuration={currentSlotDuration}
-                  resourceAreaHeaderContent={t("schedulePage.jobs") || "Jobs"}
-                  resourceAreaWidth="260px"
                   headerToolbar={false}
+                  dateClick={isMonthGrid ? (arg) => {
+                    clearForm(arg.dateStr);
+                    setFormDate(arg.dateStr);
+                    setShowForm(true);
+                  } : undefined}
                   eventDrop={handleEventDrop}
-                  eventResize={handleEventDrop}
+                  eventResize={handleEventResize}
                   eventClick={handleEventClick}
                   eventContent={(arg) => {
                     const props = arg.event.extendedProps;
@@ -1139,13 +1188,35 @@ export default function SchedulePage() {
                         ">${arg.event.title}</div>`,
                       };
                     }
-                    return undefined; // default rendering for single-day events
+                    return undefined;
                   }}
-                  dayMaxEventRows={true}
-                  displayEventTime
+                  dayMaxEventRows={isMonthGrid ? 4 : true}
+                  displayEventTime={!isMonthGrid}
                   schedulerLicenseKey="CC-Attribution-NonCommercial-NoDerivatives"
                 />
               </div>
+
+            {!loading && !isMonthGrid && resources.length === 0 && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/90 px-8 text-center">
+                <div className="text-4xl mb-4">📋</div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2">No active jobs yet</h3>
+                <p className="text-sm text-slate-500 mb-5 max-w-xs">
+                  The Gantt timeline shows one row per job. Create an active job first, then come back to schedule your crew.
+                </p>
+                <a
+                  href="/jobs"
+                  className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600"
+                >
+                  Go to Jobs →
+                </a>
+                <button
+                  onClick={() => setViewMode("month")}
+                  className="mt-3 text-xs font-medium text-slate-400 hover:text-slate-600 underline"
+                >
+                  Or use Month view (no jobs required)
+                </button>
+              </div>
+            )}
 
             {loading && (
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 text-sm font-medium text-slate-500">

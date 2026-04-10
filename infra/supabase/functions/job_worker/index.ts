@@ -37,10 +37,13 @@ serve(async (req) => {
       return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Use POST")
     }
 
-    // Verify internal caller (service role or cron secret)
-    const authHeader = req.headers.get("Authorization")
-    if (!authHeader) {
-      return errorResponse(requestId, 401, "UNAUTHORIZED", "Missing Authorization header")
+    // Verify internal caller via CRON_SECRET. This endpoint runs with the
+    // service-role key and must only be invoked by the scheduled cron job.
+    // A presence-only Authorization check is not enough — validate the
+    // secret explicitly.
+    const cronSecret = Deno.env.get("CRON_SECRET") || ""
+    if (!cronSecret || req.headers.get("x-cron-secret") !== cronSecret) {
+      return errorResponse(requestId, 401, "UNAUTHORIZED", "Invalid or missing cron secret")
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || ""
@@ -75,10 +78,11 @@ serve(async (req) => {
       }
     }
 
-    return jsonResponse(requestId, {
+    return jsonResponse({
       processed: results.length,
       results,
-    })
+      request_id: requestId,
+    }, 200, requestId)
   } catch (e) {
     return errorResponse(requestId, 500, "INTERNAL_ERROR", e instanceof Error ? e.message : "Unknown error")
   }

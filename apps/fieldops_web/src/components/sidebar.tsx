@@ -44,6 +44,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/", icon: LayoutDashboard, labelKey: "shell.dashboard", section: "overview" },
   { href: "/map", icon: MapPin, labelKey: "shell.map", section: "overview" },
   { href: "/workers", icon: Users, labelKey: "shell.workers", section: "overview" },
+  { href: "/projects", icon: Clipboard, labelKey: "shell.projects", section: "overview" },
   { href: "/schedule", icon: Calendar, labelKey: "shell.schedule", section: "operations" },
   { href: "/timeline", icon: Clock, labelKey: "shell.timeline", section: "operations" },
   { href: "/photos", icon: Camera, labelKey: "shell.photos", section: "operations" },
