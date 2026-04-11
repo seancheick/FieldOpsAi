@@ -14,6 +14,7 @@ import {
   sha256Hex,
   storeIdempotency,
 } from "../_shared/api.ts"
+import { isSupervisorOrAbove } from "../_shared/roles.ts"
 
 const ENDPOINT = "ot"
 const OT_RATE_LIMIT = 20
@@ -313,9 +314,9 @@ serve(async (req) => {
           return errorResponse(requestId, 400, "INVALID_PAYLOAD", "reason is required for OT decisions")
         }
 
-        // Only supervisors and admins can approve
-        if (!["supervisor", "admin"].includes(userRecord.role)) {
-          return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors or admins can approve OT requests")
+        // Only supervisors, admins, and owners can approve
+        if (!isSupervisorOrAbove(userRecord.role)) {
+          return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can approve OT requests")
         }
 
         // Fetch the OT request

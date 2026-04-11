@@ -16,6 +16,7 @@ import {
   logRequestError,
   makeRequestId,
 } from "../_shared/api.ts"
+import { isManagementRole } from "../_shared/roles.ts"
 
 const ENDPOINT = "feature_flags"
 
@@ -107,8 +108,8 @@ Deno.serve(async (req) => {
     // ── POST — set a company override (admin only) ───────────
 
     if (req.method === "POST") {
-      if (role !== "admin") {
-        return errorResponse(requestId, 403, "FORBIDDEN", "Only admins can set feature overrides")
+      if (!isManagementRole(role)) {
+        return errorResponse(requestId, 403, "FORBIDDEN", "Only owners or admins can set feature overrides")
       }
 
       const body = await req.json()
@@ -151,8 +152,8 @@ Deno.serve(async (req) => {
     // ── DELETE — remove a company override (admin only) ──────
 
     if (req.method === "DELETE") {
-      if (role !== "admin") {
-        return errorResponse(requestId, 403, "FORBIDDEN", "Only admins can remove feature overrides")
+      if (!isManagementRole(role)) {
+        return errorResponse(requestId, 403, "FORBIDDEN", "Only owners or admins can remove feature overrides")
       }
 
       const url = new URL(req.url)

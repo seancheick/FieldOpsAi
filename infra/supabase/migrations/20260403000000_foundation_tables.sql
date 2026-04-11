@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Note: uuidv7 is supported natively in newer Postgres. We will use gen_random_uuid() as a fallback for v4 if v7 function is missing, or rely on application-supplied UUIDs. For this schema, we assume standard uuid defaults.
 
 -- 1. Enums
-CREATE TYPE user_role AS ENUM ('admin', 'supervisor', 'foreman', 'worker');
+CREATE TYPE user_role AS ENUM ('owner', 'admin', 'supervisor', 'foreman', 'worker');
 CREATE TYPE project_status AS ENUM ('draft', 'active', 'on_hold', 'completed', 'archived');
 CREATE TYPE job_status AS ENUM ('draft', 'active', 'in_progress', 'review', 'completed', 'archived');
 CREATE TYPE task_status AS ENUM ('not_started', 'in_progress', 'blocked', 'completed', 'skipped');

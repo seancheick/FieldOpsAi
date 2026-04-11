@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabase";
+import { isManagementRole } from "@/lib/roles";
 import { useCurrentUser } from "@/lib/use-role";
 import { LogoUpload } from "@/components/logo-upload";
 
@@ -271,12 +272,12 @@ export default function CompanySettingsPage() {
 
   /* ── Access denied ───────────────────────────────────────── */
 
-  if (!currentUser.loading && currentUser.role !== "admin") {
+  if (!currentUser.loading && !isManagementRole(currentUser.role)) {
     return (
       <div className="mt-20 text-center">
         <h2 className="text-xl font-bold text-slate-900">Access Denied</h2>
         <p className="mt-2 text-sm text-slate-500">
-          Only administrators can access company settings.
+          Only owners and administrators can access company settings.
         </p>
         <a
           href="/"
@@ -405,6 +406,7 @@ export default function CompanySettingsPage() {
                 options={[
                   { value: "en", label: "English" },
                   { value: "es", label: "Spanish" },
+                  { value: "th", label: "Thai" },
                 ]}
               />
             </div>

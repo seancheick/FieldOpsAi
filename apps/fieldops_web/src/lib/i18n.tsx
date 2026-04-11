@@ -568,6 +568,7 @@ const translations: Record<string, TranslationTree> = {
       selectAll: "Select All",
       suspendSelected: "Suspend Selected",
       exportList: "Export List",
+      ownerRole: "Company owner with full tenant control and billing access",
       workerRole: "Can clock in/out, submit expenses, complete tasks",
       supervisorRole: "Can approve OT, view reports, manage schedule",
       adminRole: "Full access including settings and staff management",
@@ -602,6 +603,10 @@ const translations: Record<string, TranslationTree> = {
         notes: "e.g. Speaks Spanish, certified electrician",
       },
       roles: {
+        owner: {
+          label: "Owner",
+          description: "Full company control, billing, and role management",
+        },
         worker: {
           label: "Worker",
           description: "Clock in, photos, tasks",
@@ -1188,6 +1193,7 @@ const translations: Record<string, TranslationTree> = {
       selectAll: "Seleccionar Todos",
       suspendSelected: "Suspender Seleccionados",
       exportList: "Exportar Lista",
+      ownerRole: "Propietario de la empresa con control total del tenant y facturación",
       workerRole: "Puede registrar entrada/salida, enviar gastos, completar tareas",
       supervisorRole: "Puede aprobar HE, ver reportes, gestionar horarios",
       adminRole: "Acceso completo incluyendo configuración y gestión de personal",
@@ -1223,6 +1229,10 @@ const translations: Record<string, TranslationTree> = {
         notes: "ej. Habla español, electricista certificado",
       },
       roles: {
+        owner: {
+          label: "Propietario",
+          description: "Control total de la empresa, facturación y roles",
+        },
         worker: {
           label: "Trabajador",
           description: "Fichar, fotos, tareas",

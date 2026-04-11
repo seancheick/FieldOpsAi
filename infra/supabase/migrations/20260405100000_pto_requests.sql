@@ -54,12 +54,12 @@ CREATE POLICY "Worker PTO cancel"
     )
     WITH CHECK (status = 'cancelled');
 
--- Supervisors/admins can approve or deny
+-- Supervisors/admins/owners can approve or deny
 CREATE POLICY "Supervisor PTO decision"
     ON pto_requests FOR UPDATE
     USING (
         company_id = public.current_company_id()
-        AND public.current_user_role() IN ('supervisor', 'admin')
+        AND public.current_user_role() IN ('supervisor', 'admin', 'owner')
         AND status = 'pending'
     )
     WITH CHECK (

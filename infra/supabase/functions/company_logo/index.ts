@@ -13,6 +13,7 @@ import {
   logRequestStart,
   makeRequestId,
 } from "../_shared/api.ts"
+import { isManagementRole } from "../_shared/roles.ts"
 
 const ENDPOINT = "company_logo"
 const LOGO_BUCKET = "company-logos"
@@ -66,9 +67,9 @@ serve(async (req) => {
       return errorResponse(requestId, 403, "FORBIDDEN", "User is inactive")
     }
 
-    // Only admins can manage logos
-    if (userRecord.role !== "admin") {
-      return errorResponse(requestId, 403, "FORBIDDEN", "Only admins can manage company logos")
+    // Only owners/admins can manage logos
+    if (!isManagementRole(userRecord.role)) {
+      return errorResponse(requestId, 403, "FORBIDDEN", "Only owners or admins can manage company logos")
     }
 
     // Company active check

@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
+import { isManagementRole } from "@/lib/roles";
 import { useCurrentUser } from "@/lib/use-role";
 
 interface BillingCompany {
   id: string;
   name: string;
+  billing_mode: string;
   payment_status: string;
   billing_plan: string;
   billing_email: string | null;
@@ -33,7 +35,7 @@ export default function BillingPage() {
       const [{ data: companyData, error: companyError }, { count: activeCount, error: countError }] = await Promise.all([
         supabase
           .from("companies")
-          .select("id, name, payment_status, billing_plan, billing_email, stripe_customer_id")
+          .select("id, name, billing_mode, payment_status, billing_plan, billing_email, stripe_customer_id")
           .eq("id", currentUser.companyId)
           .single(),
         supabase
@@ -85,6 +87,12 @@ export default function BillingPage() {
       });
 
       const data = await response.json().catch(() => ({}));
+      if (data.mode === "demo") {
+        setError("Demo billing mode is active. Stripe portal will be available after billing is connected.");
+        setLaunching(false);
+        return;
+      }
+
       if (!response.ok || !data.url) {
         throw new Error(data.message ?? data.error ?? "Failed to launch billing portal");
       }
@@ -96,11 +104,11 @@ export default function BillingPage() {
     }
   }
 
-  if (!currentUser.loading && currentUser.role !== "admin") {
+  if (!currentUser.loading && !isManagementRole(currentUser.role)) {
     return (
       <div className="mt-20 text-center">
         <h2 className="text-xl font-bold text-slate-900">Access Denied</h2>
-        <p className="mt-2 text-sm text-slate-500">Only administrators can access billing.</p>
+        <p className="mt-2 text-sm text-slate-500">Only owners and administrators can access billing.</p>
         <Link href="/" className="mt-4 inline-block text-sm font-medium text-amber-600 hover:text-amber-700">
           &larr; Back to dashboard
         </Link>
@@ -119,13 +127,19 @@ export default function BillingPage() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Manage Billing</h1>
           <p className="mt-1 text-sm text-slate-400">Review plan, status, and launch the Stripe billing portal.</p>
         </div>
-        <button
-          onClick={handleManageBilling}
-          disabled={launching}
-          className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
-        >
-          {launching ? "Opening..." : "Open billing portal"}
-        </button>
+        {company?.billing_mode === "demo" ? (
+          <span className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">
+            Demo billing mode
+          </span>
+        ) : (
+          <button
+            onClick={handleManageBilling}
+            disabled={launching}
+            className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
+          >
+            {launching ? "Opening..." : "Open billing portal"}
+          </button>
+        )}
       </div>
 
       {error && (
@@ -139,6 +153,16 @@ export default function BillingPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Plan</p>
           <p className="mt-2 text-2xl font-semibold text-slate-900">{company?.billing_plan ?? "starter"}</p>
           <p className="mt-2 text-sm text-slate-500">Active users: {activeUsers}</p>
+        </div>
+
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Mode</p>
+          <p className="mt-2 text-2xl font-semibold capitalize text-slate-900">{company?.billing_mode ?? "demo"}</p>
+          <p className="mt-2 text-sm text-slate-500">
+            {company?.billing_mode === "demo"
+              ? "Running free while billing is not yet connected."
+              : "Stripe-backed subscription state is active."}
+          </p>
         </div>
 
         <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">

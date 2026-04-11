@@ -11,24 +11,24 @@
 --   client silently fail.
 -- =========================================================
 
--- Admins and supervisors can create jobs for their company.
+-- Owners, admins, and supervisors can create jobs for their company.
 CREATE POLICY "Admin/supervisor can insert jobs"
 ON jobs
 FOR INSERT
 WITH CHECK (
   company_id = public.current_company_id()
-  AND public.current_user_role() IN ('admin', 'supervisor')
+  AND public.current_user_role() IN ('owner', 'admin', 'supervisor')
 );
 
--- Admins and supervisors can update jobs for their company.
+-- Owners, admins, and supervisors can update jobs for their company.
 CREATE POLICY "Admin/supervisor can update jobs"
 ON jobs
 FOR UPDATE
-USING (company_id = public.current_company_id() AND public.current_user_role() IN ('admin', 'supervisor'))
+USING (company_id = public.current_company_id() AND public.current_user_role() IN ('owner', 'admin', 'supervisor'))
 WITH CHECK (company_id = public.current_company_id());
 
--- Only admins can delete (soft-delete via deleted_at) jobs.
+-- Only owners/admins can delete (soft-delete via deleted_at) jobs.
 CREATE POLICY "Admin can delete jobs"
 ON jobs
 FOR DELETE
-USING (company_id = public.current_company_id() AND public.current_user_role() = 'admin');
+USING (company_id = public.current_company_id() AND public.current_user_role() IN ('owner', 'admin'));

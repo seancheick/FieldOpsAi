@@ -8,6 +8,7 @@ import {
   jsonResponse,
   makeRequestId,
 } from "../_shared/api.ts"
+import { OWNER_ROLE, isManagementRole } from "../_shared/roles.ts"
 
 const ENDPOINT = "invites"
 // Supervisors can send at most 10 invites per hour. inviteUserByEmail
@@ -62,9 +63,9 @@ serve(async (req) => {
       return errorResponse(requestId, 403, "FORBIDDEN", "User is inactive")
     }
 
-    // Only admins/supervisors can send invites
-    if (!["admin", "supervisor"].includes(userRecord.role)) {
-      return errorResponse(requestId, 403, "FORBIDDEN", "Only admins or supervisors can send invites")
+    // Owners, admins, and supervisors can send invites.
+    if (!isManagementRole(userRecord.role) && userRecord.role !== "supervisor") {
+      return errorResponse(requestId, 403, "FORBIDDEN", "Only owners, admins, or supervisors can send invites")
     }
 
     if (req.method === "POST") {
@@ -77,7 +78,9 @@ serve(async (req) => {
 
       const workerRole = role || "worker"
       // Admins can invite supervisors; non-admins can only invite worker/foreman
-      const allowedRoles = userRecord.role === "admin"
+      const allowedRoles = userRecord.role === OWNER_ROLE
+        ? ["admin", "supervisor", "foreman", "worker"]
+        : userRecord.role === "admin"
         ? ["worker", "foreman", "supervisor"]
         : ["worker", "foreman"]
       if (!allowedRoles.includes(workerRole)) {

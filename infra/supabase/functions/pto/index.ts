@@ -11,6 +11,7 @@ import {
   logRequestStart,
   makeRequestId,
 } from "../_shared/api.ts"
+import { isSupervisorOrAbove } from "../_shared/roles.ts"
 
 const ENDPOINT = "pto"
 const PTO_RATE_LIMIT = 20
@@ -72,8 +73,8 @@ serve(async (req) => {
         .order("start_date", { ascending: false })
         .limit(100)
 
-      // Workers see only their own; supervisors/admins see all
-      if (!["supervisor", "admin"].includes(userRecord.role)) {
+      // Workers see only their own; supervisors/admins/owners see all
+      if (!isSupervisorOrAbove(userRecord.role)) {
         query = query.eq("user_id", user.id)
       }
 
@@ -145,8 +146,8 @@ serve(async (req) => {
 
     // ── Action: decide (approve/deny) ────────────────────
     if (action === "decide") {
-      if (!["supervisor", "admin"].includes(userRecord.role)) {
-        return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors or admins can decide PTO requests")
+      if (!isSupervisorOrAbove(userRecord.role)) {
+        return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can decide PTO requests")
       }
 
       const { pto_request_id, decision, reason } = payload

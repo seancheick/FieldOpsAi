@@ -10,6 +10,7 @@ import {
   logRequestStart,
   makeRequestId,
 } from "../_shared/api.ts"
+import { isSupervisorOrAbove } from "../_shared/roles.ts"
 
 const ENDPOINT = "alerts"
 
@@ -91,8 +92,8 @@ serve(async (req) => {
 
     // POST — scan for alerts or resolve
     if (req.method === "POST") {
-      if (!["supervisor", "admin"].includes(userRecord.role)) {
-        return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors/admins can manage alerts")
+      if (!isSupervisorOrAbove(userRecord.role)) {
+        return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can manage alerts")
       }
 
       const payload = await req.json()

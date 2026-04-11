@@ -34,7 +34,7 @@ USING (user_id = auth.uid());
 
 -- ========================================================
 -- 2. schedule_shifts write policies
---    Supervisors and admins can INSERT/UPDATE/DELETE.
+--    Supervisors, admins, and owners can INSERT/UPDATE/DELETE.
 --    Workers can only SELECT (already covered by tenant isolation policy).
 -- ========================================================
 
@@ -43,7 +43,7 @@ ON schedule_shifts
 FOR INSERT
 WITH CHECK (
   company_id = public.current_company_id()
-  AND public.current_user_role() IN ('supervisor', 'admin')
+  AND public.current_user_role() IN ('supervisor', 'admin', 'owner')
   AND created_by = auth.uid()
 );
 
@@ -52,11 +52,11 @@ ON schedule_shifts
 FOR UPDATE
 USING (
   company_id = public.current_company_id()
-  AND public.current_user_role() IN ('supervisor', 'admin')
+  AND public.current_user_role() IN ('supervisor', 'admin', 'owner')
 )
 WITH CHECK (
   company_id = public.current_company_id()
-  AND public.current_user_role() IN ('supervisor', 'admin')
+  AND public.current_user_role() IN ('supervisor', 'admin', 'owner')
 );
 
 CREATE POLICY "Supervisor schedule delete"
@@ -64,13 +64,13 @@ ON schedule_shifts
 FOR DELETE
 USING (
   company_id = public.current_company_id()
-  AND public.current_user_role() IN ('supervisor', 'admin')
+  AND public.current_user_role() IN ('supervisor', 'admin', 'owner')
   AND status = 'draft'  -- cannot delete published shifts
 );
 
 -- ========================================================
 -- 3. expense_events UPDATE policy (approval workflow)
---    Only supervisors/admins for the same company can update
+--    Only supervisors/admins/owners for the same company can update
 --    (approve/deny/reimburse). Workers cannot modify their own decisions.
 -- ========================================================
 
@@ -79,12 +79,12 @@ ON expense_events
 FOR UPDATE
 USING (
   company_id = public.current_company_id()
-  AND public.current_user_role() IN ('supervisor', 'admin')
+  AND public.current_user_role() IN ('supervisor', 'admin', 'owner')
   AND submitted_by != auth.uid()  -- cannot approve own expense
 )
 WITH CHECK (
   company_id = public.current_company_id()
-  AND public.current_user_role() IN ('supervisor', 'admin')
+  AND public.current_user_role() IN ('supervisor', 'admin', 'owner')
   AND submitted_by != auth.uid()
 );
 

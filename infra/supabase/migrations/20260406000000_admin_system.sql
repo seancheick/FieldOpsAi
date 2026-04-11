@@ -20,17 +20,30 @@ ALTER TABLE companies ADD CONSTRAINT chk_payment_status
 
 -- ─── 2. Admin UPDATE policies for companies and users ───────
 
--- Company admin can update their own company
+-- Company owner/admin can update their own company
 CREATE POLICY "Admin company update"
   ON companies FOR UPDATE
-  USING (id = public.current_company_id() AND public.current_user_role() = 'admin')
+  USING (id = public.current_company_id() AND public.current_user_role() IN ('owner', 'admin'))
   WITH CHECK (id = public.current_company_id());
 
--- Company admin can update users within their company
+-- Company owner/admin can update users within their company.
+-- Admins cannot modify owner rows or promote users to owner.
 CREATE POLICY "Admin user update"
   ON users FOR UPDATE
-  USING (company_id = public.current_company_id() AND public.current_user_role() = 'admin')
-  WITH CHECK (company_id = public.current_company_id());
+  USING (
+    company_id = public.current_company_id()
+    AND (
+      public.current_user_role() = 'owner'
+      OR (public.current_user_role() = 'admin' AND role <> 'owner')
+    )
+  )
+  WITH CHECK (
+    company_id = public.current_company_id()
+    AND (
+      public.current_user_role() = 'owner'
+      OR (public.current_user_role() = 'admin' AND role <> 'owner')
+    )
+  );
 
 -- ─── 3. Platform admins table (FieldOps internal staff) ─────
 
@@ -146,22 +159,22 @@ CREATE POLICY "Company logo read"
     AND (storage.foldername(name))[1]::uuid = public.current_company_id()
   );
 
--- Write: only admin can upload/overwrite
+-- Write: only owner/admin can upload/overwrite
 CREATE POLICY "Admin logo upload"
   ON storage.objects FOR INSERT TO authenticated
   WITH CHECK (
     bucket_id = 'company-logos'
     AND (storage.foldername(name))[1]::uuid = public.current_company_id()
-    AND public.current_user_role() = 'admin'
+    AND public.current_user_role() IN ('owner', 'admin')
   );
 
--- Delete: only admin
+-- Delete: only owner/admin
 CREATE POLICY "Admin logo delete"
   ON storage.objects FOR DELETE TO authenticated
   USING (
     bucket_id = 'company-logos'
     AND (storage.foldername(name))[1]::uuid = public.current_company_id()
-    AND public.current_user_role() = 'admin'
+    AND public.current_user_role() IN ('owner', 'admin')
   );
 
 -- ─── 10. Set default company settings for existing companies ─

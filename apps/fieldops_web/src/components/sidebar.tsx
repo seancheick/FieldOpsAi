@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { signOut } from "@/lib/auth";
 import { useI18n, type Locale } from "@/lib/i18n";
+import { isManagementRole } from "@/lib/roles";
 import {
   LayoutDashboard,
   MapPin,
@@ -164,9 +165,9 @@ export function Sidebar() {
   }, []);
 
   /* ---------- derived data ---------- */
-  const isAdmin = userRole === "admin";
+  const canManageCompany = isManagementRole(userRole);
   const visibleItems = NAV_ITEMS.filter(
-    (item) => !item.adminOnly || isAdmin,
+    (item) => !item.adminOnly || canManageCompany,
   );
 
   const searchResults = useMemo(() => {

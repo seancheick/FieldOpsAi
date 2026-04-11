@@ -61,7 +61,7 @@ USING (
   AND (worker_id = auth.uid() OR created_by = auth.uid())
 );
 
--- Supervisors/admins can view all corrections for their company
+-- Supervisors/admins/owners can view all corrections for their company
 CREATE POLICY "Supervisors can view company time_corrections"
 ON time_corrections
 FOR SELECT
@@ -70,11 +70,11 @@ USING (
   AND EXISTS (
     SELECT 1 FROM users
     WHERE users.id = auth.uid()
-    AND users.role IN ('supervisor', 'admin', 'foreman')
+    AND users.role IN ('supervisor', 'admin', 'owner', 'foreman')
   )
 );
 
--- Supervisors/admins can create corrections
+-- Supervisors/admins/owners can create corrections
 CREATE POLICY "Supervisors can create time_corrections"
 ON time_corrections
 FOR INSERT
@@ -83,11 +83,11 @@ WITH CHECK (
   AND EXISTS (
     SELECT 1 FROM users
     WHERE users.id = auth.uid()
-    AND users.role IN ('supervisor', 'admin', 'foreman')
+    AND users.role IN ('supervisor', 'admin', 'owner', 'foreman')
   )
 );
 
--- Only supervisors/admins can update (approve/deny)
+-- Only supervisors/admins/owners can update (approve/deny)
 CREATE POLICY "Supervisors can update time_corrections"
 ON time_corrections
 FOR UPDATE
@@ -96,7 +96,7 @@ USING (
   AND EXISTS (
     SELECT 1 FROM users
     WHERE users.id = auth.uid()
-    AND users.role IN ('supervisor', 'admin')
+    AND users.role IN ('supervisor', 'admin', 'owner')
   )
 );
 

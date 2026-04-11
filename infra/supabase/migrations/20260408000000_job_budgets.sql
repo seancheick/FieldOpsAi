@@ -35,7 +35,7 @@ USING (
   AND EXISTS (
     SELECT 1 FROM users
     WHERE users.id = auth.uid()
-    AND users.role IN ('supervisor', 'admin')
+    AND users.role IN ('supervisor', 'admin', 'owner')
   )
 )
 WITH CHECK (
@@ -43,6 +43,7 @@ WITH CHECK (
   AND EXISTS (
     SELECT 1 FROM users
     WHERE users.id = auth.uid()
+    AND users.role IN ('supervisor', 'admin', 'owner')
   )
 );
 

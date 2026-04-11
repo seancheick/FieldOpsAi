@@ -20,8 +20,15 @@ class PlatformAdminContractTests(unittest.TestCase):
 
     def test_new_company_page_posts_admin_name(self) -> None:
         source = NEW_COMPANY_PAGE.read_text()
-        self.assertIn("admin_name: adminName", source)
+        self.assertIn("owner_name: ownerName", source)
+        self.assertIn("owner_email: ownerEmail", source)
         self.assertNotIn("admin_full_name: adminName", source)
+
+    def test_create_company_assigns_owner_role(self) -> None:
+        source = PLATFORM_ADMIN_FN.read_text()
+        self.assertIn('role: OWNER_ROLE', source)
+        self.assertIn('const owner_email = payload.owner_email || payload.admin_email', source)
+        self.assertIn('const owner_name = payload.owner_name || payload.admin_name', source)
 
     def test_company_detail_reads_audit_logs_payload(self) -> None:
         source = COMPANY_DETAIL_PAGE.read_text()
