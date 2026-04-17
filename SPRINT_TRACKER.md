@@ -1034,13 +1034,46 @@ They don't affect production safety but improve robustness and maintainability.
 
 ## Sprint 8 — Billing + Integrations + SOC 2
 
+### Critical Path (Thailand Pilot — do first)
+
+- [ ] Production deployment (Vercel + Supabase hosted)
+  - Type: Infra | Priority: CRITICAL
+  - Definition of Done: App live at a real URL, accessible from Thailand. Env vars set (MapTiler, FCM push certs, Supabase hosted project config, Stripe webhook URL). Smoke tested with owner role + demo billing.
+
+- [ ] Email/SMS worker invites — full activation flow
+  - Type: Backend | Priority: CRITICAL
+  - Definition of Done: Admin sends invite → worker receives email → clicks magic link → deep link opens mobile app → account activates. Phone invite path: SMS sent via Twilio when configured. Manual fallback documented for pilot.
+  - Notes: Backend invite function exists (`invites/index.ts`). Auth email invite path works. Phone path now creates user record (fixed this sprint). Missing: deep link handling in Flutter + Twilio wiring.
+
+- [ ] Manual Thailand tenant setup
+  - Type: Ops | Priority: CRITICAL
+  - Definition of Done: One owner user created, company configured with `billing_mode = 'demo'`, workers invite-able. Verified with live Supabase admin panel. No self-serve sign-up needed for pilot.
+
+### US Contractor Legality
+
+- [ ] Timecard signatures (FLSA compliance)
+  - Type: Backend + Mobile | Priority: HIGH
+  - Definition of Done: Supervisor digitally approves generated timecards before export. Worker can view and acknowledge their own timecard. Approval state stored on `timecards` table (`approved_by`, `approved_at`). Signed PDF export includes approval metadata.
+  - Notes: Added from eng review — required to be "legit in the US" for contractor use case. Timecard generation already exists (`timecards/index.ts`). Needs approval action + mobile acknowledgement screen.
+
 ### Billing
 
 - [ ] Stripe billing (Starter/Pro/Business plans)
-  - Notes: companies.stripe_customer_id column ready. Use WorkOS Entitlements pattern.
+  - Notes: companies.stripe_customer_id column ready. Use WorkOS Entitlements pattern. Defer until after Thailand pilot proves the product.
 - [ ] Feature entitlements tied to billing
   - Type: Backend | Priority: HIGH
   - Definition of Done: Features unlock on upgrade without code deploy. companies.settings.features JSONB key.
+  - Notes: Defer until pilot data shows which features matter most. Full access for pilot customer.
+
+### Performance (from eng review)
+
+- [ ] Add composite index on clock_events(company_id, occurred_at)
+  - Type: Database | Priority: MEDIUM
+  - Definition of Done: Migration adds `CREATE INDEX idx_clock_events_company_occurred ON clock_events(company_id, occurred_at)`. Reports and timecards generation visibly faster at 50+ workers.
+
+- [ ] Fix client-side job filter in reports export (`reports/index.ts:234`)
+  - Type: Backend | Priority: LOW
+  - Definition of Done: `.eq("job_id", job_id)` added to the Supabase query when job_id is provided. `limit(2000)` remains as safety cap but only applies post-filter.
 
 ### Integrations
 

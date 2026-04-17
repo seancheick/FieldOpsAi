@@ -65,6 +65,14 @@ serve(async (req) => {
       return errorResponse(requestId, 404, "NOT_FOUND", "Company not found")
     }
 
+    if (company.billing_mode === "demo" || !stripe) {
+      return jsonResponse({
+        status: "success",
+        mode: "demo",
+        request_id: requestId,
+      }, 200, requestId)
+    }
+
     const payload = await req.json().catch(() => ({}))
     const returnUrl = typeof payload.return_url === "string" && payload.return_url.length > 0
       ? payload.return_url
@@ -107,10 +115,3 @@ serve(async (req) => {
     return errorResponse(requestId, 500, "INTERNAL_ERROR", error instanceof Error ? error.message : "Internal server error")
   }
 })
-    if (company.billing_mode === "demo" || !stripe) {
-      return jsonResponse({
-        status: "success",
-        mode: "demo",
-        request_id: requestId,
-      }, 200, requestId)
-    }
