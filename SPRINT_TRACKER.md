@@ -1104,6 +1104,178 @@ They don't affect production safety but improve robustness and maintainability.
   - Type: Infra | Priority: MEDIUM
   - Definition of Done: PostHog/Mixpanel: settings_saved, logo_uploaded, staff_invited, suspension_triggered. In-app "Was this useful?" on key flows. Weekly crew adoption metrics.
 
+## Sprint 8.5 — Photos Module: CompanyCam Parity + AI Differentiators (added 2026-04-17)
+
+> **Why now**: CompanyCam has 285k+ pros, 1B+ photos, $2B valuation. Honest gap analysis: our proof layer (SHA-256, verification codes, GPS accuracy, offline queue, EXIF strip) is *better* than theirs. But the parts contractors touch every day — sharing, reports, tags, comments, integrations — we're at ~30-40% of CompanyCam. This sprint closes table-stakes and stakes our wedge: real computer-vision AI (which they don't have) + crew-based pricing (where they bleed customers).
+
+### Strategic positioning
+- **Keep**: tamper-proof verification, offline-first, multi-language, proof stamps — these beat CompanyCam
+- **Match (table-stakes)**: tags, sharing, reports, comments, before/after pairing, CRM integrations
+- **Beat (wedge)**: CV damage detection, semantic search, AI claim packets, built-in FSM at flat pricing
+
+### Phase A — Table Stakes (must ship to be competitive)
+
+- [ ] Auto project assignment by GPS proximity
+  - Type: Mobile + Backend | Priority: CRITICAL | Complexity: MED
+  - Definition of Done: When worker opens camera within 100m of an active job site, project pre-selects. Override allowed. Falls back to manual picker if no GPS or no nearby job. Distance threshold configurable per-tenant.
+  - Why: CompanyCam's #1 organic adoption driver — "no more camera roll hunting"
+
+- [ ] Tags on photos (multi-tag, cross-project, autocomplete)
+  - Type: Backend + Web + Mobile | Priority: CRITICAL | Complexity: LOW
+  - Definition of Done: `photo_tags` table (photo_id, tag, created_by). Tag chip UI on capture/review and on web detail. Filter by tag in photo feed. Tag autocomplete based on tenant history. Bulk-tag selected photos.
+  - Why: Lets users find "all roof decking photos across all jobs" — the search workflow that defines the product
+
+- [ ] Project labels (status, room, lead source — project-level)
+  - Type: Backend + Web | Priority: HIGH | Complexity: LOW
+  - Definition of Done: `job_labels` table. Color-coded chips on project browser. Filter projects by label. Pre-seeded label sets per industry vertical.
+
+- [ ] Galleries — curated shareable subsets
+  - Type: Backend + Web | Priority: CRITICAL | Complexity: LOW
+  - Definition of Done: `photo_galleries` table (id, job_id, name, photo_ids[], share_token, expires_at). Web UI: select photos → "Save as gallery". Public read-only URL `/g/<token>` shows gallery with proof stamps. Optional password. Watermark + branded header.
+  - Why: This is the deliverable to adjusters and clients — currently we make them hunt through a feed
+
+- [ ] Customer share links (public read-only project gallery)
+  - Type: Backend + Web | Priority: CRITICAL | Complexity: LOW
+  - Definition of Done: Per-project public link. Shows photos + timeline + verification codes. Optional password + expiry. Tracks view count. Branded header (uses tenant logo from settings).
+
+- [ ] PDF photo reports (custom branded)
+  - Type: Backend | Priority: CRITICAL | Complexity: MED
+  - Definition of Done: One-click PDF: cover page (logo, project name, address, dates) → photo grid (12/page) with stamps + captions → verification appendix. Templates: Insurance Claim, Daily Log, Before/After. Generated via `reports/index.ts` extension. Stored in `reports` storage bucket with signed URL.
+
+- [ ] Before/After pair builder
+  - Type: Web + Mobile | Priority: HIGH | Complexity: LOW
+  - Definition of Done: Today we *tag* before/after but don't *pair*. Add `paired_with_photo_id` on `photo_events`. UI to drag-pair on web; auto-suggest pairs by GPS+task+timestamp. Side-by-side viewer. Pair-export to PDF/PNG.
+
+- [ ] Photo comments + @mentions
+  - Type: Backend + Web + Mobile | Priority: HIGH | Complexity: MED
+  - Definition of Done: `photo_comments` table. Threaded comments on each photo. @mention notifies user (in-app + push). Real-time via Supabase channels. Mobile sees comments in lightbox.
+
+- [ ] Gallery import from camera roll (bulk)
+  - Type: Mobile | Priority: HIGH | Complexity: LOW
+  - Definition of Done: Import multiple existing photos from gallery → bulk-attach to job → preserve original EXIF (GPS/time) → still apply proof stamp + SHA-256. Marks as "legacy" in metadata so verification doesn't claim it was captured live.
+
+- [ ] Video capture (5 min cap)
+  - Type: Mobile + Backend | Priority: HIGH | Complexity: LOW
+  - Definition of Done: Reuse `media_assets` schema (already supports kind='video'). Record up to 5 min, compress, attach to job, generate thumbnail. Same proof stamp overlay on first frame. Streams from signed URL on web.
+
+- [ ] Markup: text annotation + measurements
+  - Type: Mobile | Priority: MEDIUM | Complexity: LOW
+  - Definition of Done: We have arrows/circles/rectangles/freehand. Add: text labels (tap to place, edit, color match palette), straight-line measurement tool (user calibrates with known reference, app shows length).
+
+- [ ] Branded watermark (logo sticker option)
+  - Type: Mobile | Priority: MEDIUM | Complexity: LOW
+  - Definition of Done: Tenant uploads logo (already in settings). Toggle "Add logo to photos" → composite logo onto bottom-right at capture. Photo becomes marketing-at-rest when shared.
+
+### Phase B — Collaboration & Integration
+
+- [ ] Project QR code (rapid stakeholder add)
+  - Type: Web + Mobile | Priority: MEDIUM | Complexity: LOW
+  - Definition of Done: Each project has QR. Print on yard sign. Homeowner/sub scans → guest landing page → see live gallery (read-only) without account.
+
+- [ ] Guest collaborator access (free seats)
+  - Type: Backend | Priority: HIGH | Complexity: MED
+  - Definition of Done: New `users.role = 'guest'` with read-only access to assigned projects. Doesn't count against billed seat count. Email invite flow (reuses existing invites function).
+  - Why: Beats CompanyCam's per-seat pain point — sub/homeowner access without a paid seat
+
+- [ ] CRM integration: JobNimbus (two-way)
+  - Type: Backend | Priority: HIGH | Complexity: HIGH
+  - Definition of Done: OAuth setup. New job in JobNimbus → auto-create FieldOps project. Photos sync back to JobNimbus contact attachments with tags. Documented in integrations settings.
+
+- [ ] CRM integration: ServiceTitan (two-way for service jobs)
+  - Type: Backend | Priority: HIGH | Complexity: HIGH
+  - Definition of Done: Same pattern as JobNimbus. Service job → FieldOps project. Photos + checklist completion → ServiceTitan job notes.
+
+- [ ] Zapier integration (broad reach via 1 build)
+  - Type: Backend | Priority: HIGH | Complexity: MED
+  - Definition of Done: Public Zapier app. Triggers: photo_uploaded, job_completed, timecard_approved. Actions: create_job, add_photo_to_job, send_invite. Solves 80% of long-tail integrations without writing 20 connectors.
+
+### Phase C — AI Differentiators (the actual wedge)
+
+- [ ] CV damage/defect detection (roofing first)
+  - Type: Backend (ML inference) | Priority: CRITICAL | Complexity: HIGH
+  - Definition of Done: On photo upload, run vision model (start with hosted endpoint — Roboflow/Replicate) for hail damage, missing shingles, water staining, cracks. Confidence-scored. Auto-tag photo with detected defects. Surface in tag filter and report templates.
+  - Why: **CompanyCam does NOT have this.** This is the biggest defensible AI gap in the market. Roofing/restoration contractors will switch for this alone.
+  - Notes: Start narrow (one vertical), prove accuracy on real customer data, expand. Don't ship hype — only ship detectors above 90% precision.
+
+- [ ] Semantic photo search ("show me all sagging gutters")
+  - Type: Backend | Priority: HIGH | Complexity: HIGH
+  - Definition of Done: Generate CLIP-style embeddings on photo upload (pgvector column already feasible). Natural-language query → vector search → ranked results. Web search bar above photo feed.
+  - Why: CompanyCam has full-text/tag search only. Semantic search by visual content is a 10x UX win.
+
+- [ ] AI auto-tagging (kills the manual chore)
+  - Type: Backend | Priority: HIGH | Complexity: MED
+  - Definition of Done: On upload, vision model suggests tags (object detection: ladder, shingle, drywall, framing, electrical panel, etc.). User one-tap accepts. Per-industry tag dictionaries.
+
+- [ ] AI insurance claim packet builder
+  - Type: Backend | Priority: HIGH | Complexity: HIGH
+  - Definition of Done: Select project → "Generate Claim Packet". Output: damage photos auto-grouped by defect type, before/after pairs, GPS-stamped chain of custody, narrative generated from voice notes + detected defects, exportable as Xactimate-friendly PDF.
+  - Why: This is the single most expensive workflow in roofing/restoration today. Owning it = category lock-in.
+
+- [ ] AI daily report from voice + photos
+  - Type: Backend | Priority: MEDIUM | Complexity: MED
+  - Definition of Done: Foreman dictates 30-second summary at end of day → Whisper transcription → LLM combines with day's photos + tasks → branded PDF daily log auto-emailed to PM/client.
+  - Notes: Overlaps with existing Sprint 9 "AI daily report writing" — consolidate.
+
+- [ ] Voice captions on capture (hands-free)
+  - Type: Mobile | Priority: MEDIUM | Complexity: MED
+  - Definition of Done: Hold mic button at capture → 10-sec voice memo → Whisper → caption attached to photo. Text searchable. Big UX win on ladders/gloves.
+
+### Phase D — Power features (after pilot)
+
+- [ ] Photo measurements (photogrammetry without LiDAR)
+  - Type: Mobile | Priority: MEDIUM | Complexity: HIGH
+  - Definition of Done: User places 2 reference points of known distance → app calculates other distances in same plane. Roof pitch from sky photo. Beats CompanyCam's LiDAR (Elite-only, iPhone Pro-only).
+
+- [ ] 360 photos + panoramic stitch
+  - Type: Mobile | Priority: LOW | Complexity: MED
+  - Definition of Done: Pano capture mode. Embedded panorama viewer in lightbox. CompanyCam doesn't have this.
+
+- [ ] OCR text extraction from photos (serial numbers, model plates)
+  - Type: Backend | Priority: MEDIUM | Complexity: LOW
+  - Definition of Done: On upload, run OCR (Tesseract or hosted). Detected text searchable + copyable from lightbox. Kills manual data-entry of HVAC nameplates, water-heater serials.
+
+- [ ] Time-lapse from auto-captured progress photos
+  - Type: Backend | Priority: LOW | Complexity: MED
+  - Definition of Done: For long-running jobs, auto-stitch a daily "best photo" montage. Shareable link. Marketing material at zero effort.
+
+### Phase E — Reorganization & polish (web)
+
+- [ ] Replace masonry feed with Project Feed pattern (chronological + grouped activity)
+  - Type: Web | Priority: MEDIUM | Complexity: LOW
+  - Definition of Done: Today's gallery is image-first. Add a "Feed" view that mixes photos + comments + status updates + tag changes in one chronological stream. Matches CompanyCam's daily-driver UX.
+
+- [ ] Showcase / portfolio page (public marketing)
+  - Type: Web | Priority: LOW | Complexity: LOW
+  - Definition of Done: Tenant curates best before/after pairs → public `/showcase/<tenant>` page. Embeddable on contractor's website. Drives sales.
+
+- [ ] Embedded website gallery widget
+  - Type: Web | Priority: LOW | Complexity: MED
+  - Definition of Done: `<script>` tag tenants paste on their site → live gallery from selected projects. CompanyCam Elite-tier feature.
+
+### Sprint 8.5 Definition of Done
+
+- All Phase A items shipped (table stakes)
+- At least 2 of Phase B (CRM + Zapier or guest seats)
+- At least 1 of Phase C live with measurable accuracy (likely defect detection on roofing)
+- Pilot tenant in Thailand using gallery sharing + PDF reports as primary deliverable workflow
+- CompanyCam comparison page on marketing site goes live
+
+### Honest scoring vs CompanyCam (today → after 8.5)
+
+| Capability | Today | After 8.5 |
+|---|---|---|
+| Capture & proof | **9/10** (better) | **9/10** |
+| Organization | 3/10 | 8/10 |
+| Sharing & deliverables | 2/10 | 8/10 |
+| Collaboration | 2/10 | 7/10 |
+| AI features | 1/10 | **9/10** (wedge) |
+| Integrations | 1/10 | 5/10 |
+| Pricing position | 8/10 (no per-seat pain) | 8/10 |
+
+**Net**: After 8.5 we're at-parity on table stakes and ahead on AI + pricing. The story becomes: "CompanyCam, plus actual computer vision, plus the FSM you also need, at crew-based pricing." That's a real wedge, not a me-too.
+
+---
+
 ## Sprint 9 — AI + Production Hardening
 
 ### Practical AI (dev review: "prioritize facial rec + AI anomaly detection first")
