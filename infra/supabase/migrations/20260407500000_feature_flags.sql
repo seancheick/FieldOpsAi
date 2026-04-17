@@ -58,7 +58,7 @@ CREATE POLICY "Platform admins manage feature flags"
     )
   );
 
--- company_feature_overrides: company users can read their own, admins can manage
+-- company_feature_overrides: company users can read their own, owners/admins can manage
 CREATE POLICY "Company users read their overrides"
   ON company_feature_overrides FOR SELECT
   USING (company_id = public.current_company_id());
@@ -67,11 +67,11 @@ CREATE POLICY "Company admins manage overrides"
   ON company_feature_overrides FOR ALL
   USING (
     company_id = public.current_company_id()
-    AND public.current_user_role() = 'admin'
+    AND public.current_user_role() IN ('owner', 'admin')
   )
   WITH CHECK (
     company_id = public.current_company_id()
-    AND public.current_user_role() = 'admin'
+    AND public.current_user_role() IN ('owner', 'admin')
   );
 
 -- 4. Helper function

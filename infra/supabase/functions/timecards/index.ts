@@ -11,6 +11,7 @@ import {
   logRequestStart,
   makeRequestId,
 } from "../_shared/api.ts"
+import { isSupervisorOrAbove } from "../_shared/roles.ts"
 
 const ENDPOINT = "timecards"
 const RATE_LIMIT = 20
@@ -73,8 +74,8 @@ serve(async (req) => {
         .order("week_start", { ascending: false })
         .limit(50)
 
-      // Workers see only their own; supervisors/admins see all
-      if (!["supervisor", "admin"].includes(userRecord.role)) {
+      // Workers see only their own; supervisors/admins/owners see all
+      if (!isSupervisorOrAbove(userRecord.role)) {
         query = query.eq("worker_id", user.id)
       }
 
@@ -130,8 +131,8 @@ serve(async (req) => {
 
     // ── Action: generate ────────────────────────────────────
     if (action === "generate") {
-      if (!["supervisor", "admin"].includes(userRecord.role)) {
-        return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors or admins can generate timecards")
+      if (!isSupervisorOrAbove(userRecord.role)) {
+        return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can generate timecards")
       }
 
       const { worker_id, week_start } = payload
@@ -293,8 +294,8 @@ serve(async (req) => {
         return errorResponse(requestId, 400, "INVALID_PAYLOAD", "timecard_id and signature are required")
       }
 
-      if (!["supervisor", "admin"].includes(userRecord.role)) {
-        return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors or admins can countersign timecards")
+      if (!isSupervisorOrAbove(userRecord.role)) {
+        return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can countersign timecards")
       }
 
       const { data: timecard } = await supabaseAdmin

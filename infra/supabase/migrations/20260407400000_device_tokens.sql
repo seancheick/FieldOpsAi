@@ -35,14 +35,14 @@ CREATE POLICY device_tokens_own_update ON public.device_tokens
   FOR UPDATE USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
--- Supervisors/admins can read tokens for their company
+-- Supervisors/admins/owners can read tokens for their company
 CREATE POLICY device_tokens_supervisor_read ON public.device_tokens
   FOR SELECT USING (
     company_id IN (
       SELECT (u.raw_user_meta_data->>'company_id')::uuid
       FROM auth.users u
       WHERE u.id = auth.uid()
-        AND (u.raw_user_meta_data->>'role') IN ('supervisor', 'admin')
+        AND (u.raw_user_meta_data->>'role') IN ('supervisor', 'admin', 'owner')
     )
   );
 

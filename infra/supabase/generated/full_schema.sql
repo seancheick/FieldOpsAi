@@ -23,7 +23,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Note: uuidv7 is supported natively in newer Postgres. We will use gen_random_uuid() as a fallback for v4 if v7 function is missing, or rely on application-supplied UUIDs. For this schema, we assume standard uuid defaults.
 
 -- 1. Enums
-CREATE TYPE user_role AS ENUM ('admin', 'supervisor', 'foreman', 'worker');
+CREATE TYPE user_role AS ENUM ('owner', 'admin', 'supervisor', 'foreman', 'worker');
 CREATE TYPE project_status AS ENUM ('draft', 'active', 'on_hold', 'completed', 'archived');
 CREATE TYPE job_status AS ENUM ('draft', 'active', 'in_progress', 'review', 'completed', 'archived');
 CREATE TYPE task_status AS ENUM ('not_started', 'in_progress', 'blocked', 'completed', 'skipped');
@@ -1191,25 +1191,41 @@ ALTER TABLE companies ADD COLUMN IF NOT EXISTS stripe_customer_id text;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS payment_status text NOT NULL DEFAULT 'trialing';
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS logo_data_uri text;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS settings_version int NOT NULL DEFAULT 1;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS billing_mode text NOT NULL DEFAULT 'demo';
 
 -- Constraint: payment_status values
 ALTER TABLE companies DROP CONSTRAINT IF EXISTS chk_payment_status;
 ALTER TABLE companies ADD CONSTRAINT chk_payment_status
   CHECK (payment_status IN ('trialing', 'active', 'past_due', 'cancelled'));
+ALTER TABLE companies DROP CONSTRAINT IF EXISTS chk_billing_mode;
+ALTER TABLE companies ADD CONSTRAINT chk_billing_mode
+  CHECK (billing_mode IN ('demo', 'stripe'));
 
 -- ─── 2. Admin UPDATE policies for companies and users ───────
 
--- Company admin can update their own company
+-- Company owner/admin can update their own company
 CREATE POLICY "Admin company update"
   ON companies FOR UPDATE
-  USING (id = public.current_company_id() AND public.current_user_role() = 'admin')
+  USING (id = public.current_company_id() AND public.current_user_role() IN ('owner', 'admin'))
   WITH CHECK (id = public.current_company_id());
 
--- Company admin can update users within their company
+-- Company owner/admin can update users within their company
 CREATE POLICY "Admin user update"
   ON users FOR UPDATE
-  USING (company_id = public.current_company_id() AND public.current_user_role() = 'admin')
-  WITH CHECK (company_id = public.current_company_id());
+  USING (
+    company_id = public.current_company_id()
+    AND (
+      public.current_user_role() = 'owner'
+      OR (public.current_user_role() = 'admin' AND role <> 'owner')
+    )
+  )
+  WITH CHECK (
+    company_id = public.current_company_id()
+    AND (
+      public.current_user_role() = 'owner'
+      OR (public.current_user_role() = 'admin' AND role <> 'owner')
+    )
+  );
 
 -- ─── 3. Platform admins table (FieldOps internal staff) ─────
 

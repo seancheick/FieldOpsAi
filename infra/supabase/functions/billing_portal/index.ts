@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Stripe from "npm:stripe@18.5.0"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
 import { CORS_HEADERS, errorResponse, jsonResponse, makeRequestId } from "../_shared/api.ts"
+import { isManagementRole } from "../_shared/roles.ts"
 
 const ENDPOINT = "billing_portal"
 
@@ -29,11 +30,7 @@ serve(async (req) => {
     const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") || ""
     const appUrl = Deno.env.get("APP_URL") || ""
 
-    if (!stripeSecretKey) {
-      return errorResponse(requestId, 500, "MISSING_CONFIG", "STRIPE_SECRET_KEY is not configured")
-    }
-
-    const stripe = new Stripe(stripeSecretKey)
+    const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     })
@@ -54,18 +51,26 @@ serve(async (req) => {
     if (!userRecord?.is_active) {
       return errorResponse(requestId, 403, "FORBIDDEN", "User is inactive")
     }
-    if (userRecord.role !== "admin") {
-      return errorResponse(requestId, 403, "FORBIDDEN", "Only admins can manage billing")
+    if (!isManagementRole(userRecord.role)) {
+      return errorResponse(requestId, 403, "FORBIDDEN", "Only owners or admins can manage billing")
     }
 
     const { data: company, error: companyError } = await supabaseAdmin
       .from("companies")
-      .select("id, name, stripe_customer_id, billing_email")
+      .select("id, name, billing_mode, stripe_customer_id, billing_email")
       .eq("id", userRecord.company_id)
       .single()
 
     if (companyError || !company) {
       return errorResponse(requestId, 404, "NOT_FOUND", "Company not found")
+    }
+
+    if (company.billing_mode === "demo" || !stripe) {
+      return jsonResponse({
+        status: "success",
+        mode: "demo",
+        request_id: requestId,
+      }, 200, requestId)
     }
 
     const payload = await req.json().catch(() => ({}))

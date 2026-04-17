@@ -14,6 +14,7 @@ import {
   sha256Hex,
   storeIdempotency,
 } from "../_shared/api.ts"
+import { isSupervisorOrAbove } from "../_shared/roles.ts"
 
 const ENDPOINT = "expenses"
 const RATE_LIMIT = 20
@@ -187,8 +188,8 @@ serve(async (req) => {
 
       // Approve/deny expense (supervisor/admin)
       if (action === "decide") {
-        if (!["supervisor", "admin"].includes(userRecord.role)) {
-          return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors/admins can approve expenses")
+        if (!isSupervisorOrAbove(userRecord.role)) {
+          return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can approve expenses")
         }
 
         const { expense_id, decision, reason } = payload
@@ -221,8 +222,8 @@ serve(async (req) => {
       }
 
       if (action === "reimburse") {
-        if (!["supervisor", "admin"].includes(userRecord.role)) {
-          return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors/admins can mark expenses reimbursed")
+        if (!isSupervisorOrAbove(userRecord.role)) {
+          return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can mark expenses reimbursed")
         }
 
         const { expense_id, reference, notes } = payload

@@ -8,6 +8,7 @@ import {
   jsonResponse,
   makeRequestId,
 } from "../_shared/api.ts"
+import { OWNER_ROLE, isManagementRole } from "../_shared/roles.ts"
 
 const ENDPOINT = "invites"
 // Supervisors can send at most 10 invites per hour. inviteUserByEmail
@@ -62,9 +63,9 @@ serve(async (req) => {
       return errorResponse(requestId, 403, "FORBIDDEN", "User is inactive")
     }
 
-    // Only admins/supervisors can send invites
-    if (!["admin", "supervisor"].includes(userRecord.role)) {
-      return errorResponse(requestId, 403, "FORBIDDEN", "Only admins or supervisors can send invites")
+    // Owners, admins, and supervisors can send invites.
+    if (!isManagementRole(userRecord.role) && userRecord.role !== "supervisor") {
+      return errorResponse(requestId, 403, "FORBIDDEN", "Only owners, admins, or supervisors can send invites")
     }
 
     if (req.method === "POST") {
@@ -77,7 +78,9 @@ serve(async (req) => {
 
       const workerRole = role || "worker"
       // Admins can invite supervisors; non-admins can only invite worker/foreman
-      const allowedRoles = userRecord.role === "admin"
+      const allowedRoles = userRecord.role === OWNER_ROLE
+        ? ["admin", "supervisor", "foreman", "worker"]
+        : userRecord.role === "admin"
         ? ["worker", "foreman", "supervisor"]
         : ["worker", "foreman"]
       if (!allowedRoles.includes(workerRole)) {
@@ -128,13 +131,39 @@ serve(async (req) => {
         }, 201, requestId)
       }
 
-      // Phone invite — create user record with phone, send link later
+      // Phone invite — create auth user + users record, SMS activation sent when Twilio is wired
+      const { data: authUser, error: authCreateError } = await supabaseAdmin.auth.admin.createUser({
+        phone,
+        phone_confirm: false,
+        user_metadata: {
+          company_id: userRecord.company_id,
+          full_name: full_name || phone,
+          role: workerRole,
+          invited_by: user.id,
+        },
+      })
+
+      if (authCreateError) throw authCreateError
+
+      const { error: insertError } = await supabaseAdmin
+        .from("users")
+        .insert({
+          id: authUser.user.id,
+          company_id: userRecord.company_id,
+          role: workerRole,
+          full_name: full_name || phone,
+          phone,
+          is_active: false,
+        })
+
+      if (insertError) throw insertError
+
       return jsonResponse({
         status: "success",
-        invite_id: crypto.randomUUID(),
+        invite_id: authUser.user.id,
         method: "phone",
         recipient: phone,
-        note: "Phone invites require SMS gateway integration (Twilio). User record created, pending activation.",
+        note: "User record created. SMS activation will be sent once Twilio is configured.",
         request_id: requestId,
       }, 201, requestId)
     }

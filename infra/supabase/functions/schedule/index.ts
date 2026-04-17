@@ -15,6 +15,7 @@ import {
   sha256Hex,
   storeIdempotency,
 } from "../_shared/api.ts"
+import { isSupervisorOrAbove } from "../_shared/roles.ts"
 
 const ENDPOINT = "schedule"
 const RATE_LIMIT = 20
@@ -169,8 +170,8 @@ serve(async (req) => {
       return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Use GET or POST")
     }
 
-    if (!["supervisor", "admin"].includes(userRecord.role)) {
-      return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors/admins can manage schedules")
+    if (!isSupervisorOrAbove(userRecord.role)) {
+      return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can manage schedules")
     }
 
     const idempotencyKey = req.headers.get("Idempotency-Key")

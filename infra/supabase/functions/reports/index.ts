@@ -12,6 +12,7 @@ import {
   logRequestError,
   makeRequestId,
 } from "../_shared/api.ts"
+import { isSupervisorOrAbove } from "../_shared/roles.ts"
 
 const ENDPOINT = "reports"
 
@@ -56,9 +57,9 @@ serve(async (req) => {
       return errorResponse(requestId, 403, "FORBIDDEN", "User is inactive")
     }
 
-    // Only supervisors/admins can generate reports
-    if (!["supervisor", "admin"].includes(userRecord.role)) {
-      return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors or admins can generate reports")
+    // Only supervisors/admins/owners can generate reports
+    if (!isSupervisorOrAbove(userRecord.role)) {
+      return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can generate reports")
     }
 
     logRequestStart(ENDPOINT, requestId, req)

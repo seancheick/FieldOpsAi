@@ -14,6 +14,7 @@ import {
   sha256Hex,
   storeIdempotency,
 } from "../_shared/api.ts"
+import { isSupervisorOrAbove } from "../_shared/roles.ts"
 
 const ENDPOINT = "budget"
 const RATE_LIMIT = 20
@@ -129,8 +130,8 @@ serve(async (req) => {
       }
 
       // Only supervisors/admins can manage budgets
-      if (!["supervisor", "admin"].includes(userRecord.role)) {
-        return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors/admins can manage budgets")
+      if (!isSupervisorOrAbove(userRecord.role)) {
+        return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can manage budgets")
       }
 
       // Create budget

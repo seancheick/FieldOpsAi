@@ -14,6 +14,7 @@ import {
   storeIdempotency,
 } from "../_shared/api.ts"
 import { DEFAULT_COMPANY_SETTINGS } from "../_shared/settings.ts"
+import { OWNER_ROLE } from "../_shared/roles.ts"
 
 const ENDPOINT = "platform_admin"
 
@@ -339,11 +340,13 @@ serve(async (req) => {
           return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Idempotency-Key header is required")
         }
 
-        const { name, slug, industry, timezone, admin_email, admin_name } = payload
+        const owner_email = payload.owner_email || payload.admin_email
+        const owner_name = payload.owner_name || payload.admin_name
+        const { name, slug, industry, timezone } = payload
 
-        if (!name || !slug || !admin_email || !admin_name) {
+        if (!name || !slug || !owner_email || !owner_name) {
           return errorResponse(requestId, 400, "INVALID_PAYLOAD",
-            "name, slug, admin_email, and admin_name are required")
+            "name, slug, owner_email, and owner_name are required")
         }
 
         const requestHash = await sha256Hex(JSON.stringify(payload))
@@ -386,7 +389,7 @@ serve(async (req) => {
         // Create auth user for the company admin
         const tempPassword = generateTempPassword()
         const { data: authUser, error: authCreateError } = await supabaseAdmin.auth.admin.createUser({
-          email: admin_email,
+          email: owner_email,
           password: tempPassword,
           email_confirm: true,
         })
@@ -406,9 +409,9 @@ serve(async (req) => {
           .insert({
             id: authUser.user.id,
             company_id: companyId,
-            full_name: admin_name,
-            email: admin_email,
-            role: "admin",
+            full_name: owner_name,
+            email: owner_email,
+            role: OWNER_ROLE,
             is_active: true,
           })
 
@@ -425,7 +428,7 @@ serve(async (req) => {
           company_id: companyId,
           target_type: "company",
           target_id: companyId,
-          after: { name, slug, admin_email },
+          after: { name, slug, owner_email },
         })
 
         const responseBody = {
@@ -437,10 +440,10 @@ serve(async (req) => {
             industry: industry || null,
             timezone: timezone || "America/New_York",
           },
-          admin_user: {
+          owner_user: {
             id: authUser.user.id,
-            email: admin_email,
-            full_name: admin_name,
+            email: owner_email,
+            full_name: owner_name,
             temp_password: tempPassword,
           },
           request_id: requestId,

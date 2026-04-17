@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
+import { ADMIN_ROLE, isManagementRole, isOwnerRole, OWNER_ROLE } from "@/lib/roles";
 import { getSupabase } from "@/lib/supabase";
 
 interface StaffMember {
@@ -27,16 +28,18 @@ interface EditingStaff {
 }
 
 const ROLE_DEFINITIONS = [
+  { value: "owner", labelKey: "staffPage.roles.owner.label", descriptionKey: "staffPage.roles.owner.description" },
   { value: "worker", labelKey: "staffPage.roles.worker.label", descriptionKey: "staffPage.roles.worker.description" },
   { value: "foreman", labelKey: "staffPage.roles.foreman.label", descriptionKey: "staffPage.roles.foreman.description" },
   { value: "supervisor", labelKey: "staffPage.roles.supervisor.label", descriptionKey: "staffPage.roles.supervisor.description" },
   { value: "admin", labelKey: "staffPage.roles.admin.label", descriptionKey: "staffPage.roles.admin.description" },
 ] as const;
 
-type RoleTab = "all" | "admin" | "supervisor" | "crew";
+type RoleTab = "all" | "owner" | "admin" | "supervisor" | "crew";
 
 const ROLE_TABS: { key: RoleTab; label: string; roles: string[] }[] = [
   { key: "all", label: "All", roles: [] },
+  { key: "owner", label: "Owner", roles: ["owner"] },
   { key: "admin", label: "Admin", roles: ["admin"] },
   { key: "supervisor", label: "Supervisor", roles: ["supervisor"] },
   { key: "crew", label: "Team Crew", roles: ["worker", "foreman"] },
@@ -51,6 +54,7 @@ export default function StaffPage() {
   const [saved, setSaved] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [viewerRole, setViewerRole] = useState<string | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<Set<string>>(new Set());
   const [activeRoleTab, setActiveRoleTab] = useState<RoleTab>("all");
 
@@ -65,7 +69,10 @@ export default function StaffPage() {
         .select("role")
         .eq("id", data.session.user.id)
         .maybeSingle();
-      if (mounted && user?.role !== "admin") {
+      if (mounted) {
+        setViewerRole(user?.role ?? null);
+      }
+      if (mounted && !isManagementRole(user?.role)) {
         setAccessDenied(true);
         setLoading(false);
       }
@@ -82,6 +89,13 @@ export default function StaffPage() {
       })),
     [t],
   );
+
+  const assignableRoles = useMemo(() => {
+    if (isOwnerRole(viewerRole)) {
+      return roles;
+    }
+    return roles.filter((role) => role.value !== OWNER_ROLE);
+  }, [roles, viewerRole]);
 
   const loadStaff = useCallback(async () => {
     setLoading(true);
@@ -102,6 +116,11 @@ export default function StaffPage() {
   }, [loadStaff]);
 
   function startEdit(member: StaffMember) {
+    if (member.role === OWNER_ROLE && !isOwnerRole(viewerRole)) {
+      setInviteError("Only the company owner can edit ownership.");
+      return;
+    }
+
     const metadata = (member.metadata ?? {}) as Record<string, string>;
     setEditing({
       id: member.id,
@@ -135,6 +154,11 @@ export default function StaffPage() {
   async function saveStaff() {
     if (!editing) return;
     setInviteError(null);
+
+    if (editing.role === OWNER_ROLE && !isOwnerRole(viewerRole)) {
+      setInviteError("Only the company owner can assign or edit the owner role.");
+      return;
+    }
 
     if (showAdd) {
       // New staff: call invites edge function
@@ -235,6 +259,7 @@ export default function StaffPage() {
   }, [staff, activeRoleTab]);
 
   const ROLE_TOOLTIPS: Record<string, string> = {
+    owner: t("staff.ownerRole"),
     worker: t("staff.workerRole"),
     supervisor: t("staff.supervisorRole"),
     admin: t("staff.adminRole"),
@@ -261,6 +286,8 @@ export default function StaffPage() {
   async function suspendSelected() {
     const supabase = getSupabase();
     for (const id of selectedStaff) {
+      const member = staff.find((entry) => entry.id === id);
+      if (!member || (!isOwnerRole(viewerRole) && member.role === OWNER_ROLE)) continue;
       await supabase.from("users").update({ is_active: false }).eq("id", id);
     }
     setSelectedStaff(new Set());
@@ -287,7 +314,7 @@ export default function StaffPage() {
       <div className="mt-20 text-center">
         <h2 className="text-xl font-bold text-slate-900">{t("common.accessDenied") || "Access denied"}</h2>
         <p className="mt-2 text-sm text-slate-500">
-          {t("staffPage.adminOnly") || "Only administrators can manage staff."}
+          {t("staffPage.adminOnly") || "Only owners and administrators can manage staff."}
         </p>
         <a href="/" className="mt-4 inline-block text-sm font-medium text-amber-600 hover:text-amber-700">
           &larr; {t("common.backToDashboard") || "Back to dashboard"}
@@ -434,7 +461,9 @@ export default function StaffPage() {
                       <div className="group relative">
                         <span
                           className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
-                            member.role === "admin"
+                            member.role === OWNER_ROLE
+                              ? "bg-amber-100 text-amber-800"
+                              : member.role === ADMIN_ROLE
                               ? "bg-purple-50 text-purple-600"
                               : member.role === "supervisor"
                                 ? "bg-blue-50 text-blue-600"
@@ -518,15 +547,16 @@ export default function StaffPage() {
                     {t("staffPage.permissionLevel")}
                   </label>
                   <div className="space-y-2">
-                    {roles.map((role) => (
+                    {assignableRoles.map((role) => (
                       <button
                         key={role.value}
                         onClick={() => setEditing({ ...editing, role: role.value })}
+                        disabled={editing.role === OWNER_ROLE && !isOwnerRole(viewerRole)}
                         className={`w-full rounded-lg border p-3 text-left transition-all ${
                           editing.role === role.value
                             ? "border-slate-900 bg-slate-50"
                             : "border-stone-200 hover:border-stone-300"
-                        }`}
+                        } ${editing.role === OWNER_ROLE && !isOwnerRole(viewerRole) ? "cursor-not-allowed opacity-60" : ""}`}
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-semibold text-slate-900">{role.label}</span>

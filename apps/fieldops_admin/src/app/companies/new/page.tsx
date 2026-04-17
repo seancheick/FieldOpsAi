@@ -18,8 +18,8 @@ export default function NewCompanyPage() {
   const [slug, setSlug] = useState("");
   const [industry, setIndustry] = useState("");
   const [timezone, setTimezone] = useState("America/New_York");
-  const [adminEmail, setAdminEmail] = useState("");
-  const [adminName, setAdminName] = useState("");
+  const [ownerEmail, setOwnerEmail] = useState("");
+  const [ownerName, setOwnerName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -54,8 +54,8 @@ export default function NewCompanyPage() {
           slug,
           industry: industry || null,
           timezone,
-          admin_email: adminEmail,
-          admin_name: adminName,
+          owner_email: ownerEmail,
+          owner_name: ownerName,
         }),
       });
 
@@ -156,17 +156,17 @@ export default function NewCompanyPage() {
 
         <fieldset className="space-y-4 border-t border-stone-100 pt-5">
           <legend className="mb-2 text-sm font-medium text-stone-500 uppercase tracking-wide">
-            Initial Admin
+            Initial Owner
           </legend>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-stone-700">
-              Admin email *
+              Owner email *
             </label>
             <input
               type="email"
-              value={adminEmail}
-              onChange={(e) => setAdminEmail(e.target.value)}
+              value={ownerEmail}
+              onChange={(e) => setOwnerEmail(e.target.value)}
               required
               className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
               placeholder="admin@acmecorp.com"
@@ -175,12 +175,12 @@ export default function NewCompanyPage() {
 
           <div>
             <label className="mb-1 block text-sm font-medium text-stone-700">
-              Admin full name *
+              Owner full name *
             </label>
             <input
               type="text"
-              value={adminName}
-              onChange={(e) => setAdminName(e.target.value)}
+              value={ownerName}
+              onChange={(e) => setOwnerName(e.target.value)}
               required
               className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
               placeholder="Jane Doe"

@@ -14,6 +14,7 @@ import {
   sha256Hex,
   storeIdempotency,
 } from "../_shared/api.ts"
+import { isSupervisorOrAbove } from "../_shared/roles.ts"
 
 const ENDPOINT = "time_corrections"
 const RATE_LIMIT = 20
@@ -211,8 +212,8 @@ serve(async (req) => {
         }
 
         // Only supervisors/admins can approve
-        if (!["supervisor", "admin"].includes(userRecord.role)) {
-          return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors/admins can approve corrections")
+        if (!isSupervisorOrAbove(userRecord.role)) {
+          return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can approve corrections")
         }
 
         // Get correction details
