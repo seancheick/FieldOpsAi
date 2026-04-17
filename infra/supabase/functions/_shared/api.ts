@@ -1,7 +1,11 @@
-const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") || "*").split(",").map((o: string) => o.trim())
+const stripTrailingSlash = (s: string) => s.replace(/\/+$/, "")
+
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") || "*")
+  .split(",")
+  .map((o: string) => stripTrailingSlash(o.trim()))
 
 export function corsOrigin(req: Request): string {
-  const origin = req.headers.get("Origin") || ""
+  const origin = stripTrailingSlash(req.headers.get("Origin") || "")
   if (ALLOWED_ORIGINS.includes("*")) return "*"
   if (ALLOWED_ORIGINS.includes(origin)) return origin
   return ALLOWED_ORIGINS[0] || ""
