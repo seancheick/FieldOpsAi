@@ -1,1253 +1,439 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin, { type EventResizeDoneArg } from "@fullcalendar/interaction";
-import resourceTimelinePlugin from "@fullcalendar/resource-timeline";
-import type {
-  EventClickArg,
-  EventDropArg,
-} from "@fullcalendar/core";
-import { useI18n } from "@/lib/i18n";
-import { getSupabase } from "@/lib/supabase";
 import {
   DndContext,
-  useDraggable,
-  DragOverlay,
-  DragStartEvent,
-  DragEndEvent,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
 } from "@dnd-kit/core";
+import { useI18n } from "@/lib/i18n";
+import { getSupabase } from "@/lib/supabase";
+import { callFunctionJson } from "@/lib/function-client";
+import { ScheduleToolbar } from "@/components/schedule/Toolbar";
+import { WorkerGrid } from "@/components/schedule/WorkerGrid";
+import { MobileDayList } from "@/components/schedule/MobileDayList";
+import { ShiftFormModal } from "@/components/schedule/ShiftFormModal";
+import {
+  asDateKey,
+  buildVisibleDates,
+  formatRangeLabel,
+  shiftAnchor,
+} from "@/lib/schedule/dates";
+import type {
+  Job,
+  PtoRequest,
+  ScheduleEntry,
+  ViewMode,
+  Worker,
+} from "@/lib/schedule/types";
 
-interface Worker {
-  id: string;
-  full_name: string;
-  role: string;
-  metadata?: {
-    hourly_rate?: number;
-  };
-}
-
-interface PtoRequest {
-  id: string;
-  user_id: string;
-  status: string;
-  start_date: string;
-  end_date: string;
-}
-
-function DraggableWorker({
-  worker,
-  isOverlappingPTO,
-  currentHours,
-}: {
-  worker: Worker;
-  isOverlappingPTO: boolean;
-  currentHours: number;
-}) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: worker.id,
-    data: { worker },
-  });
-
-  let statusColor = "bg-green-500";
-  let statusGlow = "shadow-[0_0_8px_rgba(34,197,94,0.4)]";
-  if (isOverlappingPTO) {
-    statusColor = "bg-red-500";
-    statusGlow = "shadow-[0_0_8px_rgba(239,68,68,0.4)]";
-  } else if (currentHours >= 40) {
-    statusColor = "bg-amber-500";
-    statusGlow = "shadow-[0_0_8px_rgba(245,158,11,0.4)]";
-  }
-
-  return (
-    <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      className={`relative cursor-grab rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-opacity hover:border-slate-300 ${isDragging ? "opacity-40" : "opacity-100"}`}
-    >
-      <div className="flex items-center justify-between">
-        <div className="font-semibold text-slate-900">{worker.full_name}</div>
-        <div
-          className={`h-3 w-3 rounded-full ${statusColor} ${statusGlow}`}
-          title={
-            isOverlappingPTO
-              ? "On PTO"
-              : currentHours >= 40
-                ? "Overtime Risk"
-                : "Available"
-          }
-        />
-      </div>
-      <div className="flex items-center justify-between mt-1 text-xs text-slate-500">
-        <span>{worker.role}</span>
-        <span className="font-medium">{currentHours}h</span>
-      </div>
-    </div>
-  );
-}
-
-interface Job {
-  id: string;
-  name: string;
-  code: string;
-}
-
-interface ScheduleEntry {
-  id: string;
-  worker_id: string;
-  worker_name: string;
-  job_id: string;
-  job_name: string;
-  job_code?: string | null;
-  date: string;
-  start_time: string;
-  end_time: string;
-  status: "draft" | "published";
-  notes?: string | null;
-  published_at?: string | null;
-  published_by?: string | null;
-}
-
-type ViewMode = "day" | "week" | "twoWeek" | "month";
-
-const VIEW_MODES: ViewMode[] = ["day", "week", "twoWeek", "month"];
-
-function asDateKey(value: Date) {
-  return value.toISOString().split("T")[0];
-}
-
-function startOfWeek(value: Date) {
-  const copy = new Date(value);
-  const day = copy.getUTCDay();
-  const offset = day === 0 ? -6 : 1 - day;
-  copy.setUTCDate(copy.getUTCDate() + offset);
-  return copy;
-}
-
-function startOfMonth(value: Date) {
-  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), 1));
-}
-
-function parseDate(value: string) {
-  return new Date(`${value}T12:00:00Z`);
-}
-
-function formatMonthDay(value: string) {
-  return parseDate(value).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function buildVisibleDates(anchorKey: string, viewMode: ViewMode) {
-  const anchor = parseDate(anchorKey);
-
-  if (viewMode === "day") {
-    return [anchor];
-  }
-
-  if (viewMode === "week") {
-    const start = startOfWeek(anchor);
-    return Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(start);
-      date.setUTCDate(start.getUTCDate() + index);
-      return date;
-    });
-  }
-
-  if (viewMode === "twoWeek") {
-    const start = startOfWeek(anchor);
-    return Array.from({ length: 14 }, (_, index) => {
-      const date = new Date(start);
-      date.setUTCDate(start.getUTCDate() + index);
-      return date;
-    });
-  }
-
-  const monthStart = startOfMonth(anchor);
-  const monthEnd = new Date(
-    Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + 1, 0),
-  );
-  const calendarStart = startOfWeek(monthStart);
-  const calendarEnd = startOfWeek(monthEnd);
-  calendarEnd.setUTCDate(calendarEnd.getUTCDate() + 6);
-
-  const dates: Date[] = [];
-  const cursor = new Date(calendarStart);
-  while (cursor <= calendarEnd) {
-    dates.push(new Date(cursor));
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-  return dates;
-}
-
-function previousAnchor(anchorKey: string, viewMode: ViewMode) {
-  const anchor = parseDate(anchorKey);
-  if (viewMode === "day") anchor.setUTCDate(anchor.getUTCDate() - 1);
-  if (viewMode === "week") anchor.setUTCDate(anchor.getUTCDate() - 7);
-  if (viewMode === "twoWeek") anchor.setUTCDate(anchor.getUTCDate() - 14);
-  if (viewMode === "month") anchor.setUTCMonth(anchor.getUTCMonth() - 1);
-  return asDateKey(anchor);
-}
-
-function nextAnchor(anchorKey: string, viewMode: ViewMode) {
-  const anchor = parseDate(anchorKey);
-  if (viewMode === "day") anchor.setUTCDate(anchor.getUTCDate() + 1);
-  if (viewMode === "week") anchor.setUTCDate(anchor.getUTCDate() + 7);
-  if (viewMode === "twoWeek") anchor.setUTCDate(anchor.getUTCDate() + 14);
-  if (viewMode === "month") anchor.setUTCMonth(anchor.getUTCMonth() + 1);
-  return asDateKey(anchor);
-}
-
-function formatTime(value: string) {
-  return value.length === 5 ? value : "07:00";
-}
-
-function buildEventDateTime(date: string, time: string) {
-  return `${date}T${time}:00Z`;
-}
-
-/** Merge consecutive-day shifts for the same worker+job into multi-day bars.
- *  Only invoked in week / twoWeek / month views.
- *  Returns { merged, individual } where merged events span multiple days and
- *  individual events are single-day shifts that weren't part of a run. */
-function mergeConsecutiveShifts(entries: ScheduleEntry[]) {
-  // Group by composite key: worker_id + job_id
-  const groups = new Map<string, ScheduleEntry[]>();
-  for (const entry of entries) {
-    const key = `${entry.worker_id}::${entry.job_id}`;
-    const list = groups.get(key) ?? [];
-    list.push(entry);
-    groups.set(key, list);
-  }
-
-  const merged: {
-    id: string;
-    resourceId: string;
-    title: string;
-    start: string;
-    end: string;
-    allDay: true;
-    backgroundColor: string;
-    borderColor: string;
-    textColor: string;
-    display: string;
-    editable: false;
-    extendedProps: {
-      isMergedBar: true;
-      dayCount: number;
-      status: string;
-      worker_name: string;
-      job_id: string;
-      worker_id: string;
-      childIds: string[];
-    };
-  }[] = [];
-
-  const consumedIds = new Set<string>();
-
-  for (const [, list] of groups) {
-    // Sort by date ascending
-    const sorted = [...list].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-    );
-
-    let runStart = 0;
-    while (runStart < sorted.length) {
-      let runEnd = runStart;
-      // Extend the run while the next entry is on the next calendar day
-      while (runEnd + 1 < sorted.length) {
-        const currentDate = new Date(sorted[runEnd].date + "T00:00:00Z");
-        const nextDate = new Date(sorted[runEnd + 1].date + "T00:00:00Z");
-        const diffMs = nextDate.getTime() - currentDate.getTime();
-        if (diffMs === 86400000) {
-          runEnd++;
-        } else {
-          break;
-        }
-      }
-
-      const dayCount = runEnd - runStart + 1;
-      if (dayCount >= 2) {
-        const first = sorted[runStart];
-        const last = sorted[runEnd];
-        const childIds = sorted
-          .slice(runStart, runEnd + 1)
-          .map((s) => s.id);
-        childIds.forEach((id) => consumedIds.add(id));
-
-        // End date is exclusive in FullCalendar for allDay events, so add 1 day
-        const endDate = new Date(last.date + "T00:00:00Z");
-        endDate.setUTCDate(endDate.getUTCDate() + 1);
-        const endStr = endDate.toISOString().split("T")[0];
-
-        const hasDraft = sorted
-          .slice(runStart, runEnd + 1)
-          .some((s) => s.status === "draft");
-
-        merged.push({
-          id: `merged-${childIds.join("-")}`,
-          resourceId: first.job_id,
-          title: `${first.worker_name} (${dayCount} days)`,
-          start: first.date,
-          end: endStr,
-          allDay: true,
-          backgroundColor: hasDraft ? "#fef3c7" : "#d1fae5",
-          borderColor: hasDraft ? "#d97706" : "#059669",
-          textColor: hasDraft ? "#92400e" : "#065f46",
-          display: "block",
-          editable: false,
-          extendedProps: {
-            isMergedBar: true,
-            dayCount,
-            status: hasDraft ? "draft" : "published",
-            worker_name: first.worker_name,
-            job_id: first.job_id,
-            worker_id: first.worker_id,
-            childIds,
-          },
-        });
-      }
-
-      runStart = runEnd + 1;
-    }
-  }
-
-  return { merged, consumedIds };
+interface SchedulePayload {
+  shifts?: ScheduleEntry[];
+  pto_requests?: PtoRequest[];
 }
 
 export default function SchedulePage() {
   const { t } = useI18n();
+
+  const [anchorDate, setAnchorDate] = useState<string>(() =>
+    asDateKey(new Date()),
+  );
+  const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [entries, setEntries] = useState<ScheduleEntry[]>([]);
   const [ptoRequests, setPtoRequests] = useState<PtoRequest[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>("week");
-  const [anchorDate, setAnchorDate] = useState(() =>
-    asDateKey(startOfWeek(new Date())),
-  );
-  const [formWorkerId, setFormWorkerId] = useState("");
-  const [formJobId, setFormJobId] = useState("");
-  const [formDate, setFormDate] = useState("");
-  const [formStartTime, setFormStartTime] = useState("07:00");
-  const [formEndTime, setFormEndTime] = useState("15:30");
-  const [formNotes, setFormNotes] = useState("");
-  const [editingShiftId, setEditingShiftId] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [searchText, setSearchText] = useState("");
-  const [activeWorker, setActiveWorker] = useState<Worker | null>(null);
-  const calendarRef = useRef<FullCalendar | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
 
-  const visibleDates = useMemo(
+  const [workerSearch, setWorkerSearch] = useState("");
+  const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalInitial, setModalInitial] = useState<Partial<ScheduleEntry> | null>(
+    null,
+  );
+
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const handler = () => setIsMobile(mq.matches);
+    handler();
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  const dates = useMemo(
     () => buildVisibleDates(anchorDate, viewMode),
     [anchorDate, viewMode],
   );
-  const rangeStart = asDateKey(visibleDates[0]);
-  const rangeEnd = asDateKey(visibleDates[visibleDates.length - 1]);
-
-  const isMonthGrid = viewMode === "month";
+  const rangeStart = useMemo(() => asDateKey(dates[0]), [dates]);
+  const rangeEnd = useMemo(() => asDateKey(dates[dates.length - 1]), [dates]);
+  const rangeLabel = useMemo(
+    () => formatRangeLabel(anchorDate, viewMode, dates),
+    [anchorDate, viewMode, dates],
+  );
 
   const filteredWorkers = useMemo(() => {
-    if (!searchText.trim()) return workers;
-    return workers.filter((worker) =>
-      worker.full_name.toLowerCase().includes(searchText.toLowerCase()),
+    const q = workerSearch.trim().toLowerCase();
+    if (!q) return workers;
+    return workers.filter(
+      (w) =>
+        w.full_name.toLowerCase().includes(q) ||
+        w.role.toLowerCase().includes(q),
     );
-  }, [searchText, workers]);
-
-  const events = useMemo(() => {
-    const individualEvents = entries.map((entry) => ({
-      id: entry.id,
-      resourceId: entry.job_id,
-      // Month grid: show "Worker · Job" so context is clear without job rows
-      title: isMonthGrid
-        ? `${entry.worker_name}${entry.job_name ? ` · ${entry.job_name}` : ""}`
-        : entry.worker_name,
-      start: buildEventDateTime(entry.date, formatTime(entry.start_time)),
-      end: buildEventDateTime(entry.date, formatTime(entry.end_time)),
-      backgroundColor: entry.status === "draft" ? "#f8e2b4" : "#dcfce7",
-      borderColor: entry.status === "draft" ? "#f59e0b" : "#4ade80",
-      textColor: entry.status === "draft" ? "#92400e" : "#166534",
-      extendedProps: {
-        status: entry.status,
-        worker_name: entry.worker_name,
-        job_id: entry.job_id,
-        worker_id: entry.worker_id,
-        notes: entry.notes,
-        isMergedBar: false,
-      },
-    }));
-
-    // Only merge in multi-day views (week, twoWeek, month)
-    if (viewMode === "day") return individualEvents;
-
-    const { merged, consumedIds } = mergeConsecutiveShifts(entries);
-    if (merged.length === 0) return individualEvents;
-
-    // Keep individual events that were NOT consumed by a merge
-    const remaining = individualEvents.filter(
-      (ev) => !consumedIds.has(ev.id),
-    );
-
-    return [...remaining, ...merged];
-  }, [entries, isMonthGrid, viewMode]);
-
-  const resources = useMemo(
-    () =>
-      jobs.map((job) => ({ id: job.id, title: `${job.name} (${job.code})` })),
-    [jobs],
-  );
+  }, [workers, workerSearch]);
 
   const loadReferenceData = useCallback(async () => {
     const supabase = getSupabase();
-    const { data: workersData } = await supabase
-      .from("users")
-      .select("id, full_name, role")
-      .eq("is_active", true)
-      .in("role", ["worker", "foreman"])
-      .order("full_name");
-
-    const { data: jobsData } = await supabase
-      .from("jobs")
-      .select("id, name, code")
-      .in("status", ["active", "in_progress"])
-      .order("name");
-
-    setWorkers(workersData ?? []);
-    setJobs(jobsData ?? []);
+    const [{ data: workersData }, { data: jobsData }] = await Promise.all([
+      supabase
+        .from("users")
+        .select("id, full_name, role")
+        .eq("is_active", true)
+        .in("role", ["worker", "foreman"])
+        .order("full_name"),
+      supabase
+        .from("jobs")
+        .select("id, name, code")
+        .in("status", ["active", "in_progress"])
+        .order("name"),
+    ]);
+    setWorkers((workersData as Worker[]) ?? []);
+    setJobs((jobsData as Job[]) ?? []);
   }, []);
 
-  const loadSchedule = useCallback(async () => {
-    const supabase = getSupabase();
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
-    if (!token) {
-      throw new Error("Missing session");
-    }
-
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/schedule?date_from=${rangeStart}&date_to=${rangeEnd}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.message || t("schedulePage.failedToLoad"));
-    }
-
-    setEntries((payload.shifts as ScheduleEntry[]) ?? []);
-    setPtoRequests((payload.pto_requests as PtoRequest[]) ?? []);
-  }, [rangeEnd, rangeStart, t]);
-
-  // Version counter prevents stale responses from overwriting fresher ones
-  // when rapid view-mode changes cause multiple loadSchedule calls in flight.
   const loadVersionRef = useRef(0);
+
+  const loadSchedule = useCallback(async () => {
+    const payload = await callFunctionJson<SchedulePayload>("schedule", {
+      query: { date_from: rangeStart, date_to: rangeEnd },
+    });
+    setEntries(payload.shifts ?? []);
+    setPtoRequests(payload.pto_requests ?? []);
+  }, [rangeStart, rangeEnd]);
 
   useEffect(() => {
     const version = ++loadVersionRef.current;
-
-    async function loadData() {
+    (async () => {
       setLoading(true);
       setError(null);
       try {
         await Promise.all([loadReferenceData(), loadSchedule()]);
       } catch (err) {
         if (loadVersionRef.current === version) {
-          setError(
-            err instanceof Error ? err.message : t("schedulePage.failedToLoad"),
-          );
+          setError(err instanceof Error ? err.message : t("schedulePage.failedToLoad"));
         }
       } finally {
-        if (loadVersionRef.current === version) {
-          setLoading(false);
-        }
+        if (loadVersionRef.current === version) setLoading(false);
       }
-    }
-
-    loadData();
+    })();
   }, [loadReferenceData, loadSchedule, t]);
 
-  function addDays(value: string, amount: number) {
-    const date = parseDate(value);
-    date.setUTCDate(date.getUTCDate() + amount);
-    return asDateKey(date);
-  }
-
-  const calendarView = useMemo(() => {
-    if (viewMode === "day") return "resourceTimelineDay";
-    if (viewMode === "week") return "resourceTimelineWeek";
-    if (viewMode === "twoWeek") return "resourceTimelineWeek";
-    return "dayGridMonth"; // proper month calendar grid
-  }, [viewMode]);
-
-  const currentSlotDuration = useMemo(() => {
-    if (viewMode === "twoWeek") return "24:00:00";
-    if (viewMode === "day") return "00:30:00";
-    return "01:00:00"; // week view
-  }, [viewMode]);
-
-  useEffect(() => {
-    if (calendarRef.current) {
-      const api = calendarRef.current.getApi();
-      api.changeView(calendarView);
-      api.gotoDate(anchorDate);
-      if (!isMonthGrid) {
-        api.setOption("slotDuration", currentSlotDuration);
-        api.setOption("slotMinTime", "05:00:00");
-        api.setOption("slotMaxTime", "20:00:00");
-      }
-    }
-  }, [calendarView, currentSlotDuration, isMonthGrid, anchorDate]);
-
-  const visibleRange = useMemo(
-    () => ({ start: rangeStart, end: addDays(rangeEnd, 1) }),
-    [rangeEnd, rangeStart],
-  );
-
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveWorker((event.active.data.current?.worker as Worker) || null);
-  };
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-    setActiveWorker(null);
-    if (isMonthGrid) {
-      // Month view has no resource rows; cannot drop a worker here.
-      // Switch to week view so the user can place the shift on the Gantt.
-      setViewMode("week")
-      return
-    }
-    const { active, delta } = event;
-    if (event.activatorEvent) {
-      const ev = event.activatorEvent as MouseEvent | TouchEvent;
-      const startX =
-        "clientX" in ev ? ev.clientX : ev.changedTouches?.[0]?.clientX;
-      const startY =
-        "clientY" in ev ? ev.clientY : ev.changedTouches?.[0]?.clientY;
-      if (startX === undefined || startY === undefined) return;
-
-      // Use delta to calculate the actual DROP position, not the drag start
-      const clientX = startX + (delta?.x ?? 0);
-      const clientY = startY + (delta?.y ?? 0);
-
-      const elements = document.elementsFromPoint(clientX, clientY);
-
-      const resourceEl = elements.find((el) =>
-        el.closest("tr[data-resource-id]"),
-      );
-
-      // In FullCalendar's resource-timeline, the vertical date columns are explicitly defined in the header.
-      const dateHeaders = Array.from(document.querySelectorAll("th[data-date], td[data-date]"));
-      const matchedHeader = dateHeaders.find((el) => {
-        const rect = el.getBoundingClientRect();
-        return clientX >= rect.left && clientX <= rect.right;
-      });
-
-      if (matchedHeader && resourceEl) {
-        const dateStr = matchedHeader.getAttribute("data-date");
-        const job_id = resourceEl
-          .closest("tr[data-resource-id]")
-          ?.getAttribute("data-resource-id");
-        const worker_id = active.id as string;
-
-        if (dateStr && job_id) {
-          const date = dateStr.slice(0, 10);
-          const time = dateStr.slice(11, 16) || "07:00";
-          clearForm(date);
-          setFormWorkerId(worker_id);
-          setFormJobId(job_id);
-          setFormDate(date);
-          setFormStartTime(time);
-          setFormEndTime("15:30");
-          setShowForm(true);
-        }
-      }
-    }
-  };
-
-  async function handleEventDrop(info: EventDropArg) {
-    if (!info.event.id) return;
-    // Merged multi-day bars are not directly editable via drag — revert
-    if (info.event.extendedProps?.isMergedBar) {
-      info.revert?.();
-      return;
-    }
-    const shiftedResource = info.event.getResources()[0];
-    const jobId = shiftedResource?.id ?? info.event.extendedProps.job_id;
-    if (!jobId) return;
-
-    const date = info.event.startStr.slice(0, 10);
-    const ds = info.event.start
-    const de = info.event.end
-    // Use UTC hours/minutes — events are stored as T07:00:00Z (UTC), not local time
-    const startTime = ds ? `${String(ds.getUTCHours()).padStart(2, "0")}:${String(ds.getUTCMinutes()).padStart(2, "0")}` : "07:00"
-    const endTime = de ? `${String(de.getUTCHours()).padStart(2, "0")}:${String(de.getUTCMinutes()).padStart(2, "0")}` : "15:30"
-    if (!startTime || !endTime) return;
-
-    await updateEntry(info.event.id, {
-      job_id: jobId,
-      date,
-      start_time: startTime,
-      end_time: endTime,
-    });
-  }
-
-  async function handleEventResize(info: EventResizeDoneArg) {
-    if (!info.event.id) return;
-    if (info.event.extendedProps?.isMergedBar) {
-      info.revert?.();
-      return;
-    }
-
-    const shiftedResource = info.event.getResources()[0];
-    const jobId = shiftedResource?.id ?? info.event.extendedProps.job_id;
-    if (!jobId) return;
-
-    const date = info.event.startStr.slice(0, 10);
-    const rs = info.event.start
-    const re = info.event.end
-    // Use UTC hours/minutes — events are stored as T07:00:00Z (UTC), not local time
-    const startTime = rs ? `${String(rs.getUTCHours()).padStart(2, "0")}:${String(rs.getUTCMinutes()).padStart(2, "0")}` : "07:00"
-    const endTime = re ? `${String(re.getUTCHours()).padStart(2, "0")}:${String(re.getUTCMinutes()).padStart(2, "0")}` : "15:30"
-    if (!startTime || !endTime) return;
-
-    await updateEntry(info.event.id, {
-      job_id: jobId,
-      date,
-      start_time: startTime,
-      end_time: endTime,
-    });
-  }
-
-  function handleEventClick(clickInfo: EventClickArg) {
-    const entry = entries.find((entry) => entry.id === clickInfo.event.id);
-    if (entry) {
-      openEditForm(entry);
-    }
-  }
-
-  function clearForm(dateOverride?: string) {
-    setEditingShiftId(null);
-    setFormWorkerId("");
-    setFormJobId("");
-    setFormDate(dateOverride ?? "");
-    setFormStartTime("07:00");
-    setFormEndTime("15:30");
-    setFormNotes("");
-  }
-
-  function openCreateForm(dateOverride?: string) {
-    clearForm(dateOverride);
-    setShowForm(true);
-  }
-
-  function openEditForm(entry: ScheduleEntry) {
-    setEditingShiftId(entry.id);
-    setFormWorkerId(entry.worker_id);
-    setFormJobId(entry.job_id);
-    setFormDate(entry.date);
-    setFormStartTime(entry.start_time);
-    setFormEndTime(entry.end_time);
-    setFormNotes(entry.notes ?? "");
-    setShowForm(true);
-  }
-
   async function postSchedule(body: Record<string, unknown>) {
-    const supabase = getSupabase();
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
-    if (!token) {
-      throw new Error("Missing session");
-    }
-
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/schedule`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          "Idempotency-Key": crypto.randomUUID(),
-        },
-        body: JSON.stringify(body),
+    return callFunctionJson<unknown>("schedule", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Idempotency-Key": crypto.randomUUID(),
       },
-    );
-
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.message || t("schedulePage.failedToLoad"));
-    }
-
-    return payload;
+      body: JSON.stringify(body),
+    });
   }
 
-  async function saveEntry() {
-    if (
-      !formWorkerId ||
-      !formJobId ||
-      !formDate ||
-      !formStartTime ||
-      !formEndTime
-    ) {
-      return;
-    }
+  function openCreate(workerId?: string, date?: string) {
+    setModalInitial({
+      worker_id: workerId,
+      date: date ?? anchorDate,
+    } as Partial<ScheduleEntry>);
+    setModalOpen(true);
+  }
 
-    const actionKey = editingShiftId ? "update" : "create";
-    const wasEditing = Boolean(editingShiftId);
-    setBusyAction(actionKey);
+  function openEdit(entry: ScheduleEntry) {
+    setModalInitial(entry);
+    setModalOpen(true);
+  }
+
+  async function handleSubmit(values: {
+    shift_id?: string;
+    worker_id: string;
+    job_id: string;
+    shift_date: string;
+    start_time: string;
+    end_time: string;
+    notes: string | null;
+  }) {
+    setBusy("save");
     setError(null);
-    setSuccessMessage(null);
+    setSuccess(null);
     try {
       await postSchedule({
-        action: editingShiftId ? "update" : "create",
-        shift_id: editingShiftId ?? undefined,
-        worker_id: formWorkerId,
-        job_id: formJobId,
-        shift_date: formDate,
-        start_time: formStartTime,
-        end_time: formEndTime,
-        notes: formNotes.trim() || null,
+        action: values.shift_id ? "update" : "create",
+        ...values,
       });
       await loadSchedule();
-      clearForm();
-      setShowForm(false);
-      setSuccessMessage(
-        wasEditing
-          ? t("schedulePage.draftUpdated")
-          : t("schedulePage.draftSaved"),
+      setModalOpen(false);
+      setSuccess(
+        values.shift_id ? t("schedulePage.draftUpdated") : t("schedulePage.draftSaved"),
       );
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : editingShiftId
-            ? t("schedulePage.failedToUpdate")
-            : t("schedulePage.failedToAdd"),
-      );
+      setError(err instanceof Error ? err.message : t("schedulePage.failedToAdd"));
     } finally {
-      setBusyAction(null);
+      setBusy(null);
     }
   }
 
-  async function updateEntry(
-    id: string,
-    changes: Partial<
-      Pick<
-        ScheduleEntry,
-        "worker_id" | "job_id" | "date" | "start_time" | "end_time" | "notes"
-      >
-    >,
-  ) {
-    setBusyAction(id);
+  async function handleDelete(id: string) {
+    setBusy("save");
     setError(null);
-    setSuccessMessage(null);
+    setSuccess(null);
     try {
-      await postSchedule({
-        action: "update",
-        shift_id: id,
-        worker_id: changes.worker_id,
-        job_id: changes.job_id,
-        shift_date: changes.date,
-        start_time: changes.start_time,
-        end_time: changes.end_time,
-        notes: changes.notes,
-      });
+      await postSchedule({ action: "delete", shift_id: id });
       await loadSchedule();
-      setSuccessMessage(t("schedulePage.draftUpdated"));
+      setModalOpen(false);
+      setSuccess(t("schedulePage.draftRemoved"));
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("schedulePage.failedToUpdate"),
-      );
+      setError(err instanceof Error ? err.message : t("schedulePage.failedToRemove"));
     } finally {
-      setBusyAction(null);
+      setBusy(null);
     }
   }
 
-  async function publishSchedule() {
-    const draftIds = entries
-      .filter((entry) => entry.status === "draft")
-      .map((entry) => entry.id);
+  async function handlePublish() {
+    const draftIds = entries.filter((e) => e.status === "draft").map((e) => e.id);
     if (draftIds.length === 0) return;
-
-    setBusyAction("publish");
+    setBusy("publish");
     setError(null);
-    setSuccessMessage(null);
+    setSuccess(null);
     try {
       await postSchedule({ action: "publish", shift_ids: draftIds });
       await loadSchedule();
-      setSuccessMessage(t("schedulePage.published"));
+      setSuccess(t("schedulePage.published"));
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("schedulePage.failedToPublish"),
-      );
+      setError(err instanceof Error ? err.message : t("schedulePage.failedToPublish"));
     } finally {
-      setBusyAction(null);
+      setBusy(null);
     }
   }
 
-  const draftCount = entries.filter((entry) => entry.status === "draft").length;
-  const isDraft = draftCount > 0;
-  const publishedShifts = entries.filter(
-    (entry) => entry.status === "published",
-  );
-
-  const rangeLabel = useMemo(() => {
-    if (viewMode === "day") {
-      return parseDate(anchorDate).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    }
-    if (viewMode === "month") {
-      return parseDate(anchorDate).toLocaleDateString(undefined, {
-        month: "long",
-        year: "numeric",
-      });
-    }
-    return `${formatMonthDay(rangeStart)} - ${formatMonthDay(rangeEnd)}`;
-  }, [anchorDate, rangeEnd, rangeStart, viewMode]);
-
-  async function handleCopyPreviousWeek() {
-    setBusyAction("copy");
+  async function handleCopyPrev() {
+    setBusy("copy");
     setError(null);
-    setSuccessMessage(null);
+    setSuccess(null);
     try {
-      const prevStart = previousAnchor(rangeStart, viewMode);
-      const prevEnd = previousAnchor(rangeEnd, viewMode);
+      const prevAnchor = shiftAnchor(anchorDate, viewMode, -1);
+      const prevDates = buildVisibleDates(prevAnchor, viewMode);
       await postSchedule({
         action: "copy_week",
-        source_start: prevStart,
-        source_end: prevEnd,
+        source_start: asDateKey(prevDates[0]),
+        source_end: asDateKey(prevDates[prevDates.length - 1]),
         target_start: rangeStart,
       });
       await loadSchedule();
-      setSuccessMessage(t("schedulePage.weekCopied"));
+      setSuccess(t("schedulePage.weekCopied"));
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("schedulePage.failedToCopy"),
-      );
+      setError(err instanceof Error ? err.message : t("schedulePage.failedToCopy"));
     } finally {
-      setBusyAction(null);
+      setBusy(null);
     }
   }
 
+  async function handleDragEnd(event: DragEndEvent) {
+    const dragData = event.active.data.current as
+      | { kind: string; entryId?: string }
+      | undefined;
+    const overData = event.over?.data.current as
+      | { kind: string; workerId?: string; date?: string }
+      | undefined;
+    if (
+      !dragData ||
+      dragData.kind !== "shift" ||
+      !dragData.entryId ||
+      !overData ||
+      overData.kind !== "cell" ||
+      !overData.workerId ||
+      !overData.date
+    ) {
+      return;
+    }
+    const entry = entries.find((e) => e.id === dragData.entryId);
+    if (!entry) return;
+    if (entry.worker_id === overData.workerId && entry.date === overData.date) return;
+
+    setBusy("save");
+    setError(null);
+    try {
+      await postSchedule({
+        action: "update",
+        shift_id: entry.id,
+        worker_id: overData.workerId,
+        job_id: entry.job_id,
+        shift_date: overData.date,
+        start_time: entry.start_time,
+        end_time: entry.end_time,
+        notes: entry.notes ?? null,
+      });
+      await loadSchedule();
+      setSuccess(t("schedulePage.draftUpdated"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("schedulePage.failedToUpdate"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function toggleJob(id: string) {
+    setSelectedJobIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+  );
+
+  const draftCount = useMemo(
+    () => entries.filter((e) => e.status === "draft").length,
+    [entries],
+  );
+
   return (
-    <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div>
-        <div className="mb-6">
-          <a
-            href="/"
-            className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900"
-          >
-            <span>&larr;</span> {t("common.backToDashboard")}
-          </a>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">
-                {t("schedulePage.title")}
-              </h2>
-              <p className="mt-1 text-slate-600">
-                {t("schedulePage.subtitle")}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              {isDraft && (
-                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                  {t("schedulePage.draftShifts", {
-                    count: draftCount,
-                    suffix: draftCount !== 1 ? "s" : "",
-                  })}
-                </span>
-              )}
-              <button
-                onClick={handleCopyPreviousWeek}
-                disabled={busyAction === "copy"}
-                className="rounded-xl border border-stone-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-stone-50 disabled:opacity-50"
-              >
-                {busyAction === "copy" ? "Copying..." : "Copy Previous Week"}
-              </button>
-              <button
-                onClick={() => openCreateForm(asDateKey(visibleDates[0]))}
-                className="rounded-xl bg-amber-500 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-600"
-              >
-                + {t("schedulePage.addShift")}
-              </button>
-              {isDraft && (
-                <button
-                  onClick={publishSchedule}
-                  disabled={busyAction === "publish"}
-                  className="rounded-xl bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
-                >
-                  {busyAction === "publish"
-                    ? t("schedulePage.publishing")
-                    : t("schedulePage.publishSchedule")}
-                </button>
-              )}
-            </div>
-          </div>
+    <div className="space-y-4 p-4 sm:p-6">
+      <header className="flex flex-col gap-1">
+        <a
+          href="/"
+          className="inline-flex items-center gap-1 text-xs font-medium text-stone-500 hover:text-stone-900"
+        >
+          ← {t("nav.home") || "Home"}
+        </a>
+        <h1 className="text-2xl font-bold text-stone-900">
+          {t("schedulePage.title")}
+        </h1>
+        <p className="text-sm text-stone-500">{t("schedulePage.subtitle")}</p>
+      </header>
+
+      <ScheduleToolbar
+        rangeLabel={rangeLabel}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onPrev={() => setAnchorDate((a) => shiftAnchor(a, viewMode, -1))}
+        onNext={() => setAnchorDate((a) => shiftAnchor(a, viewMode, 1))}
+        onToday={() => setAnchorDate(asDateKey(new Date()))}
+        jobs={jobs}
+        selectedJobIds={selectedJobIds}
+        onToggleJob={toggleJob}
+        onClearJobs={() => setSelectedJobIds(new Set())}
+        workerSearch={workerSearch}
+        onWorkerSearchChange={setWorkerSearch}
+        onAddShift={() => openCreate()}
+        onPublish={handlePublish}
+        onCopyPrev={handleCopyPrev}
+        draftCount={draftCount}
+        busyAction={busy}
+        labels={{
+          addShift: t("schedulePage.addShift"),
+          publish: t("schedulePage.publishSchedule"),
+          publishing: t("schedulePage.publishing"),
+          copyPrev: t("schedulePage.prevWeek"),
+          today: "Today",
+          prev: t("schedulePage.prevRange"),
+          next: t("schedulePage.nextRange"),
+          searchWorkers: t("schedulePage.searchWorkersPlaceholder"),
+          jobs: t("schedulePage.jobs"),
+          clear: "Clear",
+          viewModes: {
+            day: t("schedulePage.viewModes.day"),
+            week: t("schedulePage.viewModes.week"),
+            twoWeek: t("schedulePage.viewModes.twoWeek"),
+            month: t("schedulePage.viewModes.month"),
+          },
+          drafts: (n) =>
+            t("schedulePage.draftShifts", { count: n, suffix: n === 1 ? "" : "s" }),
+        }}
+      />
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
         </div>
-
-        {error && (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        {successMessage && (
-          <div className="mb-4 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
-            {successMessage}
-          </div>
-        )}
-
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap gap-2">
-            {VIEW_MODES.map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
-                  viewMode === mode
-                    ? "bg-slate-900 text-white"
-                    : "bg-stone-100 text-slate-600 hover:bg-stone-200"
-                }`}
-              >
-                {t(`schedulePage.viewModes.${mode}`)}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() =>
-                setAnchorDate((current) => previousAnchor(current, viewMode))
-              }
-              className="rounded-lg bg-stone-100 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-stone-200"
-            >
-              {t("schedulePage.prevRange")}
-            </button>
-            <span className="text-sm font-semibold text-slate-900">
-              {rangeLabel}
-            </span>
-            <button
-              onClick={() =>
-                setAnchorDate((current) => nextAnchor(current, viewMode))
-              }
-              className="rounded-lg bg-stone-100 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-stone-200"
-            >
-              {t("schedulePage.nextRange")}
-            </button>
-          </div>
+      )}
+      {success && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          {success}
         </div>
+      )}
 
-        {showForm && (
-          <div className="mb-6 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-bold text-slate-900">
-              {editingShiftId
-                ? t("schedulePage.editShiftTitle")
-                : t("schedulePage.addShiftTitle")}
-            </h3>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  {t("schedulePage.worker")}
-                </label>
-                <select
-                  value={formWorkerId}
-                  onChange={(event) => setFormWorkerId(event.target.value)}
-                  className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm"
-                >
-                  <option value="">{t("schedulePage.selectWorker")}</option>
-                  {workers.map((worker) => (
-                    <option key={worker.id} value={worker.id}>
-                      {worker.full_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  {t("schedulePage.job")}
-                </label>
-                <select
-                  value={formJobId}
-                  onChange={(event) => setFormJobId(event.target.value)}
-                  className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm"
-                >
-                  <option value="">{t("schedulePage.selectJob")}</option>
-                  {jobs.map((job) => (
-                    <option key={job.id} value={job.id}>
-                      {job.name} ({job.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  {t("schedulePage.day")}
-                </label>
-                <input
-                  type="date"
-                  value={formDate}
-                  onChange={(event) => setFormDate(event.target.value)}
-                  className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  {t("schedulePage.startTime")}
-                </label>
-                <input
-                  type="time"
-                  value={formStartTime}
-                  onChange={(event) => setFormStartTime(event.target.value)}
-                  className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  {t("schedulePage.endTime")}
-                </label>
-                <input
-                  type="time"
-                  value={formEndTime}
-                  onChange={(event) => setFormEndTime(event.target.value)}
-                  className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm"
-                />
-              </div>
-              <div className="sm:col-span-3">
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  {t("schedulePage.notes")}
-                </label>
-                <textarea
-                  value={formNotes}
-                  onChange={(event) => setFormNotes(event.target.value)}
-                  placeholder={t("schedulePage.notesPlaceholder")}
-                  className="min-h-[96px] w-full rounded-xl border border-stone-300 px-4 py-3 text-sm"
-                />
-              </div>
-            </div>
-            <div className="mt-4 flex gap-3">
-              <button
-                onClick={saveEntry}
-                disabled={
-                  Boolean(busyAction) ||
-                  !formWorkerId ||
-                  !formJobId ||
-                  !formDate ||
-                  !formStartTime ||
-                  !formEndTime
-                }
-                className="rounded-xl bg-amber-500 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
-              >
-                {busyAction === "create" || busyAction === "update"
-                  ? t("schedulePage.saving")
-                  : editingShiftId
-                    ? t("schedulePage.saveDraft")
-                    : t("schedulePage.addShift")}
-              </button>
-              <button
-                onClick={() => {
-                  clearForm();
-                  setShowForm(false);
-                }}
-                className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-stone-100"
-              >
-                {t("schedulePage.cancel")}
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-          <aside className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
-            <div className="mb-4">
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                {t("schedulePage.searchWorkers")}
-              </label>
-              <input
-                type="search"
-                value={searchText}
-                onChange={(event) => setSearchText(event.target.value)}
-                placeholder={t("schedulePage.searchWorkersPlaceholder")}
-                className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm shadow-sm"
-              />
-            </div>
-
-            <div className="space-y-3">
-              {filteredWorkers.map((worker) => {
-                const isOverlappingPTO = ptoRequests.some(
-                  (p) =>
-                    p.user_id === worker.id &&
-                    p.start_date <= rangeEnd &&
-                    p.end_date >= rangeStart,
-                );
-                const currentHours = entries
-                  .filter((e) => e.worker_id === worker.id)
-                  .reduce((acc, curr) => {
-                    try {
-                      const d1 = new Date(
-                        `1970-01-01T${curr.start_time}:00Z`,
-                      ).getTime();
-                      const d2 = new Date(
-                        `1970-01-01T${curr.end_time}:00Z`,
-                      ).getTime();
-                      return acc + (d2 - d1) / 3600000;
-                    } catch {
-                      return acc;
-                    }
-                  }, 0);
-                return (
-                  <DraggableWorker
-                    key={worker.id}
-                    worker={worker}
-                    isOverlappingPTO={isOverlappingPTO}
-                    currentHours={currentHours}
-                  />
-                );
-              })}
-              {filteredWorkers.length === 0 && workers.length === 0 && !loading && (
-                <div className="rounded-2xl border border-dashed border-stone-300 bg-white/80 px-4 py-6 text-center">
-                  <p className="text-sm font-medium text-slate-600 mb-1">No workers yet</p>
-                  <p className="text-xs text-slate-400 mb-3">Invite your crew to get started</p>
-                  <a
-                    href="/settings/staff"
-                    className="inline-block rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
-                  >
-                    Invite Workers →
-                  </a>
-                </div>
-              )}
-              {filteredWorkers.length === 0 && workers.length > 0 && (
-                <div className="rounded-2xl border border-dashed border-stone-300 bg-white/80 px-4 py-3 text-sm text-slate-500">
-                  {t("schedulePage.noWorkersFound")}
-                </div>
-              )}
-            </div>
-          </aside>
-
-          <div className="relative min-w-0 overflow-x-auto rounded-2xl border border-stone-200 bg-white">
-              <div className={isMonthGrid ? "min-w-[700px]" : "min-w-[800px]"}>
-                <FullCalendar
-                  ref={calendarRef}
-                  plugins={[dayGridPlugin, resourceTimelinePlugin, interactionPlugin]}
-                  initialView={calendarView}
-                  {...(!isMonthGrid && { visibleRange })}
-                  {...(!isMonthGrid && { resources })}
-                  {...(!isMonthGrid && {
-                    slotMinTime: "05:00:00",
-                    slotMaxTime: "20:00:00",
-                    slotDuration: currentSlotDuration,
-                    resourceAreaHeaderContent: t("schedulePage.jobs") || "Jobs",
-                    resourceAreaWidth: "260px",
-                  })}
-                  events={events}
-                  editable
-                  droppable
-                  eventDurationEditable
-                  eventResizableFromStart
-                  height="auto"
-                  headerToolbar={false}
-                  dateClick={isMonthGrid ? (arg) => {
-                    clearForm(arg.dateStr);
-                    setFormDate(arg.dateStr);
-                    setShowForm(true);
-                  } : undefined}
-                  eventDrop={handleEventDrop}
-                  eventResize={handleEventResize}
-                  eventClick={handleEventClick}
-                  eventContent={(arg) => {
-                    const props = arg.event.extendedProps;
-                    if (props.isMergedBar) {
-                      const isDraft = props.status === "draft";
-                      return {
-                        html: `<div style="
-                          padding: 4px 10px;
-                          border-radius: 8px;
-                          font-size: 12px;
-                          font-weight: 600;
-                          line-height: 1.4;
-                          white-space: nowrap;
-                          overflow: hidden;
-                          text-overflow: ellipsis;
-                          min-height: 28px;
-                          display: flex;
-                          align-items: center;
-                          background: ${isDraft ? "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)" : "linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)"};
-                          border-left: 4px solid ${isDraft ? "#d97706" : "#059669"};
-                          color: ${isDraft ? "#92400e" : "#065f46"};
-                          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                        ">${arg.event.title}</div>`,
-                      };
-                    }
-                    return undefined;
-                  }}
-                  dayMaxEventRows={isMonthGrid ? 4 : true}
-                  displayEventTime={!isMonthGrid}
-                  schedulerLicenseKey="CC-Attribution-NonCommercial-NoDerivatives"
-                />
-              </div>
-
-            {!loading && !isMonthGrid && resources.length === 0 && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/90 px-8 text-center">
-                <div className="text-4xl mb-4">📋</div>
-                <h3 className="text-lg font-bold text-slate-800 mb-2">No active jobs yet</h3>
-                <p className="text-sm text-slate-500 mb-5 max-w-xs">
-                  The Gantt timeline shows one row per job. Create an active job first, then come back to schedule your crew.
-                </p>
-                <a
-                  href="/jobs"
-                  className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600"
-                >
-                  Go to Jobs →
-                </a>
-                <button
-                  onClick={() => setViewMode("month")}
-                  className="mt-3 text-xs font-medium text-slate-400 hover:text-slate-600 underline"
-                >
-                  Or use Month view (no jobs required)
-                </button>
-              </div>
-            )}
-
-            {loading && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 text-sm font-medium text-slate-500">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500 mb-2"></div>
-                {t("common.loading")}
-              </div>
-            )}
-          </div>
+      {loading ? (
+        <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
+          Loading schedule…
         </div>
+      ) : isMobile ? (
+        <MobileDayList
+          workers={filteredWorkers}
+          dates={dates}
+          entries={entries}
+          selectedJobIds={selectedJobIds}
+          onShiftClick={openEdit}
+          onAddForDate={(date) => openCreate(undefined, date)}
+        />
+      ) : (
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <WorkerGrid
+            workers={filteredWorkers}
+            dates={dates}
+            entries={entries}
+            ptoRequests={ptoRequests}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            selectedJobIds={selectedJobIds}
+            onShiftClick={openEdit}
+            onEmptyCellClick={openCreate}
+            labels={{
+              hours: (h) => `${h}h`,
+              pto: t("schedulePage.onPto"),
+              today: "Today",
+            }}
+          />
+        </DndContext>
+      )}
 
-        {!isDraft && publishedShifts.length > 0 && (
-          <div className="mt-4 rounded-xl bg-green-50 p-4 text-sm text-green-700">
-            ✓ {t("schedulePage.published")}
-          </div>
-        )}
-
-        <DragOverlay>
-          {activeWorker ? (
-            <div className="cursor-grabbing rounded-2xl border-2 border-indigo-500 bg-white px-4 py-3 shadow-xl opacity-90">
-              <div className="font-semibold text-indigo-900">
-                {activeWorker.full_name}
-              </div>
-              <div className="text-xs text-indigo-600">Assigning shift...</div>
-              <div className="mt-1 border-t border-indigo-100 pt-1 text-xs font-medium text-slate-500">
-                Est. Cost: ${(activeWorker.metadata?.hourly_rate || 20) * 8} /
-                8h
-              </div>
-            </div>
-          ) : null}
-        </DragOverlay>
-      </div>
-    </DndContext>
+      <ShiftFormModal
+        open={modalOpen}
+        initial={modalInitial}
+        workers={workers}
+        jobs={jobs}
+        onClose={() => setModalOpen(false)}
+        onSubmit={handleSubmit}
+        onDelete={handleDelete}
+        busy={busy === "save"}
+        labels={{
+          addTitle: t("schedulePage.addShiftTitle"),
+          editTitle: t("schedulePage.editShiftTitle"),
+          worker: t("schedulePage.worker"),
+          job: t("schedulePage.job"),
+          day: t("schedulePage.day"),
+          startTime: t("schedulePage.startTime"),
+          endTime: t("schedulePage.endTime"),
+          notes: t("schedulePage.notes"),
+          notesPlaceholder: t("schedulePage.notesPlaceholder"),
+          selectWorker: t("schedulePage.selectWorker"),
+          selectJob: t("schedulePage.selectJob"),
+          cancel: t("schedulePage.cancel"),
+          save: t("schedulePage.saveDraft"),
+          saving: t("schedulePage.saving"),
+          remove: t("schedulePage.remove"),
+          removing: t("schedulePage.removing"),
+        }}
+      />
+    </div>
   );
 }
