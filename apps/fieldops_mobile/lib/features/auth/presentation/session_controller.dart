@@ -1,13 +1,28 @@
+import 'dart:async';
+
 import 'package:fieldops_mobile/features/auth/data/auth_repository_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 final sessionControllerProvider =
     NotifierProvider<SessionController, SessionState>(SessionController.new);
 
 class SessionController extends Notifier<SessionState> {
+  StreamSubscription<AuthState>? _authSub;
+
   @override
   SessionState build() {
     final repository = ref.watch(authRepositoryProvider);
+
+    // Keep session in sync with Supabase's internal auth state changes.
+    // This catches token refresh failures (e.g. password changed elsewhere)
+    // and automatically returns the user to the login screen.
+    _authSub?.cancel();
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+      refresh();
+    });
+    ref.onDispose(() => _authSub?.cancel());
+
     return SessionState(
       isAuthenticated: repository.isAuthenticated,
       email: repository.currentUserEmail,
