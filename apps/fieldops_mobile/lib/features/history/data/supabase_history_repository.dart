@@ -10,7 +10,7 @@ class SupabaseHistoryRepository implements HistoryRepository {
   Future<List<HistoryEntry>> fetchHistory({int limit = 50}) async {
     try {
       final response = await _client.functions.invoke(
-        'worker-history',
+        'worker_history',
         body: {'action': 'list', 'limit': limit},
       );
 
@@ -32,7 +32,7 @@ class SupabaseHistoryRepository implements HistoryRepository {
   }) async {
     try {
       final response = await _client.functions.invoke(
-        'worker-history',
+        'worker_history',
         body: {
           'action': 'summary',
           'from': from.toIso8601String(),
