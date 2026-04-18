@@ -28,13 +28,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _loadSavedEmail() async {
-    final saved = await _storage.read(key: 'saved_email');
-    if (saved != null) {
-      setState(() {
-        _emailController.text = saved;
-        _rememberEmail = true;
-      });
-    }
+    try {
+      final saved = await _storage.read(key: 'saved_email');
+      if (saved != null) {
+        setState(() {
+          _emailController.text = saved;
+          _rememberEmail = true;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -56,11 +58,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           password: _passwordController.text,
         );
 
-    if (_rememberEmail) {
-      await _storage.write(key: 'saved_email', value: _emailController.text.trim());
-    } else {
-      await _storage.delete(key: 'saved_email');
-    }
+    try {
+      if (_rememberEmail) {
+        await _storage.write(key: 'saved_email', value: _emailController.text.trim());
+      } else {
+        await _storage.delete(key: 'saved_email');
+      }
+    } catch (_) {}
   }
 
   @override
