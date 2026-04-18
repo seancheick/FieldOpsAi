@@ -1417,3 +1417,99 @@ They don't affect production safety but improve robustness and maintainability.
 - `[ ]` Email/SMS worker invites (deep link activation)
 
 **Ready for Sprint 8:** Billing (Stripe), integrations (QuickBooks, ADP, Procore), SOC 2 prep.
+
+### CEO Review Candidates (2026-04-18)
+
+#### Candidate 1: Sentry Error Monitoring (DONE — already integrated)
+- [x] Sentry Flutter SDK integrated
+  - Type: Infra | Priority: CRITICAL | Status: Done
+  - Definition of Done: `sentry_flutter` in pubspec.yaml. `SentryFlutter.init()` in bootstrap.dart. `SENTRY_DSN` dart-define in run.sh (placeholder). PII-scrubbing beforeSend hook strips query params from URLs. `attachScreenshot` and `tracesSampleRate` tuned per environment.
+  - To activate: Get DSN from sentry.io, add to `run.sh` and `scripts/build_release.sh` via SENTRY_DSN env var.
+  - Evidence: `apps/fieldops_mobile/lib/app/bootstrap.dart`, `apps/fieldops_mobile/pubspec.yaml`, `apps/fieldops_mobile/run.sh`
+
+#### Candidate 2: TestFlight + Play Store Build Pipeline (DONE)
+- [x] Release build scripts created
+  - Type: Infra | Priority: CRITICAL | Status: Done
+  - Definition of Done: `scripts/build_release.sh` builds `--release` IPA for TestFlight and AAB for Play Store. Reads SUPABASE_URL, SUPABASE_ANON_KEY, SENTRY_DSN from `.env.release` (gitignored). `.env.release.example` documented. Workers and test users can receive TestFlight invites instead of USB-sideloaded dev builds.
+  - To activate iOS: Run `./scripts/build_release.sh ios` → upload IPA to App Store Connect → add testers in TestFlight.
+  - To activate Android: Run `./scripts/build_release.sh android` → upload AAB to Play Console → Internal Testing track.
+  - Evidence: `scripts/build_release.sh`, `.env.release.example`
+
+#### Candidate 3: Rate Limiting on /platform_admin claim_invite (DONE)
+- [x] IP-based rate limiting on invite claim endpoint
+  - Type: Security | Priority: HIGH | Status: Done
+  - Definition of Done: `claim_invite` action checks `admin_audit_log` for ≥5 failed attempts from the same IP in the last 15 minutes. Returns 429 RATE_LIMITED if exceeded. All failed claim paths (not found, claimed, expired, email mismatch) now log `claim_invite_failed` action to audit log for rate limiter data.
+  - Evidence: `infra/supabase/functions/platform_admin/index.ts`
+
+#### Candidate 4: QuickBooks-Compatible CSV Export (DONE)
+- [x] QuickBooks timesheet export format
+  - Type: Web | Priority: HIGH | Status: Done
+  - Definition of Done: "Export for QuickBooks" button appears in Reports page action row after a timesheet is generated. Reformats existing CSV to QuickBooks Online Time Activity import format (Name, Date, Item/Service, Description, Hours, Billable columns). Downloads as `quickbooks_timesheet_YYYY-MM-DD.csv`. Supervisors can import directly into QuickBooks without manual reformatting.
+  - Evidence: `apps/fieldops_web/src/app/reports/page.tsx`
+
+#### Candidate 5: Client Portal — Shareable Read-Only Job Links (DONE)
+- [x] Client portal migration and edge function
+  - Type: Backend | Priority: HIGH | Status: Done
+  - Definition of Done: `job_share_tokens` table with UUID tokens, per-job, per-company, with expiry and revocation. RLS: supervisors+ manage tokens for their company. `client_portal` edge function: GET (public, no auth) returns job/company/photos/tasks for a token; POST (authenticated) creates/revokes/lists tokens.
+  - Evidence: `infra/supabase/migrations/20260418100000_client_portal_tokens.sql`, `infra/supabase/functions/client_portal/index.ts`
+
+- [x] Client portal Next.js page
+  - Type: Web | Priority: HIGH | Status: Done
+  - Definition of Done: Public page at `/portal/[token]` — no login required. Shows: company logo + name, job name/code/status/address, task progress bar, stamped photo grid with lightbox, task checklist with status icons. Error states for revoked/expired/not-found tokens. Mobile-responsive.
+  - Evidence: `apps/fieldops_web/src/app/portal/[token]/page.tsx`
+
+### Gaps from CEO Review (2026-04-18)
+
+#### Critical Gaps — Must Fix Before Pilot
+
+- [ ] Production deployment (Vercel + Supabase hosted project)
+  - Type: Infra | Priority: CRITICAL
+  - Definition of Done: Web app live at real URL. Edge functions deployed to Supabase hosted project. Env vars set. Smoke tested end-to-end with fresh session.
+
+- [ ] Email invite activation — Flutter deep link
+  - Type: Mobile | Priority: CRITICAL
+  - Definition of Done: Worker receives invite email → taps link → Flutter app opens → account activates. Backend `/invites` exists. Missing: `uni_links` deep link handler in Flutter + `app_links` configuration in AndroidManifest.xml + ios/Runner/Info.plist. Twilio SMS path optional for pilot.
+  - Notes: Add `go_router` or `uni_links: ^3.1.0` to pubspec.yaml. Handle `fieldops://activate?token=X` deep link in main app router.
+
+- [ ] FCM push notifications activation
+  - Type: Mobile | Priority: HIGH
+  - Definition of Done: `flutterfire configure` run. `firebase_core + firebase_messaging` uncommented in pubspec. `FirebaseNotificationService` activated. Backend `device_tokens` function already deployed. Workers receive OT approval, schedule, and safety alert notifications.
+  - Notes: Backend push.ts + device_tokens edge function already complete. Just needs Firebase project config.
+
+- [ ] Stripe billing activation
+  - Type: Backend | Priority: HIGH
+  - Definition of Done: One plan ($99/month) live in Stripe. `billing_portal` edge function activated. `stripe_webhook` handles `checkout.session.completed`. Company `payment_status` updated on payment. Demo mode bypasses billing check. Deferred: plan tiers, trial period, dunning.
+
+- [ ] Manual Thailand tenant setup
+  - Type: Ops | Priority: CRITICAL
+  - Definition of Done: Thailand company created via admin app. Owner + supervisor + 3-5 worker accounts created. All roles tested with production credentials. WhatsApp group created for pilot support.
+
+#### Monitoring Gaps
+
+- [ ] Sentry project setup + DSN activation
+  - Type: Infra | Priority: HIGH
+  - Definition of Done: Sentry project created at sentry.io. DSN added to `.env.release` + Vercel env vars. `SENTRY_DSN` passed via dart-define in release builds. First crash alert received in Sentry. (SDK already integrated — just needs DSN.)
+
+- [ ] Edge function error monitoring
+  - Type: Backend | Priority: MEDIUM
+  - Definition of Done: Supabase log drain configured OR Sentry edge function SDK added to `_shared/api.ts`. Production 5xx errors trigger Slack/email alert. Current: logs exist but no alerting.
+
+#### Integration Tests in CI
+
+- [ ] Supabase hosted integration tests in CI
+  - Type: Testing | Priority: HIGH
+  - Definition of Done: GitHub Actions integration test job runs against Supabase hosted test project (not local Docker). Uses `SUPABASE_TEST_URL` and `SUPABASE_TEST_SERVICE_ROLE_KEY` secrets. Catches auth trigger, RLS, and edge function bugs automatically. Current: integration tests require `workflow_dispatch` because local `supabase start` is flaky.
+
+#### Growth Features (Sprint 8.5 or 9)
+
+- [ ] Job share token UI in web app (generate/copy link from job detail or photos page)
+  - Type: Web | Priority: HIGH
+  - Definition of Done: "Share with client" button on job timeline or photos page. Calls `client_portal` POST create_token. Shows copy-to-clipboard link. Lists active tokens with revoke buttons. Client portal built — this is the supervisor-facing UI to generate the link.
+
+- [ ] QuickBooks Online direct API integration
+  - Type: Backend | Priority: MEDIUM
+  - Definition of Done: OAuth2 flow to connect QuickBooks company. Sync worker time entries directly to QuickBooks Time Activity objects. Current: QuickBooks CSV export exists — this is the zero-friction version.
+
+- [ ] Sentry source maps / dSYM for symbolicated crash reports
+  - Type: Infra | Priority: MEDIUM
+  - Definition of Done: iOS dSYM files uploaded to Sentry on each release build. Android ProGuard mapping uploaded. Crash stack traces show actual Dart file names instead of obfuscated symbols.

@@ -1,6 +1,7 @@
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
 import 'package:fieldops_mobile/app/widgets/skeleton_loader.dart';
 import 'package:fieldops_mobile/features/clock/presentation/clock_in_controller.dart';
+import 'package:fieldops_mobile/features/home/presentation/widgets/clock_error_panel.dart';
 import 'package:fieldops_mobile/features/home/presentation/widgets/jobs_error_state.dart';
 import 'package:fieldops_mobile/features/home/presentation/worker_hours_controller.dart';
 import 'package:fieldops_mobile/features/jobs/domain/job_summary.dart';
@@ -45,11 +46,18 @@ class JobsTab extends ConsumerWidget {
         },
         child: jobsState.when(
           data: (jobs) {
+            final hasClockError = clockState.hasError;
+            final errorOffset = hasClockError ? 1 : 0;
+
             if (jobs.isEmpty) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(20),
                 children: [
+                  if (hasClockError) ...[
+                    ClockErrorPanel(state: clockState),
+                    const SizedBox(height: 12),
+                  ],
                   const SizedBox(height: 120),
                   _EmptyState(palette: palette, textTheme: textTheme),
                 ],
@@ -59,10 +67,13 @@ class JobsTab extends ConsumerWidget {
             return ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(20),
-              itemCount: jobs.length,
+              itemCount: jobs.length + errorOffset,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
-                final job = jobs[index];
+                if (hasClockError && index == 0) {
+                  return ClockErrorPanel(state: clockState);
+                }
+                final job = jobs[index - errorOffset];
                 final isClockedInHere = clockState.isClockedInFor(job.jobId);
 
                 return _JobListCard(

@@ -136,6 +136,43 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   }
 
+  function downloadQuickbooksExport() {
+    if (!csvData) return;
+    const lines = csvData.split("\n").filter(Boolean);
+    // Skip header row (index 0)
+    const rows = lines.slice(1).map((line) => {
+      // Split respecting quoted fields
+      const cols: string[] = [];
+      let current = "";
+      let inQuotes = false;
+      for (const ch of line) {
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if (ch === "," && !inQuotes) {
+          cols.push(current.trim());
+          current = "";
+        } else {
+          current += ch;
+        }
+      }
+      cols.push(current.trim());
+      // Original columns: Worker,Date,Job Code,Cost Code,Clock In,Clock Out,Regular Hours,OT Hours,Total Hours
+      const [worker, date, jobCode, , clockIn, clockOut, , , totalHours] = cols;
+      const description = clockIn && clockOut ? `${clockIn} - ${clockOut}` : "";
+      return `"${worker}","${date}","${jobCode}","${description}","${totalHours}","No"`;
+    });
+    const qbHeader = "Name,Date,Item/Service,Description,Hours,Billable";
+    const qbCsv = [qbHeader, ...rows].join("\n");
+    const blob = new Blob([qbCsv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const today = new Date().toISOString().slice(0, 10);
+    a.download = `quickbooks_timesheet_${today}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function handleExportPdf() {
     window.print();
   }
@@ -247,6 +284,16 @@ export default function ReportsPage() {
           >
             <FileDown size={16} />
             {t("reports.exportPdf")}
+          </button>
+
+          {/* Export for QuickBooks */}
+          <button
+            onClick={downloadQuickbooksExport}
+            disabled={!csvData}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-stone-50 disabled:opacity-40"
+          >
+            <FileDown size={16} />
+            Export for QuickBooks
           </button>
 
           {/* Save Preset */}

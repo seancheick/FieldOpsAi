@@ -2,6 +2,7 @@
 .env
 .env.local
 .env*.local
+.env.release
 apps/fieldops_mobile/env/*.json
 !apps/fieldops_mobile/env/*.example.json
 
@@ -28,3 +29,4 @@ execution/__pycache__/
 FieldOps_AI_Complete_Plan_2026_v5.docx
 OldAgentoberemoved.md
 .gstack/
+apps/fieldops_mobile/run.sh

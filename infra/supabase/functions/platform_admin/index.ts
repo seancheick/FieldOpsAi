@@ -635,6 +635,27 @@ serve(async (req) => {
           return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Password must be at least 8 characters")
         }
 
+        // Rate limit: check failed attempts from this IP in last 15 minutes
+        const clientIp = req.headers.get("cf-connecting-ip") ||
+          req.headers.get("x-real-ip") ||
+          req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+          "unknown"
+
+        if (clientIp !== "unknown") {
+          const rateLimitWindow = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+          const { count: failedAttempts } = await supabaseAdmin
+            .from("admin_audit_log")
+            .select("id", { count: "exact", head: true })
+            .eq("action", "claim_invite_failed")
+            .eq("ip_address", clientIp)
+            .gte("created_at", rateLimitWindow)
+
+          if ((failedAttempts ?? 0) >= 5) {
+            return errorResponse(requestId, 429, "RATE_LIMITED",
+              "Too many failed attempts. Try again in 15 minutes.")
+          }
+        }
+
         // Validate invite
         const { data: invite, error: inviteError } = await supabaseAdmin
           .from("platform_admin_invites")
@@ -643,18 +664,44 @@ serve(async (req) => {
           .single()
 
         if (inviteError || !invite) {
+          await logPlatformAction(supabaseAdmin, req, {
+            actor_id: "anonymous",
+            action: "claim_invite_failed",
+            after: { reason: "invite_not_found", invite_token },
+          })
           return errorResponse(requestId, 404, "NOT_FOUND", "Invite not found")
         }
 
         if (invite.claimed_at) {
+          await logPlatformAction(supabaseAdmin, req, {
+            actor_id: "anonymous",
+            action: "claim_invite_failed",
+            target_type: "platform_admin_invite",
+            target_id: invite.id,
+            after: { reason: "already_claimed" },
+          })
           return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Invite has already been claimed")
         }
 
         if (new Date(invite.expires_at) < new Date()) {
+          await logPlatformAction(supabaseAdmin, req, {
+            actor_id: "anonymous",
+            action: "claim_invite_failed",
+            target_type: "platform_admin_invite",
+            target_id: invite.id,
+            after: { reason: "invite_expired" },
+          })
           return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Invite has expired")
         }
 
         if (invite.email !== email) {
+          await logPlatformAction(supabaseAdmin, req, {
+            actor_id: "anonymous",
+            action: "claim_invite_failed",
+            target_type: "platform_admin_invite",
+            target_id: invite.id,
+            after: { reason: "email_mismatch" },
+          })
           return errorResponse(requestId, 403, "FORBIDDEN", "Email does not match invite")
         }
 
