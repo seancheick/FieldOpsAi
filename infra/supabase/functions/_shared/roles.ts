@@ -5,7 +5,7 @@ export const FOREMAN_ROLE = "foreman"
 export const WORKER_ROLE = "worker"
 
 export const MANAGEMENT_ROLES = [OWNER_ROLE, ADMIN_ROLE] as const
-export const SUPERVISOR_AND_ABOVE_ROLES = [OWNER_ROLE, ADMIN_ROLE, SUPERVISOR_ROLE] as const
+export const SUPERVISOR_AND_ABOVE_ROLES = [OWNER_ROLE, ADMIN_ROLE, SUPERVISOR_ROLE, FOREMAN_ROLE] as const
 
 export function isManagementRole(role: string | null | undefined): boolean {
   return !!role && MANAGEMENT_ROLES.includes(role as (typeof MANAGEMENT_ROLES)[number])
