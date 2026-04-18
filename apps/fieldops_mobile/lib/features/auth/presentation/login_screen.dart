@@ -4,6 +4,7 @@ import 'package:fieldops_mobile/features/auth/presentation/widgets/error_banner.
 import 'package:fieldops_mobile/features/auth/presentation/widgets/status_chip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -16,7 +17,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _storage = const FlutterSecureStorage();
   bool _obscurePassword = true;
+  bool _rememberEmail = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedEmail();
+  }
+
+  Future<void> _loadSavedEmail() async {
+    final saved = await _storage.read(key: 'saved_email');
+    if (saved != null) {
+      setState(() {
+        _emailController.text = saved;
+        _rememberEmail = true;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -36,6 +55,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           email: _emailController.text,
           password: _passwordController.text,
         );
+
+    if (_rememberEmail) {
+      await _storage.write(key: 'saved_email', value: _emailController.text.trim());
+    } else {
+      await _storage.delete(key: 'saved_email');
+    }
   }
 
   @override
@@ -126,7 +151,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   },
                                 ),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Checkbox(
+                                    value: _rememberEmail,
+                                    onChanged: (_) => setState(() => _rememberEmail = !_rememberEmail),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () => setState(() => _rememberEmail = !_rememberEmail),
+                                    child: Text(
+                                      'Remember my email',
+                                      style: textTheme.bodySmall,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
                               Semantics(
                                 label: 'Password input',
                                 textField: true,

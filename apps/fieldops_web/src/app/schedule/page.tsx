@@ -167,6 +167,7 @@ export default function SchedulePage() {
     start_time: string;
     end_time: string;
     notes: string | null;
+    publish?: boolean;
   }) {
     setBusy("save");
     setError(null);
@@ -175,11 +176,19 @@ export default function SchedulePage() {
       await postSchedule({
         action: values.shift_id ? "update" : "create",
         ...values,
+        publish: values.publish ?? false,
       });
       await loadSchedule();
+      if (!values.shift_id) {
+        setAnchorDate(values.shift_date);
+      }
       setModalOpen(false);
       setSuccess(
-        values.shift_id ? t("schedulePage.draftUpdated") : t("schedulePage.draftSaved"),
+        values.publish
+          ? t("schedulePage.shiftPublished") || "Shift published"
+          : values.shift_id
+            ? t("schedulePage.draftUpdated")
+            : t("schedulePage.draftSaved"),
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : t("schedulePage.failedToAdd"));

@@ -194,7 +194,7 @@ serve(async (req) => {
     }
 
     if (action === "create") {
-      const { worker_id, job_id, shift_date, start_time, end_time, notes } = payload
+      const { worker_id, job_id, shift_date, start_time, end_time, notes, publish } = payload
 
       if (!worker_id || !job_id || !shift_date || !start_time || !end_time) {
         return errorResponse(
@@ -241,8 +241,9 @@ serve(async (req) => {
           start_time,
           end_time,
           notes: notes || null,
-          status: "draft",
+          status: publish ? "published" : "draft",
           created_by: user.id,
+          ...(publish ? { published_at: new Date().toISOString(), published_by: user.id } : {}),
         })
         .select(`
           id,

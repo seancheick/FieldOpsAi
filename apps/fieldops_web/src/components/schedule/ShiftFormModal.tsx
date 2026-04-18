@@ -17,6 +17,7 @@ interface Props {
     start_time: string;
     end_time: string;
     notes: string | null;
+    publish?: boolean;
   }) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   busy: boolean;
@@ -199,12 +200,33 @@ export function ShiftFormModal({
                   start_time: `${startTime}:00`,
                   end_time: `${endTime}:00`,
                   notes: notes.trim() || null,
+                  publish: false,
                 })
               }
               disabled={!canSave || busy}
               className="rounded-lg bg-amber-500 px-4 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {busy ? labels.saving : labels.save}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                canSave &&
+                onSubmit({
+                  shift_id: editingId,
+                  worker_id: workerId,
+                  job_id: jobId,
+                  shift_date: date,
+                  start_time: `${startTime}:00`,
+                  end_time: `${endTime}:00`,
+                  notes: notes.trim() || null,
+                  publish: true,
+                })
+              }
+              disabled={!canSave || busy}
+              className="rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {busy ? labels.saving : "Publish Now"}
             </button>
           </div>
         </div>
