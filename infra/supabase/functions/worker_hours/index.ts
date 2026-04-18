@@ -49,7 +49,7 @@ serve(async (req) => {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser(jwt)
+    } = await supabase.auth.getUser()
     if (authError || !user) {
       return errorResponse(requestId, 401, "UNAUTHORIZED", "Invalid auth token")
     }

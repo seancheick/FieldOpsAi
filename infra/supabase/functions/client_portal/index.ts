@@ -112,7 +112,7 @@ serve(async (req) => {
       })
 
       const jwt = authHeader.replace("Bearer ", "")
-      const { data: authData, error: authError } = await supabase.auth.getUser(jwt)
+      const { data: authData, error: authError } = await supabase.auth.getUser()
       if (authError || !authData.user) {
         return errorResponse(requestId, 401, "UNAUTHORIZED", "Invalid auth token")
       }
