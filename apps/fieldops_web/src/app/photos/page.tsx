@@ -9,6 +9,10 @@ import { ProjectBrowser } from "@/components/photos/project-browser";
 import { ProjectWorkspaceTabs } from "@/components/photos/project-workspace-tabs";
 import { PhotoTimelinePanel } from "@/components/photos/photo-timeline-panel";
 import { PhotoMapPanel } from "@/components/photos/photo-map-panel";
+import { TagFilterBar } from "@/components/photos/TagFilterBar";
+import { BulkTagDialog } from "@/components/photos/BulkTagDialog";
+import { SaveAsGalleryDialog } from "@/components/photos/SaveAsGalleryDialog";
+import { ShareLinkDialog } from "@/components/photos/ShareLinkDialog";
 
 interface PhotoEntry {
   id: string;
@@ -146,6 +150,37 @@ function PhotoFeedContent() {
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [codeCopied, setCodeCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  // Sprint 8.5 sharing slice — tag filter + share dialog state
+  const [accessToken, setAccessToken] = useState<string>("");
+  const [activeTagFilter, setActiveTagFilter] = useState<string[]>([]);
+  const [tagPhotoMap, setTagPhotoMap] = useState<Record<string, string[]>>({});
+  const [showTagDialog, setShowTagDialog] = useState(false);
+  const [showGalleryDialog, setShowGalleryDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+
+  useEffect(() => {
+    const supabase = getSupabase();
+    void supabase.auth.getSession().then(({ data }) => {
+      setAccessToken(data.session?.access_token ?? "");
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAccessToken(session?.access_token ?? "");
+    });
+    return () => {
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  // media_asset_ids of currently-selected rows (tags + galleries need these,
+  // not the photo_event IDs that `selectedPhotos` stores).
+  const selectedMediaAssetIds = useMemo(() => {
+    if (selectedPhotos.size === 0) return [] as string[];
+    return photos
+      .filter((p) => selectedPhotos.has(p.id))
+      .map((p) => p.media_asset_id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+  }, [photos, selectedPhotos]);
 
   const loadPhotos = useCallback(async () => {
     setLoading(true);
@@ -523,9 +558,16 @@ function PhotoFeedContent() {
         if (filterVerified === "verified" && !isVerified) return false;
         if (filterVerified === "unverified" && isVerified) return false;
       }
+      // Active tag filter — photo must carry every selected tag (AND-match).
+      if (activeTagFilter.length > 0) {
+        for (const tag of activeTagFilter) {
+          const ids = tagPhotoMap[tag.toLowerCase()] ?? [];
+          if (!ids.includes(photo.media_asset_id)) return false;
+        }
+      }
       return true;
     });
-  }, [photos, filterDate, filterWorker, filterTask, filterMode, filterCheckpoint, filterVerified]);
+  }, [photos, filterDate, filterWorker, filterTask, filterMode, filterCheckpoint, filterVerified, activeTagFilter, tagPhotoMap]);
 
   // Bulk selection helpers
   function togglePhotoSelection(id: string) {
@@ -832,10 +874,64 @@ function PhotoFeedContent() {
                 >
                   {exporting ? "Exporting..." : `Export Proof Pack (${selectedPhotos.size})`}
                 </button>
+                <button
+                  onClick={() => setShowTagDialog(true)}
+                  disabled={selectedMediaAssetIds.length === 0}
+                  className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
+                >
+                  Tag ({selectedMediaAssetIds.length})
+                </button>
+                {jobId && (
+                  <button
+                    onClick={() => setShowGalleryDialog(true)}
+                    disabled={selectedMediaAssetIds.length === 0}
+                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                  >
+                    Save as gallery ({selectedMediaAssetIds.length})
+                  </button>
+                )}
+              </>
+            )}
+            {jobId && (
+              <>
+                <button
+                  onClick={() => setShowShareDialog(true)}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  Share link
+                </button>
+                <button
+                  onClick={() =>
+                    router.push(`/galleries?job_id=${encodeURIComponent(jobId)}`)
+                  }
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  Manage deliverables
+                </button>
               </>
             )}
           </div>
         </div>
+      )}
+
+      {jobId && accessToken && (
+        <TagFilterBar
+          jobId={jobId}
+          active={activeTagFilter}
+          accessToken={accessToken}
+          onToggle={(tag) =>
+            setActiveTagFilter((prev) =>
+              prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+            )
+          }
+          onTagsLoaded={(rows) => {
+            const map: Record<string, string[]> = {};
+            for (const row of rows) {
+              map[row.tag.toLowerCase()] = row.media_asset_ids ?? [];
+            }
+            setTagPhotoMap(map);
+          }}
+        />
       )}
 
       {error && jobId && (
@@ -1260,6 +1356,35 @@ function PhotoFeedContent() {
           </div>
         );
       })()}
+
+      {/* Sprint 8.5 — sharing dialogs */}
+      <BulkTagDialog
+        open={showTagDialog}
+        mediaAssetIds={selectedMediaAssetIds}
+        accessToken={accessToken}
+        onClose={() => setShowTagDialog(false)}
+        onTagged={() => {
+          // Clear selection after a successful bulk tag so the bar resets.
+          setSelectedPhotos(new Set());
+        }}
+      />
+      {jobId && (
+        <SaveAsGalleryDialog
+          open={showGalleryDialog}
+          jobId={jobId}
+          mediaAssetIds={selectedMediaAssetIds}
+          accessToken={accessToken}
+          onClose={() => setShowGalleryDialog(false)}
+        />
+      )}
+      {jobId && (
+        <ShareLinkDialog
+          open={showShareDialog}
+          jobId={jobId}
+          accessToken={accessToken}
+          onClose={() => setShowShareDialog(false)}
+        />
+      )}
     </div>
   );
 }
