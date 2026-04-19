@@ -20,6 +20,44 @@ import { isSupervisorOrAbove } from "../_shared/roles.ts"
 const ENDPOINT = "schedule"
 const RATE_LIMIT = 20
 
+function isUuid(value: unknown): value is string {
+  return typeof value === "string"
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+}
+
+type ShiftSummary = {
+  shift_date: string
+  start_time: string
+  end_time: string
+  job_id: string
+  job_name: string
+}
+
+function shapeSwapRow(
+  row: Record<string, unknown>,
+  names: Map<string, string>,
+  shifts: Map<string, ShiftSummary>,
+) {
+  const requesterId = row.requester_id as string
+  const targetId = (row.swap_with_user_id as string | null) ?? null
+  const shiftId = row.shift_id as string
+  return {
+    id: row.id as string,
+    shift_id: shiftId,
+    requester_id: requesterId,
+    requester_name: names.get(requesterId) ?? "Unknown worker",
+    swap_with_user_id: targetId,
+    swap_with_name: targetId ? (names.get(targetId) ?? null) : null,
+    notes: (row.notes as string | null) ?? null,
+    status: row.status as string,
+    created_at: row.created_at as string,
+    decided_at: (row.decided_at as string | null) ?? null,
+    decided_by: (row.decided_by as string | null) ?? null,
+    decision_reason: (row.decision_reason as string | null) ?? null,
+    shift: shifts.get(shiftId) ?? null,
+  }
+}
+
 function mondayFor(date: Date) {
   const copy = new Date(date)
   const day = copy.getUTCDay()
@@ -99,6 +137,8 @@ serve(async (req) => {
         return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Invalid date range")
       }
 
+      const view = url.searchParams.get("view") ?? "mine"
+
       let query = supabaseAdmin
         .from("schedule_shifts")
         .select(`
@@ -110,6 +150,7 @@ serve(async (req) => {
           end_time,
           status,
           notes,
+          sort_order,
           published_at,
           published_by,
           users!schedule_shifts_worker_id_fkey(full_name),
@@ -118,12 +159,25 @@ serve(async (req) => {
         .eq("company_id", userRecord.company_id)
         .gte("shift_date", range.start)
         .lte("shift_date", range.end)
-      if (["worker", "foreman"].includes(userRecord.role)) {
+
+      // Scoping:
+      //  - workers always see only their own published shifts.
+      //  - foremen default to their own shifts, unless `view=crew` — then they
+      //    see every published shift in their company for the range (used by
+      //    the foreman crew schedule screen).
+      if (userRecord.role === "worker") {
         query = query.eq("worker_id", user.id).eq("status", "published")
+      } else if (userRecord.role === "foreman") {
+        if (view === "crew") {
+          query = query.eq("status", "published")
+        } else {
+          query = query.eq("worker_id", user.id).eq("status", "published")
+        }
       }
 
       const { data, error } = await query
         .order("shift_date", { ascending: true })
+        .order("sort_order", { ascending: true })
         .order("start_time", { ascending: true })
 
       const { data: ptoData, error: ptoError } = await supabaseAdmin
@@ -148,6 +202,7 @@ serve(async (req) => {
         end_time: typeof shift.end_time === "string" ? shift.end_time.slice(0, 5) : shift.end_time,
         status: shift.status,
         notes: shift.notes,
+        sort_order: typeof shift.sort_order === "number" ? shift.sort_order : 0,
         published_at: shift.published_at,
         published_by: shift.published_by,
       }))
@@ -170,27 +225,153 @@ serve(async (req) => {
       return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Use GET or POST")
     }
 
-    if (!isSupervisorOrAbove(userRecord.role)) {
-      return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can manage schedules")
-    }
-
-    const idempotencyKey = req.headers.get("Idempotency-Key")
-    if (!idempotencyKey) {
-      return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Idempotency-Key required")
-    }
+    // Role gating is per-action below. `swap_request` and `swap_cancel` are
+    // worker-originating (a worker manages their own swap request); all
+    // other actions are supervisor-or-above. Gates live inside each action
+    // branch.
 
     const payload = await req.json()
     const action = payload?.action
+
+    // `swap_list` is a read — no Idempotency-Key required, no replay check,
+    // and no idempotency store on the way out. Every other action requires
+    // the header and uses the standard replay protection.
+    const rawIdempotencyKey = req.headers.get("Idempotency-Key")
+    if (action !== "swap_list" && !rawIdempotencyKey) {
+      return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Idempotency-Key required")
+    }
+    const idempotencyKey = rawIdempotencyKey ?? ""
     const requestHash = await sha256Hex(JSON.stringify(payload))
-    const replay = await lookupIdempotency(supabaseAdmin, user.id, ENDPOINT, idempotencyKey, requestHash)
-    if (replay.replay) {
-      if (replay.conflict) return errorResponse(replay.requestId, 409, "CONFLICT", "Idempotency key reused")
-      return jsonResponse(replay.body, replay.status, replay.requestId)
+    if (action !== "swap_list") {
+      const replay = await lookupIdempotency(supabaseAdmin, user.id, ENDPOINT, idempotencyKey, requestHash)
+      if (replay.replay) {
+        if (replay.conflict) return errorResponse(replay.requestId, 409, "CONFLICT", "Idempotency key reused")
+        return jsonResponse(replay.body, replay.status, replay.requestId)
+      }
     }
 
     const rateLimit = await applyRateLimit(supabaseAdmin, user.id, ENDPOINT, requestId, RATE_LIMIT)
     if (rateLimit.limited) {
       return errorResponse(requestId, 429, "RATE_LIMITED", "Too many requests", [], rateLimit.headers)
+    }
+
+    // ── Action: swap_request (worker-originating) ──────────
+    // A worker or foreman asks to swap out of one of their own published
+    // shifts. Inserts a row into shift_swap_requests; supervisors resolve.
+    if (action === "swap_request") {
+      const { shift_id, swap_with_user_id, notes } = payload
+      if (!shift_id) {
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "shift_id is required")
+      }
+
+      const { data: shift } = await supabaseAdmin
+        .from("schedule_shifts")
+        .select("id, worker_id, company_id, status")
+        .eq("id", shift_id)
+        .eq("company_id", userRecord.company_id)
+        .maybeSingle()
+
+      if (!shift) {
+        return errorResponse(requestId, 404, "NOT_FOUND", "Shift not found")
+      }
+      if (shift.worker_id !== user.id) {
+        return errorResponse(requestId, 403, "FORBIDDEN", "Can only request swaps for your own shift")
+      }
+      if (shift.status !== "published") {
+        return errorResponse(requestId, 409, "CONFLICT", `Cannot request swap on a ${shift.status} shift`)
+      }
+
+      if (swap_with_user_id) {
+        const { data: target } = await supabaseAdmin
+          .from("users")
+          .select("id")
+          .eq("id", swap_with_user_id)
+          .eq("company_id", userRecord.company_id)
+          .eq("is_active", true)
+          .maybeSingle()
+        if (!target) {
+          return errorResponse(requestId, 404, "NOT_FOUND", "Target worker not found in this company")
+        }
+      }
+
+      const { data: inserted, error: insertError } = await supabaseAdmin
+        .from("shift_swap_requests")
+        .insert({
+          company_id: userRecord.company_id,
+          shift_id,
+          requester_id: user.id,
+          swap_with_user_id: swap_with_user_id || null,
+          notes: notes || null,
+          status: "pending",
+        })
+        .select("id")
+        .single()
+
+      if (insertError) {
+        logRequestError(ENDPOINT, requestId, insertError)
+        return errorResponse(requestId, 500, "INTERNAL_ERROR", "Failed to create swap request")
+      }
+
+      const responseBody = {
+        status: "submitted",
+        swap_request_id: inserted.id,
+        request_id: requestId,
+      }
+      await storeIdempotency(supabaseAdmin, user.id, ENDPOINT, idempotencyKey, requestHash, 201, responseBody, requestId)
+      logRequestResult(ENDPOINT, requestId, 201, { user_id: user.id, action: "swap_request", shift_id })
+      return jsonResponse(responseBody, 201, requestId, rateLimit.headers)
+    }
+
+    // ── Action: swap_cancel (worker-originating) ──────────
+    // The original requester cancels their own pending swap request.
+    if (action === "swap_cancel") {
+      const { swap_request_id } = payload
+      if (!isUuid(swap_request_id)) {
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "swap_request_id must be a uuid")
+      }
+
+      const { data: swapRow, error: fetchError } = await supabaseAdmin
+        .from("shift_swap_requests")
+        .select("id, company_id, requester_id, status")
+        .eq("id", swap_request_id)
+        .maybeSingle()
+
+      if (fetchError) throw fetchError
+      if (!swapRow || swapRow.company_id !== userRecord.company_id) {
+        return errorResponse(requestId, 404, "NOT_FOUND", "Swap request not found")
+      }
+      if (swapRow.requester_id !== user.id) {
+        return errorResponse(requestId, 403, "FORBIDDEN", "Only the requester can cancel this swap request")
+      }
+      if (swapRow.status !== "pending") {
+        return errorResponse(requestId, 409, "CONFLICT", `Cannot cancel a ${swapRow.status} swap request`)
+      }
+
+      const now = new Date().toISOString()
+      const { error: updateError } = await supabaseAdmin
+        .from("shift_swap_requests")
+        .update({ status: "cancelled", updated_at: now })
+        .eq("id", swap_request_id)
+        .eq("company_id", userRecord.company_id)
+
+      if (updateError) {
+        logRequestError(ENDPOINT, requestId, updateError)
+        return errorResponse(requestId, 500, "INTERNAL_ERROR", "Failed to cancel swap request")
+      }
+
+      const responseBody = { status: "cancelled", request_id: requestId }
+      await storeIdempotency(supabaseAdmin, user.id, ENDPOINT, idempotencyKey, requestHash, 200, responseBody, requestId)
+      logRequestResult(ENDPOINT, requestId, 200, {
+        user_id: user.id,
+        action: "swap_cancel",
+        swap_request_id,
+      })
+      return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
+    }
+
+    // Every action below requires supervisor-or-above (includes foreman).
+    if (!isSupervisorOrAbove(userRecord.role)) {
+      return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can manage schedules")
     }
 
     if (action === "create") {
@@ -516,6 +697,200 @@ serve(async (req) => {
         copied_count: newShifts.length,
       })
       return jsonResponse(responseBody, 201, requestId, rateLimit.headers)
+    }
+
+    // ── Action: swap_list (supervisor read) ──────────────────
+    // Supervisor-or-above (foreman included) views swap requests in their
+    // company, filtered by status (default pending). Joins shift + requester
+    // name; batched lookups, no N+1.
+    if (action === "swap_list") {
+      const statusFilter = typeof payload?.status === "string" ? payload.status : "pending"
+      const allowedStatuses = ["pending", "approved", "denied", "cancelled"]
+      if (!allowedStatuses.includes(statusFilter)) {
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "status must be pending|approved|denied|cancelled")
+      }
+
+      const { data: swapRows, error: swapError } = await supabaseAdmin
+        .from("shift_swap_requests")
+        .select("id, shift_id, requester_id, swap_with_user_id, notes, status, decided_by, decided_at, decision_reason, created_at")
+        .eq("company_id", userRecord.company_id)
+        .eq("status", statusFilter)
+        .order("created_at", { ascending: false })
+
+      if (swapError) throw swapError
+
+      const rows = swapRows || []
+      const userIds = new Set<string>()
+      const shiftIds = new Set<string>()
+      for (const r of rows) {
+        if (r.requester_id) userIds.add(r.requester_id)
+        if (r.swap_with_user_id) userIds.add(r.swap_with_user_id)
+        if (r.shift_id) shiftIds.add(r.shift_id)
+      }
+
+      const names = new Map<string, string>()
+      const shifts = new Map<string, ShiftSummary>()
+
+      if (userIds.size > 0) {
+        const { data: usersData, error: usersError } = await supabaseAdmin
+          .from("users")
+          .select("id, full_name")
+          .in("id", Array.from(userIds))
+          .eq("company_id", userRecord.company_id)
+        if (usersError) throw usersError
+        for (const u of usersData || []) {
+          names.set(u.id as string, (u.full_name as string) ?? "Unknown worker")
+        }
+      }
+
+      if (shiftIds.size > 0) {
+        const { data: shiftsData, error: shiftsError } = await supabaseAdmin
+          .from("schedule_shifts")
+          .select("id, shift_date, start_time, end_time, job_id, jobs!schedule_shifts_job_id_fkey(name)")
+          .in("id", Array.from(shiftIds))
+          .eq("company_id", userRecord.company_id)
+        if (shiftsError) throw shiftsError
+        for (const s of shiftsData || []) {
+          const startRaw = s.start_time
+          const endRaw = s.end_time
+          shifts.set(s.id as string, {
+            shift_date: s.shift_date as string,
+            start_time: typeof startRaw === "string" ? startRaw.slice(0, 5) : String(startRaw),
+            end_time: typeof endRaw === "string" ? endRaw.slice(0, 5) : String(endRaw),
+            job_id: s.job_id as string,
+            job_name: (s.jobs as { name?: string } | null)?.name ?? "Unknown job",
+          })
+        }
+      }
+
+      const requests = rows.map((r) => shapeSwapRow(r as Record<string, unknown>, names, shifts))
+
+      const responseBody = { status: "success", requests, request_id: requestId }
+      logRequestResult(ENDPOINT, requestId, 200, {
+        user_id: user.id,
+        action: "swap_list",
+        result_count: requests.length,
+      })
+      return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
+    }
+
+    // ── Action: swap_decide (supervisor resolves a swap request) ──
+    // Supervisor approves or denies a pending swap. Approval does NOT
+    // auto-reassign the shift here — the supervisor handles reassignment
+    // via the existing `update` action.
+    // TODO(swap-auto-reassign): future sprint — on approve, reassign the
+    // shift's worker_id to swap_with_user_id atomically.
+    if (action === "swap_decide") {
+      const { swap_request_id, decision, reason } = payload
+      if (!isUuid(swap_request_id)) {
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "swap_request_id must be a uuid")
+      }
+      if (decision !== "approved" && decision !== "denied") {
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "decision must be 'approved' or 'denied'")
+      }
+      if (decision === "denied" && (typeof reason !== "string" || reason.trim().length === 0)) {
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "reason is required when denying a swap request")
+      }
+
+      const { data: swapRow, error: fetchError } = await supabaseAdmin
+        .from("shift_swap_requests")
+        .select("id, company_id, status")
+        .eq("id", swap_request_id)
+        .maybeSingle()
+
+      if (fetchError) throw fetchError
+      if (!swapRow || swapRow.company_id !== userRecord.company_id) {
+        return errorResponse(requestId, 404, "NOT_FOUND", "Swap request not found")
+      }
+      if (swapRow.status !== "pending") {
+        return errorResponse(requestId, 409, "CONFLICT", `Cannot decide a ${swapRow.status} swap request`)
+      }
+
+      const now = new Date().toISOString()
+      const normalizedReason =
+        typeof reason === "string" && reason.trim().length > 0 ? reason : null
+
+      const { data: updated, error: updateError } = await supabaseAdmin
+        .from("shift_swap_requests")
+        .update({
+          status: decision,
+          decided_by: user.id,
+          decided_at: now,
+          decision_reason: normalizedReason,
+          updated_at: now,
+        })
+        .eq("id", swap_request_id)
+        .eq("company_id", userRecord.company_id)
+        .select("id, company_id, shift_id, requester_id, swap_with_user_id, notes, status, decided_by, decided_at, decision_reason, created_at, updated_at")
+        .single()
+
+      if (updateError) {
+        logRequestError(ENDPOINT, requestId, updateError)
+        return errorResponse(requestId, 500, "INTERNAL_ERROR", "Failed to decide swap request")
+      }
+
+      const responseBody = {
+        status: "decided",
+        swap_request: updated,
+        request_id: requestId,
+      }
+      await storeIdempotency(supabaseAdmin, user.id, ENDPOINT, idempotencyKey, requestHash, 200, responseBody, requestId)
+      logRequestResult(ENDPOINT, requestId, 200, {
+        user_id: user.id,
+        action: "swap_decide",
+        swap_request_id,
+        decision,
+      })
+      return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
+    }
+
+    // ── Action: crew_reorder (foreman drag-to-reorder) ─────
+    // Bulk-updates sort_order across a set of shifts. Foreman may only
+    // reorder shifts in their own company; each shift must already exist
+    // and belong to the caller's company.
+    if (action === "crew_reorder") {
+      const { shifts } = payload
+      if (!Array.isArray(shifts) || shifts.length === 0) {
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "shifts array is required and must be non-empty")
+      }
+
+      const shiftIds: string[] = []
+      for (const s of shifts) {
+        if (!s || typeof s.shift_id !== "string" || typeof s.sort_order !== "number") {
+          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "each entry must have {shift_id:string, sort_order:number}")
+        }
+        shiftIds.push(s.shift_id)
+      }
+
+      const { data: owned, error: ownershipError } = await supabaseAdmin
+        .from("schedule_shifts")
+        .select("id")
+        .eq("company_id", userRecord.company_id)
+        .in("id", shiftIds)
+
+      if (ownershipError) throw ownershipError
+      const ownedIds = new Set((owned || []).map((r) => r.id))
+      if (ownedIds.size !== shiftIds.length) {
+        return errorResponse(requestId, 403, "FORBIDDEN", "One or more shifts do not belong to this company")
+      }
+
+      for (const s of shifts) {
+        const { error: updErr } = await supabaseAdmin
+          .from("schedule_shifts")
+          .update({ sort_order: s.sort_order })
+          .eq("id", s.shift_id)
+          .eq("company_id", userRecord.company_id)
+        if (updErr) throw updErr
+      }
+
+      const responseBody = { status: "success", success: true, updated_count: shifts.length, request_id: requestId }
+      await storeIdempotency(supabaseAdmin, user.id, ENDPOINT, idempotencyKey, requestHash, 200, responseBody, requestId)
+      logRequestResult(ENDPOINT, requestId, 200, {
+        user_id: user.id,
+        action: "crew_reorder",
+        updated_count: shifts.length,
+      })
+      return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
     }
 
     return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Unsupported action")

@@ -178,4 +178,118 @@ class SupabaseScheduleRepository implements ScheduleRepository {
   }
 
   String _asDate(DateTime value) => value.toUtc().toIso8601String().split('T').first;
+
+  @override
+  Future<List<SwapRequest>> fetchSwapRequests({String status = 'pending'}) async {
+    try {
+      final response = await _client.functions.invoke(
+        'schedule',
+        headers: const {'X-Client-Version': 'fieldops-mobile'},
+        body: {'action': 'swap_list', 'status': status},
+      );
+
+      final payload = response.data;
+      if (payload is! Map<String, dynamic>) {
+        throw const ScheduleRepositoryException.unknown(
+          'Swap list response was malformed.',
+        );
+      }
+      final items = payload['requests'] as List<dynamic>? ?? const [];
+      return items
+          .whereType<Map<String, dynamic>>()
+          .map(SwapRequest.fromJson)
+          .toList(growable: false);
+    } on SocketException {
+      throw const ScheduleRepositoryException.offline();
+    } on FunctionException catch (error) {
+      if (error.status == 0) {
+        throw const ScheduleRepositoryException.offline();
+      }
+      throw ScheduleRepositoryException.unknown(
+        'Could not load swap requests (${error.status}).',
+      );
+    }
+  }
+
+  @override
+  Future<void> approveSwap(String swapRequestId, {String? reason}) async {
+    try {
+      await _client.functions.invoke(
+        'schedule',
+        headers: {
+          'Idempotency-Key': _uuid.v4(),
+          'X-Client-Version': 'fieldops-mobile',
+        },
+        body: {
+          'action': 'swap_decide',
+          'swap_request_id': swapRequestId,
+          'decision': 'approved',
+          if (reason != null && reason.isNotEmpty) 'reason': reason,
+        },
+      );
+    } on SocketException {
+      throw const ScheduleRepositoryException.offline();
+    } on FunctionException catch (error) {
+      if (error.status == 0) {
+        throw const ScheduleRepositoryException.offline();
+      }
+      throw ScheduleRepositoryException.unknown(
+        'Could not approve swap (${error.status}).',
+      );
+    }
+  }
+
+  @override
+  Future<void> denySwap(String swapRequestId, {required String reason}) async {
+    try {
+      await _client.functions.invoke(
+        'schedule',
+        headers: {
+          'Idempotency-Key': _uuid.v4(),
+          'X-Client-Version': 'fieldops-mobile',
+        },
+        body: {
+          'action': 'swap_decide',
+          'swap_request_id': swapRequestId,
+          'decision': 'denied',
+          'reason': reason,
+        },
+      );
+    } on SocketException {
+      throw const ScheduleRepositoryException.offline();
+    } on FunctionException catch (error) {
+      if (error.status == 0) {
+        throw const ScheduleRepositoryException.offline();
+      }
+      throw ScheduleRepositoryException.unknown(
+        'Could not deny swap (${error.status}).',
+      );
+    }
+  }
+
+  @override
+  Future<void> cancelSwap(String swapRequestId) async {
+    try {
+      await _client.functions.invoke(
+        'schedule',
+        headers: {
+          'Idempotency-Key': _uuid.v4(),
+          'X-Client-Version': 'fieldops-mobile',
+        },
+        body: {
+          'action': 'swap_cancel',
+          'swap_request_id': swapRequestId,
+        },
+      );
+    } on SocketException {
+      throw const ScheduleRepositoryException.offline();
+    } on FunctionException catch (error) {
+      if (error.status == 0) {
+        throw const ScheduleRepositoryException.offline();
+      }
+      throw ScheduleRepositoryException.unknown(
+        'Could not cancel swap (${error.status}).',
+      );
+    }
+  }
 }

@@ -318,7 +318,7 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 
 [functions.jobs_active]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/jobs_active/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -329,7 +329,7 @@ entrypoint = "./functions/jobs_active/index.ts"
 
 [functions.sync_events]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/sync_events/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -340,7 +340,7 @@ entrypoint = "./functions/sync_events/index.ts"
 
 [functions.media_presign]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/media_presign/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -351,25 +351,25 @@ entrypoint = "./functions/media_presign/index.ts"
 
 [functions.pto]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/pto/deno.json"
 entrypoint = "./functions/pto/index.ts"
 
 [functions.company_logo]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/company_logo/deno.json"
 entrypoint = "./functions/company_logo/index.ts"
 
 [functions.platform_admin]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/platform_admin/deno.json"
 entrypoint = "./functions/platform_admin/index.ts"
 
 [functions.media_finalize]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/media_finalize/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -380,7 +380,7 @@ entrypoint = "./functions/media_finalize/index.ts"
 
 [functions.billing_portal]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/billing_portal/deno.json"
 entrypoint = "./functions/billing_portal/index.ts"
 
@@ -392,7 +392,7 @@ entrypoint = "./functions/stripe_webhook/index.ts"
 
 [functions.tags]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/tags/deno.json"
 entrypoint = "./functions/tags/index.ts"
 
@@ -401,6 +401,6 @@ enabled = true
 # Public viewer route (/galleries/public) uses the anon key as its JWT; verify_jwt
 # still applies, so public reads include apikey header. Authenticated routes
 # additionally require a Bearer token — validated inside the function.
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/galleries/deno.json"
 entrypoint = "./functions/galleries/index.ts"

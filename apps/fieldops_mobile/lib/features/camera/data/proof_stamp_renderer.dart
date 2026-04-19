@@ -129,4 +129,7 @@ class ProofStampException implements Exception {
   const ProofStampException(this.message);
 
   final String message;
+
+  @override
+  String toString() => 'ProofStampException: $message';
 }

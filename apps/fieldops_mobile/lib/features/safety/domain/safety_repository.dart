@@ -15,4 +15,7 @@ abstract class SafetyRepository {
 class SafetyRepositoryException implements Exception {
   const SafetyRepositoryException(this.message);
   final String message;
+
+  @override
+  String toString() => 'SafetyRepositoryException: $message';
 }

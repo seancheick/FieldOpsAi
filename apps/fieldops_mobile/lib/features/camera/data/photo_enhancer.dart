@@ -38,4 +38,7 @@ class PhotoEnhancerException implements Exception {
   const PhotoEnhancerException(this.message);
 
   final String message;
+
+  @override
+  String toString() => 'PhotoEnhancerException: $message';
 }

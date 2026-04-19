@@ -103,4 +103,7 @@ class PTORequest {
 class PTORepositoryException implements Exception {
   const PTORepositoryException(this.message);
   final String message;
+
+  @override
+  String toString() => 'PTORepositoryException: $message';
 }

@@ -29,4 +29,7 @@ class JobsRepositoryException implements Exception {
   final String message;
 
   bool get isOffline => type == JobsRepositoryErrorType.offline;
+
+  @override
+  String toString() => 'JobsRepositoryException($type): $message';
 }

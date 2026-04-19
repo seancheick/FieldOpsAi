@@ -22,10 +22,8 @@ class SupabaseTimeCorrectionRepository implements TimeCorrectionRepository {
 
       final response = await _client.functions.invoke(
         'time_corrections',
-        headers: {
-          'Idempotency-Key': _uuid.v4(),
-          'X-Client-Version': 'fieldops-mobile',
-        },
+        method: HttpMethod.get,
+        headers: {'X-Client-Version': 'fieldops-mobile'},
         queryParameters: queryParams,
       );
 

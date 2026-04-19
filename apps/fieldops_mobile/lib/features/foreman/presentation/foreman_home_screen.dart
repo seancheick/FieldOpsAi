@@ -3,6 +3,7 @@ import 'package:fieldops_mobile/features/auth/presentation/session_controller.da
 import 'package:fieldops_mobile/features/foreman/presentation/crew_attendance_screen.dart';
 import 'package:fieldops_mobile/features/overtime/presentation/ot_approval_screen.dart';
 import 'package:fieldops_mobile/features/pto/presentation/pto_approval_screen.dart';
+import 'package:fieldops_mobile/features/schedule/presentation/swap_approval_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -82,6 +83,18 @@ class ForemanHomeScreen extends ConsumerWidget {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => const PTOApprovalScreen(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _QuickActionCard(
+              icon: Icons.swap_horiz_rounded,
+              title: 'Shift Swap Requests',
+              subtitle: 'Approve or deny crew swap requests',
+              color: palette.signal,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const SwapApprovalScreen(),
                 ),
               ),
             ),

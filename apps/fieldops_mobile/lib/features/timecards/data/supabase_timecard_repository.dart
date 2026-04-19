@@ -63,7 +63,7 @@ class SupabaseTimecardRepository implements TimecardRepository {
           'action': 'sign',
           'timecard_id': timecardId,
           if (signatureImage != null)
-            'signature_base64': base64Encode(signatureImage),
+            'signature': base64Encode(signatureImage),
         },
       );
     } on SocketException {

@@ -44,4 +44,7 @@ class TasksRepositoryException implements Exception {
   final String message;
 
   bool get isPhotoRequired => type == TasksRepositoryErrorType.photoRequired;
+
+  @override
+  String toString() => 'TasksRepositoryException($type): $message';
 }

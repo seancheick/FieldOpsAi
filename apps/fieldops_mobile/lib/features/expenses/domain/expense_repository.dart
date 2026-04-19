@@ -57,4 +57,7 @@ class ExpenseRepositoryException implements Exception {
 
   final ExpenseRepositoryErrorType type;
   final String message;
+
+  @override
+  String toString() => 'ExpenseRepositoryException($type): $message';
 }

@@ -111,6 +111,9 @@ class PhotoTagsException implements Exception {
 
   final PhotoTagsErrorType type;
   final String message;
+
+  @override
+  String toString() => 'PhotoTagsException($type): $message';
 }
 
 final photoTagsRepositoryProvider = Provider<PhotoTagsRepository>((ref) {

@@ -197,19 +197,99 @@ serve(async (req) => {
     }
 
     // ──────────────────────────────────────────────────────────
-    // POST /ot — Two actions: "request" (worker) or "decide" (supervisor)
+    // POST /ot — Actions:
+    //   "request" (worker submits)
+    //   "pending" (supervisor lists pending — mobile contract)
+    //   "decide"  (supervisor approves/denies with explicit decision+reason)
+    //   "approve" (alias → decide approved, reason optional)
+    //   "deny"    (alias → decide denied,   reason required)
     // ──────────────────────────────────────────────────────────
     if (req.method === "POST") {
-      const idempotencyKey = req.headers.get("Idempotency-Key")
-      if (!idempotencyKey) {
-        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Idempotency-Key header is required")
-      }
-
       const payload = await req.json()
       const { action } = payload
 
-      if (!action || !["request", "decide"].includes(action)) {
-        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "action must be 'request' or 'decide'")
+      const ALLOWED_ACTIONS = ["request", "decide", "approve", "deny", "pending"]
+      if (!action || !ALLOWED_ACTIONS.includes(action)) {
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD",
+          "action must be 'request', 'decide', 'approve', 'deny', or 'pending'")
+      }
+
+      // ── ACTION: pending (supervisor list — mirrors GET with status=pending) ──
+      // Read-only, no Idempotency-Key, no idempotency replay. Rate-limited.
+      if (action === "pending") {
+        if (!isSupervisorOrAbove(userRecord.role)) {
+          return errorResponse(requestId, 403, "FORBIDDEN",
+            "Only supervisors, admins, or owners can list pending OT requests")
+        }
+
+        const rateLimit = await applyRateLimit(supabaseAdmin, user.id, ENDPOINT, requestId, OT_RATE_LIMIT)
+        if (rateLimit.limited) {
+          return errorResponse(requestId, 429, "RATE_LIMITED", "Too many OT requests", [], rateLimit.headers)
+        }
+
+        const { data: rows, error: fetchError } = await supabaseAdmin
+          .from("ot_requests")
+          .select(`
+            id,
+            job_id,
+            worker_id,
+            requested_at,
+            total_hours_at_request,
+            notes,
+            status,
+            request_photo_event_id,
+            created_at,
+            jobs!ot_requests_job_id_fkey ( name, code )
+          `)
+          .eq("company_id", userRecord.company_id)
+          .eq("status", "pending")
+          .order("requested_at", { ascending: false })
+          .limit(100)
+
+        if (fetchError) throw fetchError
+
+        // Resolve worker_name via second query (same pattern as timecards list action)
+        const workerIds = Array.from(new Set((rows || [])
+          .map((r: any) => r.worker_id)
+          .filter(Boolean)))
+        const workerNameById = new Map<string, string>()
+        if (workerIds.length > 0) {
+          const { data: workers, error: workersError } = await supabaseAdmin
+            .from("users")
+            .select("id, full_name")
+            .in("id", workerIds)
+
+          if (workersError) {
+            logRequestError(ENDPOINT, requestId, workersError)
+            return errorResponse(requestId, 500, "INTERNAL_ERROR", "Failed to resolve worker names")
+          }
+          for (const w of (workers || [])) {
+            if (w?.id) workerNameById.set(w.id, w.full_name || "Unknown worker")
+          }
+        }
+
+        const requests = (rows || []).map((r: any) => ({
+          ...r,
+          worker_name: workerNameById.get(r.worker_id) || "Unknown worker",
+        }))
+
+        logRequestResult(ENDPOINT, requestId, 200, {
+          user_id: user.id,
+          action: "pending",
+          result_count: requests.length,
+        })
+        return jsonResponse({
+          status: "success",
+          requests,
+          count: requests.length,
+          request_id: requestId,
+        }, 200, requestId, rateLimit.headers)
+      }
+
+      // Write actions below require Idempotency-Key
+      const idempotencyKey = req.headers.get("Idempotency-Key")
+      if (!idempotencyKey) {
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Idempotency-Key header is required")
       }
 
       const requestHash = await sha256Hex(JSON.stringify(payload))
@@ -300,65 +380,45 @@ serve(async (req) => {
         return jsonResponse(responseBody, 201, requestId, rateLimit.headers)
       }
 
-      // ── ACTION: decide (supervisor approves or denies) ──
-      if (action === "decide") {
-        const { ot_request_id, decision, reason } = payload
-
-        if (!ot_request_id || !decision) {
-          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "ot_request_id and decision are required")
+      // ── Shared decide implementation (used by 'decide', 'approve', 'deny') ──
+      const decideImpl = async (
+        ot_request_id: string | undefined,
+        decision: "approved" | "denied",
+        reason: string | null,
+        actionLabel: string,
+      ): Promise<Response> => {
+        if (!ot_request_id) {
+          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "ot_request_id is required")
         }
-        if (!["approved", "denied"].includes(decision)) {
-          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "decision must be 'approved' or 'denied'")
-        }
-        if (!reason || reason.trim().length === 0) {
-          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "reason is required for OT decisions")
-        }
-
-        // Only supervisors, admins, and owners can approve
         if (!isSupervisorOrAbove(userRecord.role)) {
           return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can approve OT requests")
         }
-
-        // Fetch the OT request
         const { data: otRequest, error: otError } = await supabaseAdmin
           .from("ot_requests")
           .select("id, company_id, job_id, worker_id, status")
           .eq("id", ot_request_id)
           .maybeSingle()
-
         if (otError) throw otError
         if (!otRequest) {
           return errorResponse(requestId, 404, "NOT_FOUND", "OT request not found")
         }
-
-        // Must be same company
         if (otRequest.company_id !== userRecord.company_id) {
           return errorResponse(requestId, 403, "FORBIDDEN", "OT request belongs to a different company")
         }
-
-        // Cannot approve own request
         if (otRequest.worker_id === user.id) {
           return errorResponse(requestId, 403, "FORBIDDEN", "Cannot approve your own OT request")
         }
-
-        // Must be pending
         if (otRequest.status !== "pending") {
           return errorResponse(requestId, 400, "INVALID_TRANSITION",
             `OT request is already '${otRequest.status}'. Decisions are immutable.`)
         }
-
         const now = new Date().toISOString()
         const approvalEventId = crypto.randomUUID()
-
-        // Update ot_requests status
         const { error: updateError } = await supabaseAdmin
           .from("ot_requests")
           .update({ status: decision })
           .eq("id", ot_request_id)
-
         if (updateError) throw updateError
-
-        // Create ot_approval_event
         const { error: eventError } = await supabaseAdmin
           .from("ot_approval_events")
           .insert({
@@ -374,16 +434,11 @@ serve(async (req) => {
             received_at: now,
             source_event_uuid: approvalEventId,
           })
-
         if (eventError) {
           // Rollback — revert status to pending
-          await supabaseAdmin
-            .from("ot_requests")
-            .update({ status: "pending" })
-            .eq("id", ot_request_id)
+          await supabaseAdmin.from("ot_requests").update({ status: "pending" }).eq("id", ot_request_id)
           throw eventError
         }
-
         const responseBody = {
           status: "success",
           ot_request_id,
@@ -391,15 +446,46 @@ serve(async (req) => {
           approval_event_id: approvalEventId,
           request_id: requestId,
         }
-
         await storeIdempotency(supabaseAdmin, user.id, ENDPOINT, idempotencyKey, requestHash, 200, responseBody, requestId)
         logRequestResult(ENDPOINT, requestId, 200, {
           user_id: user.id,
-          action: "decide",
+          action: actionLabel,
           ot_request_id,
           decision,
         })
         return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
+      }
+
+      // ── ACTION: decide (explicit decision + reason required) ──
+      if (action === "decide") {
+        const { ot_request_id, decision, reason } = payload
+        if (!decision) {
+          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "decision is required")
+        }
+        if (!["approved", "denied"].includes(decision)) {
+          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "decision must be 'approved' or 'denied'")
+        }
+        if (!reason || reason.trim().length === 0) {
+          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "reason is required for OT decisions")
+        }
+        return await decideImpl(ot_request_id, decision as "approved" | "denied", reason, "decide")
+      }
+
+      // ── ACTION: approve (alias — reason optional when approving) ──
+      if (action === "approve") {
+        const { ot_request_id, reason } = payload
+        const normalizedReason =
+          typeof reason === "string" && reason.trim().length > 0 ? reason : null
+        return await decideImpl(ot_request_id, "approved", normalizedReason, "approve")
+      }
+
+      // ── ACTION: deny (alias — reason required for audit trail) ──
+      if (action === "deny") {
+        const { ot_request_id, reason } = payload
+        if (!reason || typeof reason !== "string" || reason.trim().length === 0) {
+          return errorResponse(requestId, 400, "INVALID_PAYLOAD", "reason is required when denying an OT request")
+        }
+        return await decideImpl(ot_request_id, "denied", reason, "deny")
       }
     }
 

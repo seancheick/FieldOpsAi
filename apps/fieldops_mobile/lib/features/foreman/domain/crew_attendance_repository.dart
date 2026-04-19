@@ -61,4 +61,7 @@ abstract class CrewAttendanceRepository {
 class CrewAttendanceException implements Exception {
   const CrewAttendanceException(this.message);
   final String message;
+
+  @override
+  String toString() => 'CrewAttendanceException: $message';
 }

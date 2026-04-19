@@ -13,4 +13,7 @@ abstract class TimecardRepository {
 class TimecardRepositoryException implements Exception {
   const TimecardRepositoryException(this.message);
   final String message;
+
+  @override
+  String toString() => 'TimecardRepositoryException: $message';
 }

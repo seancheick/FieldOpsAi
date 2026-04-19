@@ -54,4 +54,32 @@ class _UnconfiguredScheduleRepository implements ScheduleRepository {
       'Mobile app is missing Supabase configuration.',
     );
   }
+
+  @override
+  Future<List<SwapRequest>> fetchSwapRequests({String status = 'pending'}) {
+    throw const ScheduleRepositoryException.unknown(
+      'Mobile app is missing Supabase configuration.',
+    );
+  }
+
+  @override
+  Future<void> approveSwap(String swapRequestId, {String? reason}) {
+    throw const ScheduleRepositoryException.unknown(
+      'Mobile app is missing Supabase configuration.',
+    );
+  }
+
+  @override
+  Future<void> denySwap(String swapRequestId, {required String reason}) {
+    throw const ScheduleRepositoryException.unknown(
+      'Mobile app is missing Supabase configuration.',
+    );
+  }
+
+  @override
+  Future<void> cancelSwap(String swapRequestId) {
+    throw const ScheduleRepositoryException.unknown(
+      'Mobile app is missing Supabase configuration.',
+    );
+  }
 }

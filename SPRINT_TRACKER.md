@@ -1517,3 +1517,74 @@ They don't affect production safety but improve robustness and maintainability.
 - [ ] Sentry source maps / dSYM for symbolicated crash reports
   - Type: Infra | Priority: MEDIUM
   - Definition of Done: iOS dSYM files uploaded to Sentry on each release build. Android ProGuard mapping uploaded. Crash stack traces show actual Dart file names instead of obfuscated symbols.
+
+---
+
+## Sprint 8.6 — Schema Alignment + Missing Features (2026-04-19)
+
+Triggered by Sentry reports: most mobile screens 401-crashing after Supabase rotated auth signing keys to ES256. Wound up uncovering ~20 contract mismatches between mobile client and edge functions and two entirely unshipped features (safety + crew). One-day fix-all sweep.
+
+### Backend fixes shipped
+
+- [x] ES256 auth compatibility across all 34 edge functions
+  - Type: Backend | Priority: CRITICAL | Status: Done
+  - Root cause: project auto-migrated to asymmetric JWT signing; Kong gateway's HS256-only verifier rejected every user request with `UNAUTHORIZED_UNSUPPORTED_TOKEN_ALGORITHM`. Redeploying functions did not fix it.
+  - Fix: set `verify_jwt = false` on every function (cron + webhook excluded) and rely on in-function `supabase.auth.getUser()` which calls GoTrue (ES256-native via JWKS). Every user-auth function already had an in-function auth check, so no security regression.
+  - Evidence: `infra/supabase/config.toml` flipped, 34 functions redeployed with `--no-verify-jwt`. Sentry `UNAUTHORIZED_UNSUPPORTED_TOKEN_ALGORITHM` stream stopped.
+
+- [x] PTO: add `balance`, `pending_approvals`, `approve`, `deny` actions; flatten `worker_name`; alias `pto_type`→`type`
+  - Evidence: `infra/supabase/functions/pto/index.ts`.
+
+- [x] OT: add `pending`, `approve`, `deny` action aliases; factor `decideImpl`; `reason` optional on approve
+  - Evidence: `infra/supabase/functions/ot/index.ts`.
+
+- [x] Expenses: add `action:'list'` with `jobs` join → flat `job_name` on every row
+  - Evidence: `infra/supabase/functions/expenses/index.ts`.
+
+- [x] Timecards: add `action:'list'` with mobile-shape remap (`week_start`→`period_start`, `total_regular_hours`→`regular_hours`, etc.); mobile sign payload key `signature_base64`→`signature`
+  - Evidence: `infra/supabase/functions/timecards/index.ts`, `apps/fieldops_mobile/lib/features/timecards/data/supabase_timecard_repository.dart`.
+
+- [x] Schedule: `sort_order` on SELECT + response; `view=crew` scoping fix for foreman; `swap_request`, `swap_cancel`, `swap_list`, `swap_decide`, `crew_reorder` actions; per-action role gating
+  - Evidence: `infra/supabase/functions/schedule/index.ts`, migration `20260419100000_safety_swap_and_sort_order.sql`.
+
+- [x] Safety: new edge function (`submit` + `check`) + `safety_checklists` table + RLS (immutable audit trail)
+  - Evidence: `infra/supabase/functions/safety/`, migration `20260419100000_safety_swap_and_sort_order.sql`.
+
+- [x] Crew: new edge function (`attendance`) aggregating `clock_events` — foreman scope narrowed via `assignments.assigned_role='foreman'`; supervisor sees full company; jobs with no foreman supported as first-class
+  - Evidence: `infra/supabase/functions/crew/index.ts`.
+
+- [x] PTO allocations table + admin actions
+  - Type: Backend | Priority: HIGH | Status: Done
+  - Definition of Done: `pto_allocations(company_id, user_id, pto_type, year, total_days)` + RLS + `allocations_list` + `allocations_upsert` actions. `balance` queries allocations first, falls back to 10/5/3 defaults for un-seeded workers.
+  - Evidence: migration `20260419110000_pto_allocations.sql`.
+
+- [x] Client-side repository fixes (method, headers, idempotency)
+  - Evidence: `time_corrections`, `budget`, `tasks` repos in `apps/fieldops_mobile/lib/features/*/data/`.
+
+- [x] Exception `toString()` overrides across 16 mobile exception classes
+  - Why: Sentry titles said `"Instance of 'XxxRepositoryException'"` — lost every real error message.
+  - Evidence: every `features/*/domain/*_repository.dart` now surfaces the underlying cause.
+
+### UI shipped
+
+- [x] Mobile — Shift Swap Approvals screen (supervisor/foreman)
+  - Evidence: `swap_approval_controller.dart`, `swap_approval_screen.dart`, tile wired into `foreman_home_screen.dart`.
+
+- [x] Web — PTO Allocations admin page
+  - Evidence: `apps/fieldops_web/src/app/settings/pto-allocations/page.tsx`, sidebar entry, i18n (EN/ES/TH).
+
+- [x] Web — Job Foreman assignments admin page (optional foreman per job)
+  - Evidence: `apps/fieldops_web/src/app/settings/job-foremen/page.tsx`, sidebar entry, i18n (EN/ES/TH).
+
+### Deferred to next sprint
+
+- [ ] Swap auto-reassignment on approve (atomic flip `schedule_shifts.worker_id` → `swap_with_user_id`)
+  - Type: Backend | Priority: MEDIUM
+  - Notes: `TODO(swap-auto-reassign)` flagged in `schedule/index.ts`. Currently supervisor must still call the existing `update` action to move the shift after approving.
+
+- [ ] Contract tests in CI — one integration test per edge function that hits it with a real mobile-shaped body and asserts response keys
+  - Type: Testing | Priority: HIGH
+  - Would have caught every mismatch this sprint surfaced.
+
+- [ ] Delete stale duplicate `/supabase/functions/schedule_ai` (the real one lives under `/infra/supabase/`)
+  - Type: Cleanup | Priority: LOW

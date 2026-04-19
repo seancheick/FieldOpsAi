@@ -18,10 +18,7 @@ class SupabaseTasksRepository implements TasksRepository {
       final response = await _client.functions.invoke(
         'tasks',
         method: HttpMethod.get,
-        headers: {
-          'X-Client-Version': 'fieldops-mobile',
-          'x-query-params': 'job_id=$jobId',
-        },
+        headers: {'X-Client-Version': 'fieldops-mobile'},
         queryParameters: {'job_id': jobId},
       );
 

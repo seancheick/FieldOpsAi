@@ -75,4 +75,7 @@ class OTRepositoryException implements Exception {
 
   final OTRepositoryErrorType type;
   final String message;
+
+  @override
+  String toString() => 'OTRepositoryException($type): $message';
 }

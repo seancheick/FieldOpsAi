@@ -55,4 +55,7 @@ class ClockRepositoryException implements Exception {
 
   final ClockRepositoryErrorType type;
   final String message;
+
+  @override
+  String toString() => 'ClockRepositoryException($type): $message';
 }

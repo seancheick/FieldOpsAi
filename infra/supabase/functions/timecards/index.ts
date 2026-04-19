@@ -129,6 +129,93 @@ serve(async (req) => {
     const payload = await req.json()
     const { action } = payload
 
+    // ── Action: list ────────────────────────────────────────
+    // Mobile clients invoke via POST (supabase.functions.invoke default).
+    // Returns the caller's timecards shaped to the mobile contract:
+    //   period_start, period_end, regular_hours, ot_hours, double_time_hours,
+    //   worker_name, worker_signature?, supervisor_signature?
+    if (action === "list") {
+      const { week_start: weekStart, status: statusFilter } = payload
+
+      let query = supabaseAdmin
+        .from("timecard_signatures")
+        .select(
+          "id, worker_id, supervisor_id, week_start, week_end, " +
+          "worker_signed_at, supervisor_signed_at, worker_signature, supervisor_signature, " +
+          "total_regular_hours, total_ot_hours, status, created_at"
+        )
+        .eq("company_id", userRecord.company_id)
+        .order("week_start", { ascending: false })
+        .limit(50)
+
+      if (!isSupervisorOrAbove(userRecord.role)) {
+        query = query.eq("worker_id", user.id)
+      }
+      if (weekStart) query = query.eq("week_start", weekStart)
+      if (statusFilter) query = query.eq("status", statusFilter)
+
+      const { data: rows, error: listError } = await query
+      if (listError) {
+        logRequestError(ENDPOINT, requestId, listError)
+        return errorResponse(requestId, 500, "INTERNAL_ERROR", "Failed to fetch timecards")
+      }
+
+      const workerIds = Array.from(
+        new Set((rows || []).map((t: any) => t.worker_id).filter(Boolean))
+      )
+      const nameById = new Map<string, string>()
+      if (workerIds.length > 0) {
+        const { data: workers } = await supabaseAdmin
+          .from("users")
+          .select("id, full_name")
+          .in("id", workerIds)
+        for (const w of (workers || [])) {
+          if (w?.id) nameById.set(w.id, w.full_name || "Unknown worker")
+        }
+      }
+
+      const timecards = (rows || []).map((tc: any) => ({
+        id: tc.id,
+        worker_id: tc.worker_id,
+        worker_name: nameById.get(tc.worker_id) || "Unknown worker",
+        period_start: tc.week_start,
+        period_end: tc.week_end,
+        regular_hours: Number(tc.total_regular_hours ?? 0),
+        ot_hours: Number(tc.total_ot_hours ?? 0),
+        double_time_hours: 0,
+        status: tc.status,
+        worker_signature: tc.worker_signed_at
+          ? {
+              id: `${tc.id}-worker`,
+              timecard_id: tc.id,
+              signer_id: tc.worker_id,
+              signer_name: nameById.get(tc.worker_id) || "",
+              signer_role: "worker",
+              signed_at: tc.worker_signed_at,
+              signature_image_path: typeof tc.worker_signature === "string"
+                ? tc.worker_signature
+                : null,
+            }
+          : null,
+        supervisor_signature: tc.supervisor_signed_at && tc.supervisor_id
+          ? {
+              id: `${tc.id}-supervisor`,
+              timecard_id: tc.id,
+              signer_id: tc.supervisor_id,
+              signer_name: nameById.get(tc.supervisor_id) || "",
+              signer_role: "supervisor",
+              signed_at: tc.supervisor_signed_at,
+              signature_image_path: typeof tc.supervisor_signature === "string"
+                ? tc.supervisor_signature
+                : null,
+            }
+          : null,
+      }))
+
+      logRequestResult(ENDPOINT, requestId, 200, { action: "list", count: timecards.length })
+      return jsonResponse({ timecards, request_id: requestId }, 200, requestId)
+    }
+
     // ── Action: generate ────────────────────────────────────
     if (action === "generate") {
       if (!isSupervisorOrAbove(userRecord.role)) {

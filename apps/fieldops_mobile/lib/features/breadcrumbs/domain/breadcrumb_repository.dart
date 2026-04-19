@@ -50,4 +50,7 @@ abstract class BreadcrumbRepository {
 class BreadcrumbRepositoryException implements Exception {
   const BreadcrumbRepositoryException(this.message);
   final String message;
+
+  @override
+  String toString() => 'BreadcrumbRepositoryException: $message';
 }

@@ -14,10 +14,8 @@ class SupabaseBudgetRepository implements BudgetRepository {
     try {
       final response = await _client.functions.invoke(
         'budget',
-        headers: {
-          'Idempotency-Key': _uuid.v4(),
-          'X-Client-Version': 'fieldops-mobile',
-        },
+        method: HttpMethod.get,
+        headers: {'X-Client-Version': 'fieldops-mobile'},
         queryParameters: {
           'job_id': jobId,
           'summary': 'true',
@@ -43,10 +41,8 @@ class SupabaseBudgetRepository implements BudgetRepository {
     try {
       final response = await _client.functions.invoke(
         'budget',
-        headers: {
-          'Idempotency-Key': _uuid.v4(),
-          'X-Client-Version': 'fieldops-mobile',
-        },
+        method: HttpMethod.get,
+        headers: {'X-Client-Version': 'fieldops-mobile'},
       );
 
       final data = response.data as Map<String, dynamic>;

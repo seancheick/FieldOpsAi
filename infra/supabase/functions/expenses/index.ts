@@ -57,46 +57,80 @@ serve(async (req) => {
       return errorResponse(requestId, 403, "FORBIDDEN", "User is inactive")
     }
 
-    // GET — list expenses for a job or company
-    if (req.method === "GET") {
-      const url = new URL(req.url)
-      const jobId = url.searchParams.get("job_id")
-      const status = url.searchParams.get("status") || "pending"
+    // Shared list implementation used by GET and POST action:'list'
+    const listImpl = async (filters: {
+      jobId?: string | null
+      status?: string | null
+    }) => {
+      const status = filters.status || "pending"
 
       let query = supabaseAdmin
         .from("expense_events")
-        .select("*")
+        .select("*, jobs!expense_events_job_id_fkey(name)")
         .eq("company_id", userRecord.company_id)
         .eq("status", status)
         .order("submitted_at", { ascending: false })
         .limit(50)
 
-      if (jobId) query = query.eq("job_id", jobId)
+      if (filters.jobId) query = query.eq("job_id", filters.jobId)
 
-      // Workers see only their own expenses
-      if (userRecord.role === "worker") {
+      // Workers see only their own expenses; supervisors/admins see all company rows
+      if (!isSupervisorOrAbove(userRecord.role)) {
         query = query.eq("submitted_by", user.id)
       }
 
       const { data, error: fetchError } = await query
       if (fetchError) throw fetchError
 
-      logRequestResult(ENDPOINT, requestId, 200, {
-        user_id: user.id,
-        result_count: (data || []).length,
+      // Flatten joined jobs.name to top-level job_name (string | null)
+      const expenses = (data || []).map((row: Record<string, unknown>) => {
+        const job = row.jobs as { name?: string | null } | null | undefined
+        const { jobs: _jobs, ...rest } = row
+        return { ...rest, job_name: job?.name ?? null }
       })
-      return jsonResponse({ status: "success", expenses: data || [], request_id: requestId }, 200, requestId)
+
+      return expenses
     }
 
-    // POST — submit or decide on expense
+    // GET — list expenses for a job or company
+    if (req.method === "GET") {
+      const url = new URL(req.url)
+      const jobId = url.searchParams.get("job_id")
+      const status = url.searchParams.get("status")
+
+      const expenses = await listImpl({ jobId, status })
+
+      logRequestResult(ENDPOINT, requestId, 200, {
+        user_id: user.id,
+        result_count: expenses.length,
+      })
+      return jsonResponse({ status: "success", expenses, request_id: requestId }, 200, requestId)
+    }
+
+    // POST — list, submit, decide, or reimburse
     if (req.method === "POST") {
+      const payload = await req.json()
+      const { action } = payload
+
+      // action:'list' — mirror of GET list (no idempotency/rate-limit needed; read-only)
+      if (action === "list") {
+        const expenses = await listImpl({
+          jobId: payload.job_id ?? null,
+          status: payload.status ?? null,
+        })
+
+        logRequestResult(ENDPOINT, requestId, 200, {
+          user_id: user.id,
+          action: "list",
+          result_count: expenses.length,
+        })
+        return jsonResponse({ status: "success", expenses, request_id: requestId }, 200, requestId)
+      }
+
       const idempotencyKey = req.headers.get("Idempotency-Key")
       if (!idempotencyKey) {
         return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Idempotency-Key required")
       }
-
-      const payload = await req.json()
-      const { action } = payload
 
       const requestHash = await sha256Hex(JSON.stringify(payload))
       const replay = await lookupIdempotency(supabaseAdmin, user.id, ENDPOINT, idempotencyKey, requestHash)
@@ -279,7 +313,7 @@ serve(async (req) => {
         return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
       }
 
-      return errorResponse(requestId, 400, "INVALID_PAYLOAD", "action must be 'submit', 'decide', or 'reimburse'")
+      return errorResponse(requestId, 400, "INVALID_PAYLOAD", "action must be 'list', 'submit', 'decide', or 'reimburse'")
     }
 
     return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Use GET or POST")

@@ -50,4 +50,7 @@ class MediaRepositoryException implements Exception {
 
   final MediaRepositoryErrorType type;
   final String message;
+
+  @override
+  String toString() => 'MediaRepositoryException($type): $message';
 }

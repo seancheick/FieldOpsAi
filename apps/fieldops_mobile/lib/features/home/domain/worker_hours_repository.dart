@@ -24,4 +24,7 @@ class WorkerHoursRepositoryException implements Exception {
 
   final WorkerHoursRepositoryErrorType type;
   final String message;
+
+  @override
+  String toString() => 'WorkerHoursRepositoryException($type): $message';
 }
