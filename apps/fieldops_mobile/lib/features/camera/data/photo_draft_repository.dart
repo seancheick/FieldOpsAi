@@ -29,6 +29,10 @@ class PhotoDraftRepository {
     return _database.pendingMediaUploadCount(jobId: jobId);
   }
 
+  Stream<int> watchDraftCount({String? jobId}) {
+    return _database.watchPendingMediaUploadCount(jobId: jobId);
+  }
+
   Future<String> saveDraft({
     required String jobId,
     required String filePath,
@@ -128,26 +132,14 @@ final photoDraftRepositoryProvider = Provider<PhotoDraftRepository>((ref) {
 });
 
 final pendingPhotoDraftCountProvider = StreamProvider<int>((ref) {
-  final repository = ref.watch(photoDraftRepositoryProvider);
-  // Emit immediately at t=0 then refresh every 5 seconds.
-  return () async* {
-    yield await repository.draftCount();
-    await for (final _ in Stream<void>.periodic(const Duration(seconds: 5))) {
-      yield await repository.draftCount();
-    }
-  }();
+  return ref.watch(photoDraftRepositoryProvider).watchDraftCount();
 });
 
 final pendingPhotoDraftCountForJobProvider = StreamProvider.family<int, String>(
   (ref, jobId) {
-    final repository = ref.watch(photoDraftRepositoryProvider);
-    // Emit immediately at t=0 then refresh every 5 seconds.
-    return () async* {
-      yield await repository.draftCount(jobId: jobId);
-      await for (final _ in Stream<void>.periodic(const Duration(seconds: 5))) {
-        yield await repository.draftCount(jobId: jobId);
-      }
-    }();
+    return ref
+        .watch(photoDraftRepositoryProvider)
+        .watchDraftCount(jobId: jobId);
   },
 );
 

@@ -4,11 +4,13 @@ import 'package:fieldops_mobile/app/theme/app_theme.dart';
 import 'package:fieldops_mobile/features/auth/presentation/session_controller.dart';
 import 'package:fieldops_mobile/features/camera/data/photo_draft_repository.dart';
 import 'package:fieldops_mobile/features/camera/data/photo_enhancer.dart';
+import 'package:fieldops_mobile/features/camera/data/photo_tags_repository.dart';
 import 'package:fieldops_mobile/features/camera/data/proof_stamp_renderer.dart';
 import 'package:fieldops_mobile/features/camera/domain/media_repository.dart';
 import 'package:fieldops_mobile/features/camera/domain/photo_capture_result.dart';
 import 'package:fieldops_mobile/features/camera/presentation/camera_controller.dart';
 import 'package:fieldops_mobile/features/camera/presentation/photo_annotation_screen.dart';
+import 'package:fieldops_mobile/features/camera/widgets/photo_tag_chip_input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -42,6 +44,10 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
   /// Tracks the current file path — may differ from widget.filePath after
   /// annotation bakes a new composite PNG to a temp file.
   late String _currentFilePath;
+
+  /// User-entered tags to attach after upload. Tags need a real media_asset_id
+  /// so attachment runs post-finalize.
+  List<String> _tags = const [];
 
   @override
   void initState() {
@@ -143,6 +149,22 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
             filePath: _currentFilePath,
             stampMetadata: stampMetadata,
           );
+
+      // Attach any user-entered tags. Failures must not block upload success —
+      // a field worker who tagged offline should still see the photo shipped.
+      if (_tags.isNotEmpty) {
+        final tagsRepo = ref.read(photoTagsRepositoryProvider);
+        for (final tag in _tags) {
+          try {
+            await tagsRepo.attachTag(
+              mediaAssetIds: [mediaAssetId],
+              tag: tag,
+            );
+          } on PhotoTagsException catch (e) {
+            debugPrint('[review] tag "$tag" deferred: ${e.message}');
+          }
+        }
+      }
 
       // Clean up the temp photo file after successful upload to prevent
       // orphaned files accumulating on disk.
@@ -317,6 +339,12 @@ class _PhotoReviewScreenState extends ConsumerState<PhotoReviewScreen> {
                     style: textTheme.bodyLarge?.copyWith(
                       color: Colors.white.withValues(alpha: 0.86),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Tag chips — attached after the photo finalizes upload.
+                  PhotoTagChipInput(
+                    tags: _tags,
+                    onChanged: (next) => setState(() => _tags = next),
                   ),
                   const SizedBox(height: 16),
                   Row(
