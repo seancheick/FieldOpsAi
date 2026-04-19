@@ -3,6 +3,7 @@ import 'package:fieldops_mobile/features/auth/presentation/login_controller.dart
 import 'package:fieldops_mobile/features/auth/presentation/widgets/error_banner.dart';
 import 'package:fieldops_mobile/features/auth/presentation/widgets/status_chip.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -30,13 +31,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _loadSavedEmail() async {
     try {
       final saved = await _storage.read(key: 'saved_email');
-      if (saved != null) {
-        setState(() {
-          _emailController.text = saved;
-          _rememberEmail = true;
-        });
-      }
-    } catch (_) {}
+      if (!mounted || saved == null) return;
+      setState(() {
+        _emailController.text = saved;
+        _rememberEmail = true;
+      });
+    } on PlatformException catch (e, stack) {
+      debugPrint('Secure storage read failed (saved_email): $e\n$stack');
+    }
   }
 
   @override
@@ -58,13 +60,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           password: _passwordController.text,
         );
 
+    if (!mounted) return;
+
     try {
       if (_rememberEmail) {
         await _storage.write(key: 'saved_email', value: _emailController.text.trim());
       } else {
         await _storage.delete(key: 'saved_email');
       }
-    } catch (_) {}
+    } on PlatformException catch (e, stack) {
+      debugPrint('Secure storage write failed (saved_email): $e\n$stack');
+    }
   }
 
   @override

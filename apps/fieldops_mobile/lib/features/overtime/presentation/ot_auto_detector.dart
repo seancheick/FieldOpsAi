@@ -19,7 +19,7 @@ class OTAutoDetector extends Notifier<OTDetectionState> {
 
     final clockState = ref.watch(clockControllerProvider);
 
-    if (!clockState.isClockedIn || clockState.lastOccurredAt == null) {
+    if (!clockState.isClockedIn || clockState.clockedInAt == null) {
       _timer?.cancel();
       return const OTDetectionState();
     }
@@ -30,16 +30,16 @@ class OTAutoDetector extends Notifier<OTDetectionState> {
     _check(); // Check immediately
 
     return OTDetectionState(
-      clockInTime: clockState.lastOccurredAt,
+      clockInTime: clockState.clockedInAt,
       thresholdHours: otThresholdHours,
     );
   }
 
   void _check() {
     final clockState = ref.read(clockControllerProvider);
-    if (!clockState.isClockedIn || clockState.lastOccurredAt == null) return;
+    if (!clockState.isClockedIn || clockState.clockedInAt == null) return;
 
-    final elapsed = DateTime.now().difference(clockState.lastOccurredAt!);
+    final elapsed = DateTime.now().difference(clockState.clockedInAt!);
     final elapsedHours = elapsed.inMinutes / 60.0;
 
     state = state.copyWith(

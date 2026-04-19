@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Forwards Riverpod provider errors to the error reporting system.
 base class FieldOpsProviderObserver extends ProviderObserver {
@@ -8,15 +10,15 @@ base class FieldOpsProviderObserver extends ProviderObserver {
     Object error,
     StackTrace stackTrace,
   ) {
-    // `print` is used here so provider errors are visible in all build modes
-    // (debug, profile, release). `debugPrint` is suppressed in release builds.
-    //
-    // TODO(sprint-7): Replace with Sentry.captureException(error, stackTrace)
-    // once Sentry is wired up — see infra/observability/sentry_setup.md.
-    // ignore: avoid_print
-    print(
-      '[FieldOps] Provider ${context.provider.name ?? context.provider.runtimeType} '
-      'failed: $error\n$stackTrace',
+    final providerName =
+        context.provider.name ?? context.provider.runtimeType.toString();
+    Sentry.captureException(
+      error,
+      stackTrace: stackTrace,
+      withScope: (scope) {
+        scope.setTag('provider', providerName);
+      },
     );
+    debugPrint('[FieldOps] Provider $providerName failed: $error\n$stackTrace');
   }
 }

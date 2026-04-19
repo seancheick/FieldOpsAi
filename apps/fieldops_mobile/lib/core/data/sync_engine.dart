@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:fieldops_mobile/core/data/local_database.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 const _maxRetries = 5;
@@ -29,8 +30,7 @@ class SyncEngine {
     );
     // Also sync immediately on start.
     unawaited(syncPendingEvents().catchError(
-      // ignore: avoid_print
-      (Object e) => print('[FieldOps] Initial sync failed: $e'),
+      (Object e) => debugPrint('[FieldOps] Initial sync failed: $e'),
     ));
   }
 
@@ -54,6 +54,8 @@ class SyncEngine {
 
       // Clean up synced events older than 1 hour
       await database.cleanSynced();
+      // Prune permanently-failed events older than a week to bound DB growth.
+      await database.cleanOldFailed();
     } finally {
       _isSyncing = false;
     }

@@ -120,13 +120,16 @@ class AppLockState {
     bool? isEnabled,
     bool? isLocked,
     bool? isAuthenticating,
-    String? authError,
+    Object? authError = _sentinel,
   }) {
     return AppLockState(
       isEnabled: isEnabled ?? this.isEnabled,
       isLocked: isLocked ?? this.isLocked,
       isAuthenticating: isAuthenticating ?? this.isAuthenticating,
-      authError: authError,
+      authError:
+          authError == _sentinel ? this.authError : authError as String?,
     );
   }
 }
+
+const _sentinel = Object();

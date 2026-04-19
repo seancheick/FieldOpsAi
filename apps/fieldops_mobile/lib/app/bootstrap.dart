@@ -5,13 +5,42 @@ import 'package:fieldops_mobile/core/config/fieldops_environment.dart';
 import 'package:fieldops_mobile/core/data/sync_engine.dart';
 import 'package:fieldops_mobile/core/observability/fieldops_provider_observer.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Friendly error widget in release — avoids the "red screen of death" for
+  // field workers if a widget subtree throws during build.
+  if (kReleaseMode) {
+    ErrorWidget.builder = (FlutterErrorDetails details) {
+      return const Material(
+        color: Color(0xFF1F2D3D),
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'Something went wrong.\nPlease restart the app.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ),
+        ),
+      );
+    };
+  }
+
+  // Capture uncaught async errors regardless of Sentry configuration. When
+  // Sentry is active it installs its own FlutterError.onError handler; we
+  // still forward PlatformDispatcher errors to it so nothing is lost.
+  PlatformDispatcher.instance.onError = (error, stack) {
+    Sentry.captureException(error, stackTrace: stack);
+    debugPrint('Platform error: $error\n$stack');
+    return true;
+  };
 
   final environment = FieldOpsEnvironment.fromDartDefine();
 
@@ -42,6 +71,7 @@ Future<void> bootstrap() async {
           options.tracesSampleRate = kReleaseMode ? 0.2 : 1.0;
           options.environment = kReleaseMode ? 'production' : 'development';
           options.attachScreenshot = kReleaseMode;
+          // ignore: experimental_member_use
           options.attachViewHierarchy = kReleaseMode;
           options.beforeSend = (event, hint) {
             final breadcrumbs = event.breadcrumbs?.map((b) {
@@ -79,11 +109,6 @@ Future<void> bootstrap() async {
     FlutterError.onError = (details) {
       FlutterError.presentError(details);
       debugPrint('Flutter error: ${details.exceptionAsString()}');
-    };
-
-    PlatformDispatcher.instance.onError = (error, stack) {
-      debugPrint('Platform error: $error\n$stack');
-      return true;
     };
 
     if (environment.isConfigured) {

@@ -16,6 +16,11 @@ node_modules
 
 # Claude local session data
 .claude/
+.claude-flow/
+**/.claude-flow/
+
+# Supabase CLI ephemeral state
+supabase/.temp/
 
 # macOS
 **/.DS_Store

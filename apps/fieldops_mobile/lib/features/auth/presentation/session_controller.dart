@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fieldops_mobile/core/config/fieldops_environment.dart';
 import 'package:fieldops_mobile/features/auth/data/auth_repository_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -13,14 +14,20 @@ class SessionController extends Notifier<SessionState> {
   @override
   SessionState build() {
     final repository = ref.watch(authRepositoryProvider);
+    final environment = ref.watch(fieldOpsEnvironmentProvider);
 
     // Keep session in sync with Supabase's internal auth state changes.
     // This catches token refresh failures (e.g. password changed elsewhere)
     // and automatically returns the user to the login screen.
+    //
+    // Only subscribe when Supabase is actually initialized — accessing
+    // `Supabase.instance.client` without `Supabase.initialize()` throws.
     _authSub?.cancel();
-    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
-      refresh();
-    });
+    if (environment.isConfigured) {
+      _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+        refresh();
+      });
+    }
     ref.onDispose(() => _authSub?.cancel());
 
     return SessionState(

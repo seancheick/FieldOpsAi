@@ -90,6 +90,31 @@ class LocalDatabase extends _$LocalDatabase {
     return row.read(pendingMediaUploads.id.count()) ?? 0;
   }
 
+  Stream<int> watchPendingMediaUploadCount({String? jobId}) {
+    final query = selectOnly(pendingMediaUploads)
+      ..addColumns([pendingMediaUploads.id.count()])
+      ..where(pendingMediaUploads.syncStatus.isIn(const ['saved', 'pending']));
+
+    if (jobId != null) {
+      query.where(pendingMediaUploads.jobId.equals(jobId));
+    }
+
+    return query
+        .watchSingle()
+        .map((row) => row.read(pendingMediaUploads.id.count()) ?? 0);
+  }
+
+  Future<void> cleanOldFailed({Duration olderThan = const Duration(days: 7)}) {
+    final cutoff = DateTime.now().subtract(olderThan);
+    return (delete(pendingEvents)
+          ..where(
+            (e) =>
+                e.syncStatus.equals('failed') &
+                e.createdAt.isSmallerThanValue(cutoff),
+          ))
+        .go();
+  }
+
   Stream<List<PendingMediaUpload>> watchPendingMediaUploadsForJob(
     String jobId,
   ) {
@@ -189,13 +214,27 @@ LazyDatabase _openConnection() {
     final dir = await getApplicationDocumentsDirectory();
     final file = File('${dir.path}/fieldops_local.sqlite');
 
-    // Retrieve or generate the encryption key.
+    // Retrieve or generate the encryption key. Secure storage can fail on
+    // fresh installs / locked keychains / OEM quirks — fall back to a
+    // session-only key so the DB still opens instead of crashing the app.
     const storage = FlutterSecureStorage();
     const keyName = 'fieldops_db_key';
-    var dbKey = await storage.read(key: keyName);
-    if (dbKey == null || dbKey.isEmpty) {
+    String dbKey;
+    try {
+      final existing = await storage.read(key: keyName);
+      if (existing != null && existing.isNotEmpty) {
+        dbKey = existing;
+      } else {
+        dbKey = _generateKey(32);
+        try {
+          await storage.write(key: keyName, value: dbKey);
+        } on Object {
+          // Best-effort persist; proceed with in-memory key.
+        }
+      }
+    } on Object {
+      // Keychain unavailable — use a transient key so the app still boots.
       dbKey = _generateKey(32);
-      await storage.write(key: keyName, value: dbKey);
     }
 
     return NativeDatabase.createInBackground(
