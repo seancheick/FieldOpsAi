@@ -1120,27 +1120,31 @@ They don't affect production safety but improve robustness and maintainability.
   - Definition of Done: When worker opens camera within 100m of an active job site, project pre-selects. Override allowed. Falls back to manual picker if no GPS or no nearby job. Distance threshold configurable per-tenant.
   - Why: CompanyCam's #1 organic adoption driver — "no more camera roll hunting"
 
-- [ ] Tags on photos (multi-tag, cross-project, autocomplete)
+- [x] Tags on photos (multi-tag, cross-project, autocomplete) — shipped 2026-04-19
   - Type: Backend + Web + Mobile | Priority: CRITICAL | Complexity: LOW
   - Definition of Done: `photo_tags` table (photo_id, tag, created_by). Tag chip UI on capture/review and on web detail. Filter by tag in photo feed. Tag autocomplete based on tenant history. Bulk-tag selected photos.
   - Why: Lets users find "all roof decking photos across all jobs" — the search workflow that defines the product
+  - Delivered: migration `20260420000000_photo_tags_and_galleries.sql`; `tags/` edge function (GET/POST/DELETE + /suggest); mobile `PhotoTagChipInput` wired in `photo_review_screen.dart`; web `TagFilterBar` + `BulkTagDialog` on `/photos`; filter pipeline AND-matches active tags.
 
 - [ ] Project labels (status, room, lead source — project-level)
   - Type: Backend + Web | Priority: HIGH | Complexity: LOW
   - Definition of Done: `job_labels` table. Color-coded chips on project browser. Filter projects by label. Pre-seeded label sets per industry vertical.
 
-- [ ] Galleries — curated shareable subsets
+- [x] Galleries — curated shareable subsets — shipped 2026-04-19
   - Type: Backend + Web | Priority: CRITICAL | Complexity: LOW
   - Definition of Done: `photo_galleries` table (id, job_id, name, photo_ids[], share_token, expires_at). Web UI: select photos → "Save as gallery". Public read-only URL `/g/<token>` shows gallery with proof stamps. Optional password. Watermark + branded header.
   - Why: This is the deliverable to adjusters and clients — currently we make them hunt through a feed
+  - Delivered: `photo_galleries` + `photo_gallery_items` tables; `galleries/` edge function with bcrypt password + public viewer route; web `SaveAsGalleryDialog` + public `/g/[token]/page.tsx` with password gate, branded header, watermark overlay, verification-code lightbox; `/galleries` management page with rotate/revoke/PDF download.
 
-- [ ] Customer share links (public read-only project gallery)
+- [x] Customer share links (public read-only project gallery) — shipped 2026-04-19
   - Type: Backend + Web | Priority: CRITICAL | Complexity: LOW
   - Definition of Done: Per-project public link. Shows photos + timeline + verification codes. Optional password + expiry. Tracks view count. Branded header (uses tenant logo from settings).
+  - Delivered: extended `client_portal` with password gate + `brand_watermark` + `set_password` action + `has_password` derived flag; fixed pre-existing broken photos query (`storage_url`/`stamp_metadata`/`asset_type` → real columns + server-side signed URL generation); web `ShareLinkDialog` on `/photos` and share-link manager on `/galleries`.
 
-- [ ] PDF photo reports (custom branded)
+- [x] PDF photo reports (custom branded) — shipped 2026-04-19
   - Type: Backend | Priority: CRITICAL | Complexity: MED
   - Definition of Done: One-click PDF: cover page (logo, project name, address, dates) → photo grid (12/page) with stamps + captions → verification appendix. Templates: Insurance Claim, Daily Log, Before/After. Generated via `reports/index.ts` extension. Stored in `reports` storage bucket with signed URL.
+  - Delivered: `reports` bucket (50MB cap, tenant-folder RLS); `reports/index.ts` extended with `pdf-lib` and 3 photo templates (insurance/daily/before-after); cover with tenant logo, 3×4 grid per page, verification appendix with SHA-256 + GPS + captured_at; PDF written as `media_assets.kind='report_pdf'` and returned as signed URL. Export-kind enum widened via `ALTER TYPE export_kind ADD VALUE`.
 
 - [ ] Before/After pair builder
   - Type: Web + Mobile | Priority: HIGH | Complexity: LOW
