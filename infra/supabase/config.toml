@@ -389,3 +389,18 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/stripe_webhook/deno.json"
 entrypoint = "./functions/stripe_webhook/index.ts"
+
+[functions.tags]
+enabled = true
+verify_jwt = true
+import_map = "./functions/tags/deno.json"
+entrypoint = "./functions/tags/index.ts"
+
+[functions.galleries]
+enabled = true
+# Public viewer route (/galleries/public) uses the anon key as its JWT; verify_jwt
+# still applies, so public reads include apikey header. Authenticated routes
+# additionally require a Bearer token — validated inside the function.
+verify_jwt = true
+import_map = "./functions/galleries/deno.json"
+entrypoint = "./functions/galleries/index.ts"

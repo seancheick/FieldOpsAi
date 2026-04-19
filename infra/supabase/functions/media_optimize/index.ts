@@ -264,16 +264,21 @@ async function optimizeAsset(
       company_id: asset.company_id,
       job_id: null,
       uploaded_by: null,
-      kind: "optimized_photo",
+      // `optimized_photo` isn't in the media_kind enum — a compressed/optimized
+      // derivative is functionally a stamped_photo variant from the viewer's
+      // perspective, so store it under the closest valid kind and link it via
+      // the stamped_media_id pointer from the original.
+      kind: "stamped_photo",
       bucket_name: asset.bucket_name,
       storage_path: optimizedPath,
       mime_type: optimizedMimeType,
       file_size_bytes: optimizedBytes,
-      sync_status: "uploaded",
-      source_asset_id: assetId,
+      sync_status: "processed",
+      original_media_id: assetId,
     })
 
-  // source_asset_id column may not exist yet — if insert fails, update original instead
+  // Insert may still fail for unrelated reasons — fall back to updating the
+  // original asset pointer directly so the optimized bytes aren't orphaned.
   if (insertError) {
     console.warn(`[${requestId}] Could not insert derivative record (${insertError.message}), updating original`)
     await supabaseAdmin

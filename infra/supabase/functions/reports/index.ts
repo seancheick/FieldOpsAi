@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4"
+import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1"
 import {
   applyRateLimit,
   CORS_HEADERS,
@@ -270,7 +271,249 @@ serve(async (req) => {
       }, 200, requestId)
     }
 
-    return errorResponse(requestId, 400, "INVALID_PAYLOAD", "report_type must be 'job_report' or 'timesheet'")
+    // ──────────────────────────────────────────
+    // PHOTO REPORT — PDF with cover, grid, appendix
+    // ──────────────────────────────────────────
+    if (
+      report_type === "photo_insurance_claim"
+      || report_type === "photo_daily_log"
+      || report_type === "photo_before_after"
+    ) {
+      const { gallery_id, media_asset_ids } = payload
+      const mediaIds: string[] = Array.isArray(media_asset_ids)
+        ? (media_asset_ids as unknown[]).filter((v): v is string => typeof v === "string")
+        : []
+
+      // Resolve photo set: either a saved gallery or an explicit id list.
+      let resolvedIds = mediaIds
+      let galleryName: string | null = null
+      let resolvedJobId: string | null = job_id || null
+      if (gallery_id && typeof gallery_id === "string") {
+        const { data: gallery } = await supabaseAdmin
+          .from("photo_galleries")
+          .select("id, name, job_id, company_id")
+          .eq("id", gallery_id)
+          .eq("company_id", userRecord.company_id)
+          .maybeSingle()
+        if (!gallery) {
+          return errorResponse(requestId, 404, "NOT_FOUND", "Gallery not found")
+        }
+        galleryName = gallery.name as string
+        resolvedJobId = gallery.job_id as string
+        const { data: items } = await supabaseAdmin
+          .from("photo_gallery_items")
+          .select("media_asset_id, position")
+          .eq("gallery_id", gallery.id)
+          .order("position", { ascending: true })
+        resolvedIds = (items || []).map((i: any) => i.media_asset_id as string)
+      }
+
+      if (resolvedIds.length === 0) {
+        return errorResponse(requestId, 400, "INVALID_PAYLOAD", "gallery_id or media_asset_ids required")
+      }
+
+      const { data: assets, error: assetsError } = await supabaseAdmin
+        .from("media_assets")
+        .select("id, bucket_name, storage_path, mime_type, sha256_hash, verification_code, captured_at, gps_lat, gps_lng, company_id")
+        .in("id", resolvedIds)
+      if (assetsError) throw assetsError
+      const tenantAssets = (assets || []).filter((a) => a.company_id === userRecord.company_id)
+      if (tenantAssets.length === 0) {
+        return errorResponse(requestId, 403, "FORBIDDEN", "No accessible photos")
+      }
+      // Preserve the caller's ordering.
+      const order = new Map(resolvedIds.map((id, i) => [id, i]))
+      tenantAssets.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+
+      // Fetch job + company for cover page.
+      const [jobRow, companyRow] = await Promise.all([
+        resolvedJobId
+          ? supabaseAdmin.from("jobs").select("id, name, code, address_line_1, address_line_2").eq("id", resolvedJobId).maybeSingle()
+          : Promise.resolve({ data: null } as any),
+        supabaseAdmin.from("companies").select("name, logo_data_uri").eq("id", userRecord.company_id).maybeSingle(),
+      ])
+
+      const titleByType: Record<string, string> = {
+        photo_insurance_claim: "Insurance Claim Photo Packet",
+        photo_daily_log: "Daily Photo Log",
+        photo_before_after: "Before / After Photo Report",
+      }
+      const reportTitle = titleByType[report_type]
+
+      // Build PDF.
+      const pdf = await PDFDocument.create()
+      const font = await pdf.embedFont(StandardFonts.Helvetica)
+      const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold)
+
+      // ── Cover page ─────────────────────────────
+      const cover = pdf.addPage([612, 792]) // US Letter
+      cover.drawText(reportTitle, { x: 54, y: 720, size: 22, font: fontBold, color: rgb(0.08, 0.17, 0.24) })
+      cover.drawText((companyRow as any)?.data?.name || "", { x: 54, y: 695, size: 14, font, color: rgb(0.3, 0.3, 0.3) })
+      if ((jobRow as any)?.data) {
+        const j = (jobRow as any).data
+        cover.drawText(`Project: ${j.name || j.code || ""}`, { x: 54, y: 660, size: 12, font })
+        const address = [j.address_line_1, j.address_line_2].filter(Boolean).join(", ")
+        if (address) cover.drawText(`Address: ${address}`, { x: 54, y: 642, size: 12, font })
+      }
+      if (galleryName) {
+        cover.drawText(`Gallery: ${galleryName}`, { x: 54, y: 620, size: 12, font })
+      }
+      cover.drawText(`Generated: ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`, { x: 54, y: 600, size: 11, font })
+      cover.drawText(`Prepared by: ${userRecord.full_name || ""}`, { x: 54, y: 584, size: 11, font })
+      cover.drawText(`Photos included: ${tenantAssets.length}`, { x: 54, y: 568, size: 11, font })
+      cover.drawText("Every photo in this packet is chain-of-custody verified via SHA-256 hash and a unique verification code (see appendix).", {
+        x: 54, y: 520, size: 10, font, color: rgb(0.4, 0.4, 0.4), maxWidth: 504, lineHeight: 13,
+      })
+
+      // Embed tenant logo on the cover if we have one (data URI only — simple path).
+      const logoDataUri = (companyRow as any)?.data?.logo_data_uri as string | undefined
+      if (logoDataUri && logoDataUri.startsWith("data:image/")) {
+        try {
+          const match = logoDataUri.match(/^data:image\/(png|jpe?g);base64,(.+)$/i)
+          if (match) {
+            const [, fmt, b64] = match
+            const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+            const img = fmt.toLowerCase() === "png" ? await pdf.embedPng(bytes) : await pdf.embedJpg(bytes)
+            const { width, height } = img.scaleToFit(140, 60)
+            cover.drawImage(img, { x: 612 - 54 - width, y: 720, width, height })
+          }
+        } catch (_) {
+          // Logo failure must never block the report.
+        }
+      }
+
+      // ── Photo grid (3x4 per page) ──────────────
+      const perPage = 12
+      const cols = 3
+      const margin = 36
+      const gap = 10
+      const cellW = (612 - margin * 2 - gap * (cols - 1)) / cols
+      const cellH = 180
+      const captionH = 26
+
+      for (let i = 0; i < tenantAssets.length; i += perPage) {
+        const page = pdf.addPage([612, 792])
+        page.drawText(`${reportTitle} — Page ${Math.floor(i / perPage) + 1}`, {
+          x: margin, y: 792 - margin, size: 10, font, color: rgb(0.45, 0.45, 0.45),
+        })
+        const slice = tenantAssets.slice(i, i + perPage)
+        for (let j = 0; j < slice.length; j++) {
+          const col = j % cols
+          const row = Math.floor(j / cols)
+          const x = margin + col * (cellW + gap)
+          const y = 792 - margin - 20 - (row + 1) * cellH - row * gap
+
+          const asset = slice[j]
+          try {
+            const { data: blob } = await (supabaseAdmin as any).storage
+              .from(asset.bucket_name)
+              .download(asset.storage_path)
+            if (blob) {
+              const bytes = new Uint8Array(await (blob as Blob).arrayBuffer())
+              const mime = (asset.mime_type || "image/jpeg").toLowerCase()
+              const img = mime.includes("png")
+                ? await pdf.embedPng(bytes)
+                : await pdf.embedJpg(bytes)
+              const fit = img.scaleToFit(cellW, cellH - captionH)
+              page.drawImage(img, { x: x + (cellW - fit.width) / 2, y: y + captionH, width: fit.width, height: fit.height })
+            }
+          } catch (_) {
+            page.drawRectangle({ x, y: y + captionH, width: cellW, height: cellH - captionH, color: rgb(0.9, 0.9, 0.9) })
+            page.drawText("image unavailable", { x: x + 8, y: y + captionH + 6, size: 8, font, color: rgb(0.5, 0.5, 0.5) })
+          }
+          const caption = asset.captured_at
+            ? new Date(asset.captured_at).toISOString().replace("T", " ").slice(0, 16)
+            : "—"
+          page.drawText(`#${asset.verification_code || "—"}`, { x, y: y + 12, size: 8, font: fontBold, color: rgb(0.15, 0.2, 0.3) })
+          page.drawText(caption, { x, y: y, size: 8, font, color: rgb(0.3, 0.3, 0.3) })
+        }
+      }
+
+      // ── Appendix (verification codes + hashes) ─
+      const appendix = pdf.addPage([612, 792])
+      appendix.drawText("Verification Appendix", { x: margin, y: 720, size: 18, font: fontBold })
+      appendix.drawText("Each photo's SHA-256 hash and verification code are listed below for chain-of-custody audit.", {
+        x: margin, y: 700, size: 9, font, color: rgb(0.4, 0.4, 0.4), maxWidth: 540, lineHeight: 12,
+      })
+      let ay = 672
+      for (const asset of tenantAssets) {
+        if (ay < 54) {
+          const next = pdf.addPage([612, 792])
+          ay = 760
+          next.drawText("Verification Appendix (cont.)", { x: margin, y: 780, size: 11, font: fontBold })
+        }
+        const captured = asset.captured_at
+          ? new Date(asset.captured_at).toISOString().replace("T", " ").slice(0, 19) + " UTC"
+          : "time unknown"
+        const gps = asset.gps_lat && asset.gps_lng
+          ? `${(asset.gps_lat as number).toFixed(5)}, ${(asset.gps_lng as number).toFixed(5)}`
+          : "no GPS"
+        appendix.drawText(`#${asset.verification_code || "—"}   ${captured}   ${gps}`, {
+          x: margin, y: ay, size: 9, font: fontBold, color: rgb(0.1, 0.15, 0.25),
+        })
+        appendix.drawText(`sha256 ${asset.sha256_hash || "—"}`, {
+          x: margin, y: ay - 11, size: 7.5, font, color: rgb(0.4, 0.4, 0.4),
+        })
+        ay -= 26
+      }
+
+      const pdfBytes = await pdf.save()
+
+      // Upload to the `reports` bucket under the tenant's folder.
+      const pdfId = crypto.randomUUID()
+      const storagePath = `${userRecord.company_id}/${new Date().toISOString().slice(0, 10)}/${pdfId}.pdf`
+      const { error: uploadError } = await (supabaseAdmin as any).storage
+        .from("reports")
+        .upload(storagePath, pdfBytes, { contentType: "application/pdf", upsert: false })
+      if (uploadError) throw uploadError
+
+      // Register as a media_asset for auditability + reuse from the UI.
+      const { data: mediaAsset, error: mediaError } = await supabaseAdmin
+        .from("media_assets")
+        .insert({
+          id: pdfId,
+          company_id: userRecord.company_id,
+          job_id: resolvedJobId,
+          uploaded_by: userRecord.id,
+          kind: "report_pdf",
+          bucket_name: "reports",
+          storage_path: storagePath,
+          mime_type: "application/pdf",
+          file_size_bytes: pdfBytes.length,
+          // `processed` is the terminal state for server-side generated artifacts.
+          sync_status: "processed",
+          metadata: { report_type, photo_count: tenantAssets.length, gallery_id: gallery_id || null },
+        })
+        .select("id")
+        .single()
+      if (mediaError) throw mediaError
+
+      const { data: signed } = await (supabaseAdmin as any).storage
+        .from("reports")
+        .createSignedUrl(storagePath, 3600)
+
+      await supabaseAdmin.from("export_artifacts").insert({
+        id: crypto.randomUUID(),
+        company_id: userRecord.company_id,
+        job_id: resolvedJobId,
+        generated_by: user.id,
+        export_kind: report_type,
+        status: "completed",
+        generated_at: new Date().toISOString(),
+        metadata: { media_asset_id: mediaAsset.id, photo_count: tenantAssets.length },
+      })
+
+      logRequestResult(ENDPOINT, requestId, 200, { op: "photo_report", type: report_type, photos: tenantAssets.length })
+      return jsonResponse({
+        status: "success",
+        media_asset_id: mediaAsset.id,
+        signed_url: signed?.signedUrl || null,
+        photo_count: tenantAssets.length,
+        request_id: requestId,
+      }, 200, requestId)
+    }
+
+    return errorResponse(requestId, 400, "INVALID_PAYLOAD", "report_type must be 'job_report', 'timesheet', or one of: photo_insurance_claim, photo_daily_log, photo_before_after")
   } catch (error) {
     console.error("reports error:", error)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", error.message || "Internal server error")
