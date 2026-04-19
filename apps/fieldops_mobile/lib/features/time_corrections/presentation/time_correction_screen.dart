@@ -378,7 +378,7 @@ class _ActionButtons extends ConsumerWidget {
           const SnackBar(content: Text('Correction approved')),
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
@@ -444,7 +444,7 @@ class _ActionButtons extends ConsumerWidget {
           const SnackBar(content: Text('Correction denied')),
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),

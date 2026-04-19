@@ -26,7 +26,7 @@ class SupabaseBudgetRepository implements BudgetRepository {
 
       final data = response.data as Map<String, dynamic>;
       if (data['budget'] == null) {
-        throw BudgetException('No budget found for this job');
+        throw const BudgetException('No budget found for this job');
       }
 
       return JobBudgetSummary.fromJson(data['budget'] as Map<String, dynamic>);
@@ -89,7 +89,7 @@ class SupabaseBudgetRepository implements BudgetRepository {
       );
 
       if (response.status != 201 && response.status != 200) {
-        throw BudgetException('Failed to create budget');
+        throw const BudgetException('Failed to create budget');
       }
     } on FunctionException catch (error) {
       if (error.status == 0) throw const BudgetException.offline();

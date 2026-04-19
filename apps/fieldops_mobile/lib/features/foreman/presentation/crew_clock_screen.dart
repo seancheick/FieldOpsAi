@@ -234,10 +234,13 @@ class _CrewClockTile extends ConsumerWidget {
     );
 
     if (confirmed != true) return;
+    if (!context.mounted) return;
 
     // Show job selector if needed
     final selectedJobId = member.jobName != null
+        // ignore: use_build_context_synchronously
         ? await _showJobSelector(context, ref)
+        // ignore: use_build_context_synchronously
         : await _showAllJobsSelector(context, ref);
 
     if (selectedJobId == null) return;
@@ -272,7 +275,7 @@ class _CrewClockTile extends ConsumerWidget {
           ),
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

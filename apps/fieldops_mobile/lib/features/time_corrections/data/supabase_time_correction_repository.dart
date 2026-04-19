@@ -108,7 +108,7 @@ class SupabaseTimeCorrectionRepository implements TimeCorrectionRepository {
       );
 
       if (response.status != 200 && response.status != 201) {
-        throw TimeCorrectionException('Failed to decide correction');
+        throw const TimeCorrectionException('Failed to decide correction');
       }
     } on FunctionException catch (error) {
       if (error.status == 0) throw const TimeCorrectionException.offline();

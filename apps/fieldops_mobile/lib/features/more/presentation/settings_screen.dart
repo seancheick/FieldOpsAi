@@ -121,7 +121,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 Switch.adaptive(
                   value: _pushEnabled,
-                  activeColor: palette.signal,
+                  activeThumbColor: palette.signal,
                   onChanged: (value) {
                     setState(() => _pushEnabled = value);
                     // In production: toggle notification registration
