@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { signOut } from "@/lib/auth";
 import { useI18n, type Locale } from "@/lib/i18n";
-import { isManagementRole } from "@/lib/roles";
+import { isManagementRole, isSupervisorOrAbove } from "@/lib/roles";
 import {
   LayoutDashboard,
   MapPin,
@@ -24,6 +24,7 @@ import {
   ToggleLeft,
   UserPlus,
   Clipboard,
+  AlertTriangle,
   ChevronLeft,
   Menu,
   Search,
@@ -41,6 +42,7 @@ interface NavItem {
   labelKey: string;
   section: string;
   adminOnly?: boolean;
+  supervisorOrAbove?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -57,6 +59,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/overtime", icon: Timer, labelKey: "shell.overtime", section: "operations" },
   { href: "/pto", icon: ShieldCheck, labelKey: "shell.pto", section: "operations" },
   { href: "/projects/permits", icon: FileText, labelKey: "shell.permits", section: "operations" },
+  { href: "/alerts", icon: AlertTriangle, labelKey: "shell.alerts", section: "operations", supervisorOrAbove: true },
   { href: "/timecards", icon: FileSignature, labelKey: "shell.timecards", section: "operations" },
   { href: "/reports", icon: FileText, labelKey: "shell.reports", section: "reports" },
   { href: "/settings", icon: Settings, labelKey: "shell.company", section: "settings" },
@@ -173,9 +176,12 @@ export function Sidebar() {
 
   /* ---------- derived data ---------- */
   const canManageCompany = isManagementRole(userRole);
-  const visibleItems = NAV_ITEMS.filter(
-    (item) => !item.adminOnly || canManageCompany,
-  );
+  const canSeeSupervisor = isSupervisorOrAbove(userRole);
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (item.adminOnly && !canManageCompany) return false;
+    if (item.supervisorOrAbove && !canSeeSupervisor) return false;
+    return true;
+  });
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];

@@ -14,3 +14,12 @@ export function isManagementRole(role: string | null | undefined): boolean {
 export function isOwnerRole(role: string | null | undefined): boolean {
   return role === OWNER_ROLE;
 }
+
+export function isSupervisorOrAbove(role: string | null | undefined): boolean {
+  return (
+    !!role &&
+    SUPERVISOR_AND_ABOVE_ROLES.includes(
+      role as (typeof SUPERVISOR_AND_ABOVE_ROLES)[number],
+    )
+  );
+}
