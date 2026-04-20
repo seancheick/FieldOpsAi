@@ -355,6 +355,12 @@ verify_jwt = false
 import_map = "./functions/pto/deno.json"
 entrypoint = "./functions/pto/index.ts"
 
+[functions.permits]
+enabled = true
+verify_jwt = false
+import_map = "./functions/permits/deno.json"
+entrypoint = "./functions/permits/index.ts"
+
 [functions.company_logo]
 enabled = true
 verify_jwt = false

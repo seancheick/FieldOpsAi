@@ -55,6 +55,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/cost-codes", icon: Tag, labelKey: "shell.costCodes", section: "operations" },
   { href: "/overtime", icon: Timer, labelKey: "shell.overtime", section: "operations" },
   { href: "/pto", icon: ShieldCheck, labelKey: "shell.pto", section: "operations" },
+  { href: "/projects/permits", icon: FileText, labelKey: "shell.permits", section: "operations" },
   { href: "/timecards", icon: FileSignature, labelKey: "shell.timecards", section: "operations" },
   { href: "/reports", icon: FileText, labelKey: "shell.reports", section: "reports" },
   { href: "/settings", icon: Settings, labelKey: "shell.company", section: "settings" },
