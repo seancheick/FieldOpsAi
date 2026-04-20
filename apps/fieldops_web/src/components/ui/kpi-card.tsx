@@ -1,16 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { ResponsiveContainer, AreaChart, Area } from "recharts";
 
 import { cn } from "@/lib/utils";
 
 interface KpiCardProps {
   title: string;
   value: number | string;
-  trend?: "up" | "down" | "flat";
-  sparkData?: { value: number }[];
-  sparkColor?: string;
   icon?: React.ReactNode;
   subtitle?: string;
   href?: string;
@@ -20,21 +16,11 @@ interface KpiCardProps {
 function KpiCard({
   title,
   value,
-  trend,
-  sparkData,
-  sparkColor = "#334155",
   icon,
   subtitle,
   href,
   className,
 }: KpiCardProps) {
-  const trendArrow =
-    trend === "up" ? (
-      <span className="text-green-500">&#8593;</span>
-    ) : trend === "down" ? (
-      <span className="text-red-500">&#8595;</span>
-    ) : null;
-
   const content = (
     <div
       data-slot="kpi-card"
@@ -47,31 +33,11 @@ function KpiCard({
         {icon && <span className="shrink-0">{icon}</span>}
         <span>{title}</span>
       </div>
-      <div className="flex items-center gap-2">
-        <span className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
-          {value}
-        </span>
-        {trendArrow}
-      </div>
+      <span className="mt-1 block text-3xl font-bold tracking-tight tabular-nums text-slate-900">
+        {value}
+      </span>
       {subtitle && (
         <div className="mt-1 text-[11px] text-slate-400">{subtitle}</div>
-      )}
-      {sparkData && sparkData.length > 0 && (
-        <div className="mt-2 h-8 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={sparkData}>
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke={sparkColor}
-                fill={sparkColor}
-                fillOpacity={0.1}
-                strokeWidth={1.5}
-                dot={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
       )}
     </div>
   );

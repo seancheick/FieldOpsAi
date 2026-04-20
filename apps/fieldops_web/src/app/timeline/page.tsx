@@ -2,18 +2,38 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Clock,
+  Camera,
+  CheckCircle2,
+  FileText,
+  Timer,
+  PencilLine,
+  FileQuestion,
+  type LucideIcon,
+} from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 import { useCurrentUser } from "@/lib/use-role";
 import type { TimelineEvent } from "@/lib/types";
 
-const EVENT_ICONS: Record<string, string> = {
-  clock_event: "🕐",
-  photo_event: "📸",
-  task_event: "✅",
-  note_event: "📝",
-  ot_approval_event: "⏰",
-  correction_event: "✏️",
+interface EventGlyph {
+  Icon: LucideIcon;
+  tint: string; // bg + text tailwind classes for the 40×40 avatar
+}
+
+const EVENT_GLYPHS: Record<string, EventGlyph> = {
+  clock_event: { Icon: Clock, tint: "bg-slate-100 text-slate-700" },
+  photo_event: { Icon: Camera, tint: "bg-blue-50 text-blue-700" },
+  task_event: { Icon: CheckCircle2, tint: "bg-emerald-50 text-emerald-700" },
+  note_event: { Icon: FileText, tint: "bg-amber-50 text-amber-700" },
+  ot_approval_event: { Icon: Timer, tint: "bg-orange-50 text-orange-700" },
+  correction_event: { Icon: PencilLine, tint: "bg-rose-50 text-rose-700" },
+};
+
+const FALLBACK_GLYPH: EventGlyph = {
+  Icon: FileQuestion,
+  tint: "bg-stone-100 text-slate-500",
 };
 
 const TIMELINE_SOURCE_TABLES = [
@@ -412,13 +432,19 @@ function TimelineEventsList({ jobId }: TimelineEventsListProps) {
 
   return (
     <div className="space-y-3">
-      {events.map((event) => (
+      {events.map((event) => {
+        const glyph = EVENT_GLYPHS[event.event_type] ?? FALLBACK_GLYPH;
+        const Icon = glyph.Icon;
+        return (
         <div
           key={event.id}
           className="flex gap-4 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
         >
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-stone-100 text-lg">
-            {EVENT_ICONS[event.event_type] ?? "📋"}
+          <div
+            className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${glyph.tint}`}
+            aria-hidden="true"
+          >
+            <Icon size={18} strokeWidth={2} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -439,7 +465,8 @@ function TimelineEventsList({ jobId }: TimelineEventsListProps) {
             <div className="mt-1">{renderPayload(event)}</div>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

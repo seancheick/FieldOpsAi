@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import {
   Users,
   Settings,
@@ -39,25 +38,6 @@ interface JobTaskCount {
   job_id: string;
   total: number;
   completed: number;
-}
-
-function generateSparkData(seed: number): { value: number }[] {
-  const base = Math.max(1, seed - 3);
-  let s = seed + 7;
-  return Array.from({ length: 7 }, (_, i) => {
-    s = (s * 9301 + 49297) % 233280;
-    const r = (s / 233280);
-    return { value: base + Math.round(r * 4 * (i / 6)) };
-  });
-}
-
-function getTrend(data: { value: number }[]): "up" | "down" | "flat" {
-  if (data.length < 2) return "flat";
-  const last = data[data.length - 1].value;
-  const first = data[0].value;
-  if (last > first) return "up";
-  if (last < first) return "down";
-  return "flat";
 }
 
 function getInitials(name: string): string {
@@ -107,13 +87,6 @@ export default function DashboardPage() {
   const [hasMoreJobs, setHasMoreJobs] = useState(false);
   const [loadingMoreJobs, setLoadingMoreJobs] = useState(false);
 
-  const sparkDataMap = useMemo(() => ({
-    totalJobs: generateSparkData(stats.totalJobs),
-    activeWorkers: generateSparkData(stats.activeWorkers),
-    photosToday: generateSparkData(stats.photosToday),
-    pendingOT: generateSparkData(stats.pendingOT),
-  }), [stats.totalJobs, stats.activeWorkers, stats.photosToday, stats.pendingOT]);
-
   const aiHints = useMemo(() => {
     const hints: string[] = [];
     if (stats.pendingOT > 0)
@@ -132,87 +105,51 @@ export default function DashboardPage() {
 
     try {
       const supabase = getSupabase();
-      const today = new Date().toISOString().split("T")[0];
+      const { data, error: rpcError } = await supabase.rpc(
+        "get_dashboard_overview",
+        { p_job_limit: JOBS_PAGE_SIZE },
+      );
 
-      const [jobsRes, clockRes, photosRes, otRes, workersRes, tasksRes] =
-        await Promise.all([
-          supabase
-            .from("jobs")
-            .select("id, name, code, status, site_name, geofence_radius_m")
-            .in("status", ["active", "in_progress"])
-            .order("created_at", { ascending: false })
-            .limit(JOBS_PAGE_SIZE),
-          supabase
-            .from("clock_events")
-            .select("user_id", { count: "exact", head: true })
-            .eq("event_subtype", "clock_in")
-            .gte("occurred_at", `${today}T00:00:00Z`),
-          supabase
-            .from("photo_events")
-            .select("id", { count: "exact", head: true })
-            .gte("occurred_at", `${today}T00:00:00Z`),
-          supabase
-            .from("ot_requests")
-            .select("id", { count: "exact", head: true })
-            .eq("status", "pending"),
-          supabase
-            .from("clock_events")
-            .select("user_id, event_subtype, occurred_at, users!inner(id, full_name)")
-            .in("event_subtype", ["clock_in", "clock_out", "break_start", "break_end"])
-            .gte("occurred_at", `${today}T00:00:00Z`)
-            .order("occurred_at", { ascending: false }),
-          supabase.from("tasks").select("id, status, job_id"),
-        ]);
+      if (rpcError) throw rpcError;
 
-      if (jobsRes.error) throw jobsRes.error;
+      const payload = (data ?? {}) as {
+        stats?: Partial<DashboardStats>;
+        jobs?: JobSummary[];
+        activeWorkers?: Array<{
+          user_id: string;
+          full_name: string | null;
+          status: "working" | "break";
+          first_clock_in_at: string | null;
+        }>;
+        jobTaskCounts?: JobTaskCount[];
+      };
 
-      setJobs(jobsRes.data ?? []);
-      setHasMoreJobs((jobsRes.data ?? []).length === JOBS_PAGE_SIZE);
+      const jobsList = payload.jobs ?? [];
+      setJobs(jobsList);
+      setHasMoreJobs(jobsList.length === JOBS_PAGE_SIZE);
       setStats({
-        totalJobs: (jobsRes.data ?? []).length,
-        activeWorkers: clockRes.count ?? 0,
-        photosToday: photosRes.count ?? 0,
-        pendingOT: otRes.count ?? 0,
+        totalJobs: payload.stats?.totalJobs ?? 0,
+        activeWorkers: payload.stats?.activeWorkers ?? 0,
+        photosToday: payload.stats?.photosToday ?? 0,
+        pendingOT: payload.stats?.pendingOT ?? 0,
       });
 
-      // Deduplicate workers by user_id (latest event wins)
-      if (workersRes.data) {
-        const seen = new Map<string, ActiveWorker>();
-        const processed = new Set<string>();
-        const firstClock = new Map<string, string>();
-        for (const ev of workersRes.data) {
-          const uid = ev.user_id as string;
-          const user = ev.users as unknown as { id: string; full_name: string };
-          if (!firstClock.has(uid)) firstClock.set(uid, ev.occurred_at as string);
-          if (processed.has(uid)) continue;
-          processed.add(uid);
-          const sub = ev.event_subtype as string;
-          // clock_out means the worker is no longer active — mark processed and skip
-          if (sub === "clock_out") continue;
-          const status: "working" | "break" = sub === "break_start" ? "break" : "working";
-          const clockIn = firstClock.get(uid) ?? ev.occurred_at as string;
-          const hours = Math.round(
-            (Date.now() - new Date(clockIn).getTime()) / 3600000 * 10
-          ) / 10;
-          seen.set(uid, { id: uid, full_name: user?.full_name ?? "?", status, hours });
-        }
-        setActiveWorkersList(Array.from(seen.values()));
-      }
+      const now = Date.now();
+      setActiveWorkersList(
+        (payload.activeWorkers ?? []).map((w) => {
+          const hours = w.first_clock_in_at
+            ? Math.round((now - new Date(w.first_clock_in_at).getTime()) / 360000) / 10
+            : 0;
+          return {
+            id: w.user_id,
+            full_name: w.full_name ?? "?",
+            status: w.status,
+            hours,
+          };
+        }),
+      );
 
-      // Aggregate task counts per job
-      if (tasksRes.data) {
-        const map = new Map<string, { total: number; completed: number }>();
-        for (const task of tasksRes.data) {
-          const jid = task.job_id as string;
-          if (!map.has(jid)) map.set(jid, { total: 0, completed: 0 });
-          const entry = map.get(jid)!;
-          entry.total++;
-          if (task.status === "completed" || task.status === "done") entry.completed++;
-        }
-        setJobTasks(
-          Array.from(map.entries()).map(([job_id, c]) => ({ job_id, ...c }))
-        );
-      }
+      setJobTasks(payload.jobTaskCounts ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("dashboard.failedToLoad"));
     } finally {
@@ -251,23 +188,23 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             {t("dashboard.title")}
           </h1>
-          <p className="mt-0.5 text-sm text-slate-400">
+          <p className="mt-0.5 text-sm text-slate-400 dark:text-slate-500">
             {t("dashboard.subtitle")}
           </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={loadDashboard}
-            className="rounded-lg bg-stone-100 px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-stone-200"
+            className="rounded-lg bg-stone-100 px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             {t("common.refresh")}
           </button>
           <a
             href="/reports"
-            className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-slate-800"
+            className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
           >
             {t("dashboard.generateReport")}
           </a>
@@ -281,27 +218,18 @@ export default function DashboardPage() {
           value={stats.totalJobs.toString()}
           change={t("dashboard.thisWeek")}
           color="text-slate-900"
-          sparkData={sparkDataMap.totalJobs}
-          trend={getTrend(sparkDataMap.totalJobs)}
-          sparkColor="#334155"
         />
         <KPICard
           label={t("dashboard.workersClockedIn")}
           value={stats.activeWorkers.toString()}
           change={t("dashboard.today")}
           color="text-green-600"
-          sparkData={sparkDataMap.activeWorkers}
-          trend={getTrend(sparkDataMap.activeWorkers)}
-          sparkColor="#16a34a"
         />
         <KPICard
           label={t("dashboard.photosToday")}
           value={stats.photosToday.toString()}
           change={t("dashboard.proofCaptured")}
           color="text-blue-600"
-          sparkData={sparkDataMap.photosToday}
-          trend={getTrend(sparkDataMap.photosToday)}
-          sparkColor="#2563eb"
         />
         <KPICard
           label={t("dashboard.pendingOt")}
@@ -309,16 +237,13 @@ export default function DashboardPage() {
           change={t("dashboard.awaitingApproval")}
           color={stats.pendingOT > 0 ? "text-amber-600" : "text-slate-400"}
           href={stats.pendingOT > 0 ? "/overtime" : undefined}
-          sparkData={sparkDataMap.pendingOT}
-          trend={getTrend(sparkDataMap.pendingOT)}
-          sparkColor="#d97706"
         />
       </div>
 
       {/* Role-Based Quick Actions */}
       {role && QUICK_ACTIONS[role] && (
         <div className="mb-6">
-          <h2 className="mb-3 text-sm font-semibold text-slate-600">
+          <h2 className="mb-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
             {t("dashboard.quickActions")}
           </h2>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -328,7 +253,7 @@ export default function DashboardPage() {
                 <Link
                   key={action.href}
                   href={action.href}
-                  className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3.5 shadow-sm transition-all transition-transform hover:scale-[1.02] active:scale-[0.98] hover:border-slate-300 hover:shadow-md"
+                  className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3.5 shadow-sm transition-all transition-transform hover:scale-[1.02] active:scale-[0.98] hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
                 >
                   <Icon className="h-5 w-5 flex-shrink-0 text-slate-500" />
                   <span className="text-sm font-medium text-slate-700">
@@ -365,7 +290,7 @@ export default function DashboardPage() {
       {/* Who's Working Now */}
       {activeWorkersList.length > 0 && (
         <div className="mb-6">
-          <h2 className="mb-3 text-sm font-semibold text-slate-600">
+          <h2 className="mb-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
             {t("dashboard.workingNow")}
           </h2>
           <div className="flex gap-3 overflow-x-auto pb-2">
@@ -398,15 +323,15 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* AI Insights */}
+      {/* Today's flags (rule-based) */}
       {aiHints.length > 0 && (
-        <div className="mb-6 rounded-xl border-l-4 border-indigo-400 bg-gradient-to-r from-indigo-50 to-purple-50 p-4">
-          <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-indigo-800">
-            <span>&#10024;</span> {t("dashboard.aiInsights")}
+        <div className="mb-6 rounded-xl border border-stone-200 border-l-4 border-l-amber-400 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-widest text-amber-700">
+            {t("dashboard.todaysFlags")}
           </h3>
           <ul className="space-y-1">
             {aiHints.map((hint, i) => (
-              <li key={i} className="text-xs text-indigo-700">
+              <li key={i} className="text-xs text-slate-600 dark:text-slate-300">
                 {hint}
               </li>
             ))}
@@ -418,19 +343,19 @@ export default function DashboardPage() {
       <div className="mb-6 flex gap-3">
         <a
           href="/map"
-          className="rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm transition-all transition-transform hover:scale-[1.02] active:scale-[0.98] hover:border-slate-300 hover:shadow-md"
+          className="rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm transition-all transition-transform hover:scale-[1.02] active:scale-[0.98] hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-700"
         >
           {t("dashboard.openLiveMap")} →
         </a>
         <a
           href="/workers"
-          className="rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm transition-all transition-transform hover:scale-[1.02] active:scale-[0.98] hover:border-slate-300 hover:shadow-md"
+          className="rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm transition-all transition-transform hover:scale-[1.02] active:scale-[0.98] hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-700"
         >
           {t("dashboard.viewWorkers")} →
         </a>
         <a
           href="/photos"
-          className="rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm transition-all transition-transform hover:scale-[1.02] active:scale-[0.98] hover:border-slate-300 hover:shadow-md"
+          className="rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm transition-all transition-transform hover:scale-[1.02] active:scale-[0.98] hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-700"
         >
           {t("dashboard.photoFeed")} →
         </a>
@@ -438,7 +363,7 @@ export default function DashboardPage() {
 
       {/* Jobs Grid */}
       {!loading && !error && jobs.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-stone-200 bg-white p-10 text-center">
+        <div className="rounded-2xl border border-dashed border-stone-200 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-900">
           <p className="text-sm text-slate-400">{t("dashboard.noActiveJobs")}</p>
           <a
             href="/projects"
@@ -456,11 +381,11 @@ export default function DashboardPage() {
           return (
             <div
               key={job.id}
-              className="group rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition-all transition-transform hover:scale-[1.02] hover:border-stone-300 hover:shadow-md"
+              className="group rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition-all transition-transform hover:scale-[1.02] hover:border-stone-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-bold text-slate-900">{job.name}</h3>
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100">{job.name}</h3>
                   <p className="text-xs text-slate-400">{job.code}</p>
                 </div>
                 <span
@@ -483,7 +408,7 @@ export default function DashboardPage() {
               <div className="mt-3">
                 {tc && tc.total > 0 ? (
                   <>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-stone-100">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-stone-100 dark:bg-slate-800">
                       <div
                         className="h-full rounded-full bg-emerald-500 transition-all"
                         style={{ width: `${pct}%` }}
@@ -505,13 +430,13 @@ export default function DashboardPage() {
               <div className="mt-4 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                 <a
                   href={`/timeline?job_id=${job.id}`}
-                  className="rounded-lg bg-stone-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-stone-100"
+                  className="rounded-lg bg-stone-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-stone-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 >
                   {t("dashboard.timeline")}
                 </a>
                 <a
                   href={`/photos?job_id=${job.id}`}
-                  className="rounded-lg bg-stone-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-stone-100"
+                  className="rounded-lg bg-stone-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-stone-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 >
                   {t("dashboard.photos")}
                 </a>
@@ -526,7 +451,7 @@ export default function DashboardPage() {
           <button
             onClick={loadMoreJobs}
             disabled={loadingMoreJobs}
-            className="mx-auto mt-4 flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 shadow-sm hover:bg-stone-50 disabled:opacity-50"
+            className="mx-auto mt-4 flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 shadow-sm hover:bg-stone-50 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             {loadingMoreJobs ? t("common.loadingMore") : t("common.loadMore")}
           </button>
@@ -542,53 +467,20 @@ function KPICard({
   change,
   color,
   href,
-  sparkData,
-  trend,
-  sparkColor = "#334155",
 }: {
   label: string;
   value: string;
   change: string;
   color: string;
   href?: string;
-  sparkData?: { value: number }[];
-  trend?: "up" | "down" | "flat";
-  sparkColor?: string;
 }) {
-  const arrow =
-    trend === "up" ? (
-      <span className="text-green-500">&#8593;</span>
-    ) : trend === "down" ? (
-      <span className="text-red-500">&#8595;</span>
-    ) : null;
-
   const content = (
-    <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition-all hover:border-stone-300 hover:shadow-md">
-      <div className="text-xs font-medium text-slate-400">{label}</div>
-      <div className="flex items-center gap-2">
-        <span className={`mt-1 text-3xl font-bold tracking-tight ${color}`}>
-          {value}
-        </span>
-        {arrow}
-      </div>
-      <div className="mt-1 text-[11px] text-slate-400">{change}</div>
-      {sparkData && sparkData.length > 0 && (
-        <div className="mt-2 h-8 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={sparkData}>
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke={sparkColor}
-                fill={sparkColor}
-                fillOpacity={0.1}
-                strokeWidth={1.5}
-                dot={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+    <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition-all hover:border-stone-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
+      <div className="text-xs font-medium text-slate-400 dark:text-slate-500">{label}</div>
+      <span className={`mt-1 block text-3xl font-bold tracking-tight tabular-nums ${color}`}>
+        {value}
+      </span>
+      <div className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{change}</div>
     </div>
   );
 

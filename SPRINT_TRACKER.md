@@ -1663,3 +1663,247 @@ All 13 Sprint 8.6 BLOCKERs + today's permit contract could have been caught by a
 - [x] `config.toml` verify_jwt coverage closed — 24 user-auth + cron functions were relying on a one-time `supabase functions deploy --no-verify-jwt` flag and would revert to ES256-rejecting on the next redeploy. Now explicit `[functions.<name>] verify_jwt = false` for all 36 functions. Lesson 54 candidate: treat `config.toml` as the single source of truth for gateway JWT behaviour.
 - [x] `apps/fieldops_web/src/app/settings/job-foremen/page.tsx` used `"scheduled"` in `ACTIVE_JOB_STATUSES`, which isn't a member of `public.job_status` (`draft | active | in_progress | review | completed | archived`). PostgREST threw `invalid input value for enum job_status: "scheduled"` the moment a management user opened the page. Removed.
 - [x] Deleted legacy `/supabase/` CLI-init leftover (Hello-World `schedule_ai` stub + `.branches` + `.temp`) — real config lives under `/infra/supabase/`.
+
+---
+
+## Sprint 8.9 — UX Truth Pass (shipped 2026-04-20)
+
+Goal: Kill AI-slop fingerprints, make the dashboard show real data only, and cut friction on the two highest-traffic surfaces (web dashboard + mobile home). Low-risk, mostly presentation + perf — ships in one week.
+
+Source: UI/UX audit 2026-04-20 (FieldOps AI — /frontend-design review).
+
+### Dashboard honesty + performance
+
+- [x] FUX-001 — Remove fabricated sparkline data from KPI cards
+  - Type: Web | Priority: HIGH
+  - Problem: `generateSparkData()` in `apps/fieldops_web/src/app/page.tsx:44` invents chart points from a seed. On a product whose pitch is "proof of truth," decorative fake charts are an integrity violation.
+  - Definition of Done: Either (a) delete sparklines entirely, or (b) replace with a real `dashboard_stats_daily` aggregate from clock_events/photo_events over last 7 days via new RPC. No synthetic data anywhere in UI.
+  - Evidence: screenshot + SQL of the aggregate.
+
+- [x] FUX-002 — Collapse dashboard load into single RPC
+  - Type: Backend + Web | Priority: HIGH
+  - Problem: `loadDashboard()` fires 6 parallel queries on every open; `tasks.select()` has no limit and scans all company tasks.
+  - Definition of Done: New `get_dashboard_overview(p_company_id uuid)` SQL function returns `{jobs, stats, active_workers, job_task_counts}` in one round-trip. Dashboard p95 load <400ms on a 10-job / 50-worker seed. Task query bounded.
+  - Evidence: before/after timing, migration file, function body.
+
+- [x] FUX-003 — Kill the indigo-purple "AI Insights" panel
+  - Type: Web | Priority: MEDIUM
+  - Problem: `from-indigo-50 to-purple-50` + ✨ emoji at `page.tsx:403` is the textbook AI-slop fingerprint; the "insights" are hard-coded heuristics, not AI.
+  - Definition of Done: Either delete the panel, or rename to "Today's flags" with a neutral alert style (amber left-stripe on white) and no gradient / sparkle emoji. Content stays rule-based and honestly labeled.
+  - Evidence: diff.
+
+- [x] FUX-004 — Replace emoji timeline glyphs with proper icons
+  - Type: Web | Priority: LOW
+  - Problem: `EVENT_ICONS` in `apps/fieldops_web/src/app/timeline/page.tsx:10` uses emoji (🕐 📸 ✅) — renders inconsistently across OS, looks placeholder.
+  - Definition of Done: Use lucide icons (Clock, Camera, CheckCircle2, FileText, Timer, PencilLine) with a consistent 14–16px size and per-event-type color token.
+  - Evidence: screenshot on macOS + Windows.
+
+### Command center ergonomics
+
+- [x] FUX-005 — Global Cmd+K command palette
+  - Type: Web | Priority: HIGH
+  - Problem: Sidebar search in `sidebar.tsx:178` only filters page names. Power users (supervisors) navigate to workers/jobs/photos by name 50× per day.
+  - Definition of Done: Cmd+K / Ctrl+K opens overlay. Single input searches across: pages, workers (full_name), jobs (name/code), recent photos (job name + date). Result groups labeled. Arrow keys + Enter. ESC closes. Debounced 150ms. Works on every page.
+  - Evidence: short screen recording + component path.
+
+- [-] FUX-006 — Wire dark mode toggle
+  - Type: Web | Priority: MEDIUM
+  - Problem: `.dark` tokens exist in `globals.css:85` but are dead — pages hardcode `bg-white text-slate-900`. Supervisors run dashboards all day.
+  - Definition of Done: Toggle in sidebar footer, persists to `localStorage` (`fieldops_theme`), reads system preference as default. Pages migrated to semantic tokens (`bg-background text-foreground` etc.) on the 6 highest-traffic routes: `/`, `/map`, `/timeline`, `/workers`, `/photos`, `/schedule`.
+  - Evidence: screenshots of both themes on those 6 routes.
+
+### Mobile — 30-second rule
+
+- [x] FUX-007 — Single-target clock-in screen when clocked out
+  - Type: Mobile | Priority: HIGH
+  - Problem: `home_tab.dart:40-138` renders 7 sections before the clock action. On a 5" phone in sunlight with gloves the clock button is below the fold.
+  - Definition of Done: When `!clockState.isClockedIn`, HomeTab renders ONLY greeting + giant Clock In card (≥60% viewport height, high-contrast). "More info" collapsible below reveals jobs/hours/stats on tap. Already-clocked-in view unchanged. Visible clock target confirmed on Pixel 4a (1080×2340) + iPhone SE 3 in portrait.
+  - Evidence: two device screenshots, before/after.
+
+- [x] FUX-008 — Surface sync state prominently in mobile header
+  - Type: Mobile | Priority: MEDIUM
+  - Problem: `SyncStatusBar` is below the app bar; when offline clock-ins queue up (Sprint 8.7), the worker has no persistent indicator of "you have 3 events waiting to sync."
+  - Definition of Done: Persistent pill in the app bar: green "Synced" / amber "3 queued" / red "Offline". Tap opens the pending actions list.
+  - Evidence: screenshots of all three states.
+
+### Definition of Done for sprint
+
+- All 8 tasks shipped, PRs merged.
+- Zero fabricated data in the UI — grep for `generateSparkData` and similar returns nothing.
+- Web Lighthouse Performance ≥85 on `/` (was unmeasured).
+- One lesson learned logged in LESSONS_LEARNED.md.
+
+### Shipped 2026-04-20
+
+All 8 tasks shipped in a single orchestrated session (FUX-001 … FUX-008). Final verification: `tsc --noEmit` clean on web, `flutter analyze lib` = "No issues found!" on mobile.
+
+Key deliverables:
+- `infra/supabase/migrations/20260420300000_dashboard_overview_rpc.sql` — new `get_dashboard_overview()` RPC (collapses 6 parallel queries + unbounded task scan into 1 round-trip with server-side aggregation; `SECURITY INVOKER` preserves RLS).
+- `apps/fieldops_web/src/lib/theme.tsx` — theme provider + `THEME_INIT_SCRIPT` (no-flash) + `useTheme()` hook; `fieldops_theme` in localStorage; respects `prefers-color-scheme`.
+- `apps/fieldops_web/src/components/command-palette.tsx` — Cmd+K/Ctrl+K overlay, debounced 150ms, groups Pages/Workers/Jobs/Recent photos, keyboard navigation.
+- `apps/fieldops_web/src/lib/nav-items.ts` — shared NAV_ITEMS (sidebar + palette no longer duplicate).
+- `apps/fieldops_mobile/lib/features/home/presentation/widgets/sync_status_pill.dart` — persistent AppBar chip (Synced/Queued/Offline), taps open PendingActionsCard sheet.
+- HomeTab split into `_ClockedOutView` (LayoutBuilder → clock panel ≥60% viewport + collapsible "More") and `_ClockedInView` (existing stack) — restores 30-second rule.
+
+Carry-over (tracked, not blocking):
+- FUX-006 scoped: only 3 of 6 flagship web routes (`/`, sidebar, layout) migrated to dark-aware tokens in this sprint. Infrastructure is ready; `/map`, `/timeline`, `/workers` still render light styling in dark mode. Mechanical class-batch work — filed as **FUX-006b** for Sprint 8.10.
+- Migration `20260420300000_dashboard_overview_rpc.sql` must be applied to Supabase for the dashboard to load (client calls the RPC). Apply via existing deploy pipeline.
+
+---
+
+## Sprint 8.10 — Operations Command Center (planned)
+
+Goal: Ship the exception-first workflow supervisors and foremen actually need. Today the dashboard answers "how much?"; it should answer "what's broken right now?" and "what does my crew look like?"
+
+Source: UI/UX audit 2026-04-20, sections "Must-adds #1, #3, #4, #7, #8, #9, #10".
+
+### Exception inbox (replaces "AI Insights")
+
+- [ ] FUX-009 — `/alerts` page + persistent bell in sidebar
+  - Type: Backend + Web | Priority: HIGH
+  - Scope: New SQL view `v_operational_alerts` unioning 6 anomaly types:
+    1. Worker clocked in outside geofence (gps_lat/lng vs site + radius, where `geofence_enforced=true`)
+    2. Shift running >10h without a break_event
+    3. Shift running >14h total
+    4. Job with ≥1 clock-in today but 0 photos
+    5. Worker scheduled today (schedule_shifts) but no clock_in by shift_start + 30 min → "no show candidate"
+    6. Permit expiring within 72h where job has `requires_permit=true`
+  - Definition of Done: `/alerts` lists alerts grouped by severity (RED / AMBER / INFO), each has worker/job chips and a primary action button (Call, View timeline, Revoke/Renew, Dismiss). Sidebar bell shows unread count with a red dot. Dismissed alerts persist per user in `alert_dismissals(user_id, alert_signature, dismissed_at)`. Refreshes via Supabase Realtime on the underlying event tables.
+  - Evidence: migration, view definition, page, realtime subscription test.
+
+- [ ] FUX-010 — Replace dashboard "Working Now" avatar strip with exception table
+  - Type: Web | Priority: MEDIUM
+  - Scope: Avatar strip at `page.tsx:365-399` replaced with a compact status table: columns = Worker, Job, Clocked in at, Hours elapsed, Status chip. Filter chips at top: "Clocked in / On break / Over 8h / Outside geofence / No photos". Max 10 rows visible, overflow link to `/workers?filter=active`.
+  - Definition of Done: Usable with 50+ active workers; no horizontal scroll on desktop.
+  - Evidence: screenshot with 30-worker seed.
+
+### Crew view (foreman persona)
+
+- [ ] FUX-011 — `/crew` route for foremen
+  - Type: Web | Priority: HIGH
+  - Scope: Foreman lands on `/crew` (not `/`). Shows their crew roster for today: each worker's status (Clocked in / On break / Not scheduled / No show), current job, hours today, last photo time. Quick actions per row: Open timeline, View photos, Copy phone number. Uses existing `job_foremen` and `schedule_shifts` joins.
+  - Definition of Done: Loads in <500ms for a 15-person crew; role-guard redirects foremen from `/` to `/crew` by default with a toggle to go back.
+  - Evidence: role-routing test + screenshot.
+
+- [ ] FUX-012 — "Daily huddle" widget — scheduled vs. showed up
+  - Type: Web | Priority: MEDIUM
+  - Scope: Morning widget on dashboard (and crew page) — today's schedule_shifts joined against today's clock_events. Three numbers: Scheduled / Clocked in / Missing. Expand to see the missing names.
+  - Definition of Done: Auto-refreshes every 2 minutes between 6am and 10am local time, hidden after 10am unless missing>0.
+  - Evidence: screenshot.
+
+### Photo review + bulk actions
+
+- [ ] FUX-013 — Photo review queue at `/photos?filter=review`
+  - Type: Backend + Web | Priority: MEDIUM
+  - Scope: New `photo_events.review_status` column (`unreviewed` default / `approved` / `flagged`). Filter tabs on `/photos`: All / Unreviewed / Flagged. Auto-flag rules (server): photo GPS >100m from job site OR photo taken within 30s of previous photo by same user (dup candidate). Supervisor can one-click approve or flag-with-note.
+  - Definition of Done: Migration, flagging job (runs on insert via trigger or edge function), UI tabs, keyboard shortcut (A=approve, F=flag) when one photo focused.
+  - Evidence: migration + screen recording.
+
+- [ ] FUX-014 — Bulk OT approval + bulk timecard export
+  - Type: Web | Priority: HIGH
+  - Scope: `/overtime` gets row checkboxes + "Approve selected" / "Reject selected with reason" action bar. `/timecards` gets "Export CSV for selected" + "Export PDF for selected." Everything goes through existing single-row endpoints in a loop with a progress toast.
+  - Definition of Done: Friday-afternoon payroll flow measurable in <2 minutes for a 20-worker company.
+  - Evidence: time-trial video.
+
+### Phone heartbeat + expiration surface
+
+- [ ] FUX-015 — Worker "last seen" heartbeat on web
+  - Type: Backend + Mobile + Web | Priority: MEDIUM
+  - Scope: Mobile pings a new `/sync/heartbeat` every 5 min while foreground + on app resume. Stores in `user_heartbeats(user_id, last_seen_at, app_version, battery_pct nullable)`. `/workers` and `/crew` show "Last ping 18 min ago" badge; if >30 min + clocked-in → amber warning; >2h → red.
+  - Definition of Done: Battery impact <1%/hour verified; heartbeats respect offline (queued in outbox, drained by SyncEngine).
+  - Evidence: mobile battery profile + web screenshot.
+
+- [ ] FUX-016 — Permit + certification expiration surface
+  - Type: Backend + Web | Priority: MEDIUM
+  - Scope: Extend FUX-009 alerts with cert expiries (requires `user_certifications` table — confirm existence or add: `id, user_id, cert_type, issued_at, expires_at, document_path`). Shows "3 certs expire in 14 days." "Snooze" dismisses for 7 days.
+  - Definition of Done: New certifications page under `/settings/certifications`, CRUD for admins, read-only for supervisors, expiry-soon badge on worker rows.
+  - Evidence: migration + screenshots.
+
+### Definition of Done for sprint
+
+- All 8 tasks shipped.
+- Supervisor survey: "can you spot today's biggest problem in <10 seconds?" — 4 of 5 yes.
+- Realtime subscription stable over 8h session (no reconnect storms).
+
+---
+
+## Sprint 8.11 — Owner Dashboard & Evidence Identity (planned)
+
+Goal: Serve the Owner persona (money, disputes, visibility) with dollar-figure visibility, and give the product a distinctive visual identity that matches its "chain of custody" pitch.
+
+Source: UI/UX audit 2026-04-20, sections "Must-adds #2, #10, #11, #12" + Redesign Priorities.
+
+### Labor cost + burn-rate
+
+- [ ] FUX-017 — Hourly pay rate per user (role-gated)
+  - Type: Backend + Web | Priority: HIGH
+  - Scope: New `user_pay_rates(user_id, rate_usd_cents, effective_from, effective_to nullable)` with RLS allowing admin+owner-roles only. Migrations include view `v_user_current_rate`.
+  - Definition of Done: Admin CRUD at `/settings/staff` under a new "Pay rate" column, visible only to admin role. History preserved (never update in place).
+  - Evidence: migration + RLS test.
+
+- [ ] FUX-018 — Job labor cost burn-rate card
+  - Type: Backend + Web | Priority: HIGH
+  - Scope: Per-job SQL function `get_job_labor_cost(job_id)` returns `{hours_to_date, cost_to_date_cents, budget_cents, pct_consumed, projected_cost_at_pace_cents}`. Jobs list cards gain a horizontal bar: green ≤75% / amber 75–95% / red >95% of budget. Job detail page shows a mini area chart of cumulative cost over time and a "projected to overrun by $X at current pace" callout if applicable.
+  - Definition of Done: Cards on `/` and `/projects` display cost; owners see it, workers don't.
+  - Evidence: screenshot + role-guard test.
+
+- [ ] FUX-019 — Owner KPI row reweighted by urgency
+  - Type: Web | Priority: MEDIUM
+  - Scope: Four equal KPI cards at `page.tsx:278-316` become an asymmetric row. The "most urgent" card (largest non-zero of: pending_ot, overrun_jobs, unreviewed_flagged_photos, expiring_certs) takes 2×2 grid space; others compress. Headline a sentence: "$4,320 in OT awaiting approval across 5 workers."
+  - Definition of Done: Zero-state: when nothing urgent, revert to symmetric 4-up with a "You're all clear today" sub-headline.
+  - Evidence: four screenshots (one per urgency type) + zero-state.
+
+### Proof + share
+
+- [ ] FUX-020 — "Day-of-proof" one-pager PDF per job per day
+  - Type: Backend | Priority: HIGH
+  - Scope: New edge function `proof_dayof(job_id, date)` renders a single PDF: job header, workers on-site with clock-in/out pairs + hours, photos thumbnail grid with GPS-stamp + hash visible, task completions, supervisor notes. Uses existing server-stamped photo assets; does NOT re-stamp. Output to Storage, returns signed URL valid 7 days.
+  - Definition of Done: PDF passes a visual diff test against a committed golden; generation <8s for a 20-worker / 40-photo day. Triggered from job detail page + from `/reports`.
+  - Evidence: golden PDF in `execution/fixtures/`, test.
+
+- [ ] FUX-021 — Client share link for day-of-proof
+  - Type: Backend + Web | Priority: MEDIUM
+  - Scope: Extend the existing `/g/[token]` token infrastructure to wrap a day-of-proof PDF. Shareable link is read-only, no-login, expires 30 days. Watermark "Shared by <company>" + hash at the footer. Audit log entry on each view.
+  - Definition of Done: Owner can send a link to a GC that proves 2026-04-15 on Job ABC happened. Opening it logs a view.
+  - Evidence: token flow test + audit log entry.
+
+### Evidence-dossier visual identity
+
+- [ ] FUX-022 — Redesign system tokens toward "chain of custody" aesthetic
+  - Type: Web (design) | Priority: MEDIUM
+  - Scope: Stop using generic stone/slate-with-amber. New token set in `globals.css`: institutional background (ink/paper), a single trust-accent (a saturated but non-neon green — "verified stamp"), a caution amber, a destructive claret. Serif display face for section headlines (Fraunces or Source Serif), tabular numerics everywhere money or time shows. Every event card gets a subtle left-edge "stamped receipt" treatment: a short vertical dashed rule + a 6-char truncation of the verification hash. No more uniform rounded-2xl + shadow-sm on everything.
+  - Definition of Done: Design tokens + updated Tailwind config, applied to 3 flagship screens: `/`, `/timeline`, job detail. Rest of app lives on old tokens until later; both must coexist.
+  - Evidence: before/after screenshots + token diff.
+
+- [ ] FUX-023 — Photo proof card redesign
+  - Type: Web | Priority: MEDIUM
+  - Scope: Photos in `/photos` and `/galleries` currently read as an Instagram grid. Redesign as "evidence cards": photo + a structured receipt strip beneath (Worker · Job · Time · GPS · Hash). Hover → reveal verification affordance "Verify integrity" that re-hashes vs. stored hash and flashes a green tick or red cross.
+  - Definition of Done: Card applied to feed + galleries; verify action implemented client-side via subtle crypto.subtle.digest call on the stored-in-Storage bytes + compare to DB-stored hash.
+  - Evidence: screenshot + integrity-check demo video.
+
+### Map + context
+
+- [ ] FUX-024 — Weather overlay on `/map`
+  - Type: Web | Priority: LOW
+  - Scope: OpenWeatherMap tile overlay toggle on MapTiler instance. Shows temp, rain radar, wind. Off by default; state persisted per user.
+  - Definition of Done: Toggle works, no crash when API quota exhausted (falls back gracefully with toast).
+  - Evidence: screenshot + graceful fallback test.
+
+### Definition of Done for sprint
+
+- All 8 tasks shipped.
+- Owner walkthrough: can they see "which jobs are losing money right now?" in <5 seconds? 4 of 5 yes.
+- At least 2 customer-facing proof shares sent successfully.
+- Aesthetic direction validated with product before broader rollout.
+
+---
+
+## UX track — execution order summary
+
+| Sprint | Theme | Duration | Risk | Priority |
+|--------|-------|----------|------|----------|
+| 8.9 | UX Truth Pass — kill AI slop, perf, 30s rule | 1 week | Low | HIGH (ship first, unblocks everything) |
+| 8.10 | Operations Command Center — exceptions + crew | 2 weeks | Medium (realtime, data model) | HIGH |
+| 8.11 | Owner Dashboard & Evidence Identity — $$ + redesign | 2 weeks | Medium (visual overhaul needs product sign-off) | MEDIUM-HIGH |
+
+Each sprint can absorb one carried backend item from 8.8 (multi-site, equipment, permits phase 2) if backend bandwidth allows, since the UX work is mostly frontend + lightweight SQL.

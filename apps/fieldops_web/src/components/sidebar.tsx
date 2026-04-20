@@ -7,76 +7,15 @@ import { signOut } from "@/lib/auth";
 import { useI18n, type Locale } from "@/lib/i18n";
 import { isManagementRole, isSupervisorOrAbove } from "@/lib/roles";
 import {
-  LayoutDashboard,
-  MapPin,
-  Users,
-  Clock,
-  Camera,
-  Images,
-  DollarSign,
-  Calendar,
-  Tag,
-  Timer,
-  ShieldCheck,
-  FileText,
-  FileSignature,
-  Settings,
-  ToggleLeft,
-  UserPlus,
-  Clipboard,
-  AlertTriangle,
   ChevronLeft,
   Menu,
   Search,
   X,
-  type LucideIcon,
+  Moon,
+  Sun,
 } from "lucide-react";
-
-/* ------------------------------------------------------------------ */
-/*  NAV_ITEMS                                                          */
-/* ------------------------------------------------------------------ */
-
-interface NavItem {
-  href: string;
-  icon: LucideIcon;
-  labelKey: string;
-  section: string;
-  adminOnly?: boolean;
-  supervisorOrAbove?: boolean;
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { href: "/", icon: LayoutDashboard, labelKey: "shell.dashboard", section: "overview" },
-  { href: "/map", icon: MapPin, labelKey: "shell.map", section: "overview" },
-  { href: "/workers", icon: Users, labelKey: "shell.workers", section: "overview" },
-  { href: "/projects", icon: Clipboard, labelKey: "shell.projects", section: "overview" },
-  { href: "/schedule", icon: Calendar, labelKey: "shell.schedule", section: "operations" },
-  { href: "/timeline", icon: Clock, labelKey: "shell.timeline", section: "operations" },
-  { href: "/photos", icon: Camera, labelKey: "shell.photos", section: "operations" },
-  { href: "/galleries", icon: Images, labelKey: "shell.galleries", section: "operations" },
-  { href: "/expenses", icon: DollarSign, labelKey: "shell.expenses", section: "operations" },
-  { href: "/cost-codes", icon: Tag, labelKey: "shell.costCodes", section: "operations" },
-  { href: "/overtime", icon: Timer, labelKey: "shell.overtime", section: "operations" },
-  { href: "/pto", icon: ShieldCheck, labelKey: "shell.pto", section: "operations" },
-  { href: "/projects/permits", icon: FileText, labelKey: "shell.permits", section: "operations" },
-  { href: "/alerts", icon: AlertTriangle, labelKey: "shell.alerts", section: "operations", supervisorOrAbove: true },
-  { href: "/timecards", icon: FileSignature, labelKey: "shell.timecards", section: "operations" },
-  { href: "/reports", icon: FileText, labelKey: "shell.reports", section: "reports" },
-  { href: "/settings", icon: Settings, labelKey: "shell.company", section: "settings" },
-  { href: "/settings/billing", icon: DollarSign, labelKey: "shell.billing", section: "settings", adminOnly: true },
-  { href: "/settings/staff", icon: UserPlus, labelKey: "shell.staff", section: "settings", adminOnly: true },
-  { href: "/settings/pto-allocations", icon: ShieldCheck, labelKey: "shell.ptoAllocations", section: "settings", adminOnly: true },
-  { href: "/settings/job-foremen", icon: Users, labelKey: "shell.jobForemen", section: "settings", adminOnly: true },
-  { href: "/settings/feature-flags", icon: ToggleLeft, labelKey: "shell.featureFlags", section: "settings", adminOnly: true },
-  { href: "/onboarding", icon: Clipboard, labelKey: "shell.onboarding", section: "settings", adminOnly: true },
-];
-
-const SECTIONS: Record<string, string> = {
-  overview: "shell.overview",
-  operations: "shell.operations",
-  reports: "shell.reports",
-  settings: "shell.settings",
-};
+import { useTheme } from "@/lib/theme";
+import { NAV_ITEMS, NAV_SECTIONS } from "@/lib/nav-items";
 
 const STORAGE_KEY = "sidebar_collapsed";
 
@@ -90,6 +29,7 @@ export function Sidebar() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
   const { locale, setLocale, t } = useI18n();
+  const { resolved: resolvedTheme, toggle: toggleTheme } = useTheme();
 
   /* ---------- collapse state (persisted) ---------- */
   const [collapsed, setCollapsed] = useState(false);
@@ -192,7 +132,7 @@ export function Sidebar() {
     });
   }, [searchQuery, visibleItems, t]);
 
-  const grouped = Object.entries(SECTIONS).map(([key, label]) => ({
+  const grouped = Object.entries(NAV_SECTIONS).map(([key, label]) => ({
     sectionKey: key,
     section: t(label),
     items: visibleItems.filter((item) => item.section === key),
@@ -359,22 +299,42 @@ export function Sidebar() {
           ))}
         </nav>
 
-        {/* Footer: language, logo, user, sign-out */}
-        <div className="border-t border-stone-100 px-3 py-4">
+        {/* Footer: language, theme, logo, user, sign-out */}
+        <div className="border-t border-stone-100 px-3 py-4 dark:border-slate-800">
           {isExpanded ? (
             <>
-              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-widest text-slate-300">
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-widest text-slate-300 dark:text-slate-500">
                 {t("shell.language")}
               </label>
               <select
                 value={locale}
                 onChange={(event) => setLocale(event.target.value as Locale)}
-                className="mb-3 w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-[12px] font-medium text-slate-500"
+                className="mb-3 w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-[12px] font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
               >
                 <option value="en">{t("shell.english")}</option>
                 <option value="es">{t("shell.spanish")}</option>
                 <option value="th">{t("shell.thai")}</option>
               </select>
+              <button
+                onClick={toggleTheme}
+                className="mb-3 flex w-full items-center gap-2 rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-[12px] font-medium text-slate-500 transition-colors hover:bg-stone-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                aria-label={
+                  resolvedTheme === "dark"
+                    ? t("shell.switchToLight")
+                    : t("shell.switchToDark")
+                }
+              >
+                {resolvedTheme === "dark" ? (
+                  <Sun size={14} />
+                ) : (
+                  <Moon size={14} />
+                )}
+                <span>
+                  {resolvedTheme === "dark"
+                    ? t("shell.lightMode")
+                    : t("shell.darkMode")}
+                </span>
+              </button>
               {companyLogoUrl && (
                 <img
                   src={companyLogoUrl}
@@ -383,31 +343,42 @@ export function Sidebar() {
                 />
               )}
               {userEmail && (
-                <div className="mb-2 truncate text-[11px] text-slate-400">
+                <div className="mb-2 truncate text-[11px] text-slate-400 dark:text-slate-500">
                   {userEmail}
                 </div>
               )}
               {userEmail && (
                 <button
                   onClick={() => signOut()}
-                  className="w-full rounded-lg py-1.5 text-[12px] font-medium text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                  className="w-full rounded-lg py-1.5 text-[12px] font-medium text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-slate-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                 >
                   {t("shell.signOut")}
                 </button>
               )}
             </>
           ) : (
-            <>
+            <div className="flex flex-col items-center gap-2">
+              <button
+                onClick={toggleTheme}
+                title={
+                  resolvedTheme === "dark"
+                    ? t("shell.switchToLight")
+                    : t("shell.switchToDark")
+                }
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-stone-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+              >
+                {resolvedTheme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
               {userEmail && (
                 <button
                   onClick={() => signOut()}
                   title={t("shell.signOut")}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-slate-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                 >
                   <X size={16} />
                 </button>
               )}
-            </>
+            </div>
           )}
         </div>
       </>
@@ -421,7 +392,7 @@ export function Sidebar() {
       <button
         onClick={() => setMobileOpen(true)}
         aria-label={t("shell.openMenu")}
-        className="fixed left-3 top-3 z-40 flex h-9 w-9 items-center justify-center rounded-lg bg-white text-slate-600 shadow-md md:hidden"
+        className="fixed left-3 top-3 z-40 flex h-9 w-9 items-center justify-center rounded-lg bg-white text-slate-600 shadow-md dark:bg-slate-900 dark:text-slate-300 md:hidden"
       >
         <Menu size={18} />
       </button>
@@ -445,7 +416,7 @@ export function Sidebar() {
 
       {/* Desktop sidebar */}
       <aside
-        className={`hidden md:flex flex-col border-r border-stone-200 bg-white transition-[width] duration-200 ${
+        className={`hidden md:flex flex-col border-r border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900 transition-[width] duration-200 ${
           collapsed ? "w-14" : "w-56"
         }`}
       >

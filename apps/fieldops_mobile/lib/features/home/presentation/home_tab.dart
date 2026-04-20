@@ -7,8 +7,10 @@ import 'package:fieldops_mobile/features/home/presentation/widgets/clock_status_
 import 'package:fieldops_mobile/features/home/presentation/widgets/pending_actions_card.dart';
 import 'package:fieldops_mobile/features/home/presentation/widgets/quick_stats_row.dart';
 import 'package:fieldops_mobile/features/home/presentation/widgets/sync_status_bar.dart';
+import 'package:fieldops_mobile/features/home/presentation/widgets/sync_status_pill.dart';
 import 'package:fieldops_mobile/features/home/presentation/widgets/worker_hours_summary.dart';
 import 'package:fieldops_mobile/features/home/presentation/worker_hours_controller.dart';
+import 'package:fieldops_mobile/features/jobs/domain/job_summary.dart';
 import 'package:fieldops_mobile/features/jobs/presentation/jobs_controller.dart';
 import 'package:fieldops_mobile/features/overtime/presentation/widgets/ot_prompt_banner.dart';
 import 'package:flutter/material.dart';
@@ -31,110 +33,234 @@ class HomeTab extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
     final palette = context.palette;
 
+    final clockPanel = ClockStatusPanel(
+      state: clockState,
+      onClockOut: clockState.isClockedIn
+          ? () async {
+              final wrapup = await ShiftWrapupDialog.show(
+                context,
+                jobName: clockState.activeJobName ?? '',
+                clockedInAt: clockState.clockedInAt,
+              );
+              if (wrapup == null) return;
+              await ref.read(clockControllerProvider.notifier).clockOut();
+            }
+          : null,
+      onBreakToggle: clockState.isClockedIn
+          ? () {
+              if (clockState.isOnBreak) {
+                ref.read(clockControllerProvider.notifier).endBreak();
+              } else {
+                ref.read(clockControllerProvider.notifier).startBreak();
+              }
+            }
+          : null,
+    );
+
+    Future<void> onRefresh() async {
+      await Future.wait([
+        ref.read(jobsControllerProvider.notifier).reload().catchError((_) {}),
+        ref
+            .read(workerHoursControllerProvider.notifier)
+            .reload()
+            .catchError((_) {}),
+      ]);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('FieldOps'),
         centerTitle: false,
+        actions: const [SyncStatusPill()],
       ),
       body: Column(
         children: [
           const SyncStatusBar(),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: () async {
-                await Future.wait([
-                  ref
-                      .read(jobsControllerProvider.notifier)
-                      .reload()
-                      .catchError((_) {}),
-                  ref
-                      .read(workerHoursControllerProvider.notifier)
-                      .reload()
-                      .catchError((_) {}),
-                ]);
-              },
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(20),
-                children: [
-                  // Greeting
-                  _GreetingHeader(email: email),
-                  const SizedBox(height: 20),
-
-                  // Clock status panel (big, prominent)
-                  ClockStatusPanel(
-                    state: clockState,
-                    onClockOut: clockState.isClockedIn
-                        ? () async {
-                            final wrapup = await ShiftWrapupDialog.show(
-                              context,
-                              jobName: clockState.activeJobName ?? '',
-                              clockedInAt: clockState.clockedInAt,
-                            );
-                            if (wrapup == null) return;
-                            await ref
-                                .read(clockControllerProvider.notifier)
-                                .clockOut();
-                          }
-                        : null,
-                    onBreakToggle: clockState.isClockedIn
-                        ? () {
-                            if (clockState.isOnBreak) {
-                              ref
-                                  .read(clockControllerProvider.notifier)
-                                  .endBreak();
-                            } else {
-                              ref
-                                  .read(clockControllerProvider.notifier)
-                                  .startBreak();
-                            }
-                          }
-                        : null,
-                  ),
-
-                  if (clockState.hasError) ...[
-                    const SizedBox(height: 14),
-                    ClockErrorPanel(state: clockState),
-                  ],
-
-                  const SizedBox(height: 16),
-
-                  // Quick stats row (hours, tasks, photos)
-                  _WorkerHoursSection(state: workerHoursState),
-
-                  const SizedBox(height: 16),
-
-                  // Quick stats: tasks completed + photos today
-                  QuickStatsRow(
-                    jobsState: jobsState,
-                    isClockedIn: clockState.isClockedIn,
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // OT prompt banner
-                  const OTPromptBanner(),
-
-                  // Active job info (when clocked in)
-                  if (clockState.isClockedIn) ...[
-                    _ActiveJobCard(
-                      jobName: clockState.activeJobName ?? 'Unknown job',
-                      clockedInAt: clockState.clockedInAt,
+              onRefresh: onRefresh,
+              child: clockState.isClockedIn
+                  ? _ClockedInView(
+                      clockPanel: clockPanel,
+                      clockState: clockState,
+                      workerHoursState: workerHoursState,
+                      jobsState: jobsState,
+                      email: email,
                       palette: palette,
                       textTheme: textTheme,
+                    )
+                  : _ClockedOutView(
+                      clockPanel: clockPanel,
+                      clockState: clockState,
+                      workerHoursState: workerHoursState,
+                      jobsState: jobsState,
+                      email: email,
                     ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Pending actions
-                  const PendingActionsCard(),
-
-                  const SizedBox(height: 24),
-                ],
-              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Clocked-OUT view (30-second rule): greeting + giant clock card ──
+// Everything else is hidden behind an expandable "More" tile.
+
+class _ClockedOutView extends StatelessWidget {
+  const _ClockedOutView({
+    required this.clockPanel,
+    required this.clockState,
+    required this.workerHoursState,
+    required this.jobsState,
+    required this.email,
+  });
+
+  final Widget clockPanel;
+  final ClockState clockState;
+  final AsyncValue<WorkerHoursSnapshot> workerHoursState;
+  final AsyncValue<List<JobSummary>> jobsState;
+  final String? email;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Giant clock card fills at least 60% of the available height so the
+        // primary action is always above the fold — even on a 5" phone in
+        // gloves and sunlight. "More" reveals secondary surfaces on tap.
+        final minClockHeight = constraints.maxHeight * 0.60;
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _GreetingHeader(email: email),
+              const SizedBox(height: 20),
+              ConstrainedBox(
+                constraints: BoxConstraints(minHeight: minClockHeight),
+                child: Center(child: clockPanel),
+              ),
+              if (clockState.hasError) ...[
+                const SizedBox(height: 14),
+                ClockErrorPanel(state: clockState),
+              ],
+              const SizedBox(height: 16),
+              _MoreTile(
+                children: [
+                  _WorkerHoursSection(state: workerHoursState),
+                  const SizedBox(height: 16),
+                  QuickStatsRow(
+                    jobsState: jobsState,
+                    isClockedIn: false,
+                  ),
+                  const SizedBox(height: 16),
+                  const OTPromptBanner(),
+                  const PendingActionsCard(),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─── Clocked-IN view: full stack (unchanged ordering) ─────────────────
+
+class _ClockedInView extends StatelessWidget {
+  const _ClockedInView({
+    required this.clockPanel,
+    required this.clockState,
+    required this.workerHoursState,
+    required this.jobsState,
+    required this.email,
+    required this.palette,
+    required this.textTheme,
+  });
+
+  final Widget clockPanel;
+  final ClockState clockState;
+  final AsyncValue<WorkerHoursSnapshot> workerHoursState;
+  final AsyncValue<List<JobSummary>> jobsState;
+  final String? email;
+  final FieldOpsPalette palette;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(20),
+      children: [
+        _GreetingHeader(email: email),
+        const SizedBox(height: 20),
+        clockPanel,
+        if (clockState.hasError) ...[
+          const SizedBox(height: 14),
+          ClockErrorPanel(state: clockState),
+        ],
+        const SizedBox(height: 16),
+        _WorkerHoursSection(state: workerHoursState),
+        const SizedBox(height: 16),
+        QuickStatsRow(
+          jobsState: jobsState,
+          isClockedIn: true,
+        ),
+        const SizedBox(height: 16),
+        const OTPromptBanner(),
+        _ActiveJobCard(
+          jobName: clockState.activeJobName ?? 'Unknown job',
+          clockedInAt: clockState.clockedInAt,
+          palette: palette,
+          textTheme: textTheme,
+        ),
+        const SizedBox(height: 16),
+        const PendingActionsCard(),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+// ─── Collapsible "More" section (30-second-rule helper) ──────────────
+
+class _MoreTile extends StatelessWidget {
+  const _MoreTile({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return Theme(
+      // Strip ExpansionTile's default divider so the card edges stay clean.
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: Container(
+        decoration: BoxDecoration(
+          color: palette.surfaceWhite,
+          borderRadius: BorderRadius.circular(FieldOpsRadius.xl),
+          border: Border.all(color: palette.border),
+        ),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+          title: Text(
+            'More',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          subtitle: Text(
+            'Hours, stats, and pending actions',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: palette.steel,
+                ),
+          ),
+          children: children,
+        ),
       ),
     );
   }
