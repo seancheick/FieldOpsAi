@@ -21,6 +21,7 @@ import {
   FileText,
   FileSignature,
   Settings,
+  ToggleLeft,
   UserPlus,
   Clipboard,
   ChevronLeft,
@@ -63,6 +64,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/settings/staff", icon: UserPlus, labelKey: "shell.staff", section: "settings", adminOnly: true },
   { href: "/settings/pto-allocations", icon: ShieldCheck, labelKey: "shell.ptoAllocations", section: "settings", adminOnly: true },
   { href: "/settings/job-foremen", icon: Users, labelKey: "shell.jobForemen", section: "settings", adminOnly: true },
+  { href: "/settings/feature-flags", icon: ToggleLeft, labelKey: "shell.featureFlags", section: "settings", adminOnly: true },
   { href: "/onboarding", icon: Clipboard, labelKey: "shell.onboarding", section: "settings", adminOnly: true },
 ];
 
