@@ -1588,3 +1588,70 @@ Triggered by Sentry reports: most mobile screens 401-crashing after Supabase rot
 
 - [ ] Delete stale duplicate `/supabase/functions/schedule_ai` (the real one lives under `/infra/supabase/`)
   - Type: Cleanup | Priority: LOW
+
+---
+
+## Sprint 8.7 — First Beta Tester Feedback + Polish (2026-04-20)
+
+First external beta tester (PSG, electrical contractor in Thailand) surfaced five issues and five feature requests on day-one walkthrough. Shipped the quick wins + two substantial features in one day. Multi-site projects and equipment check-out carried over as sprint candidates.
+
+### Beta bugs — fixed
+
+- [x] FOB-005 — `/timeline` dead-end when accessed from sidebar
+  - Type: Web | Priority: HIGH | Status: Done
+  - Fix: in-page job selector dropdown in the header, URL sync via `?job=<uuid>` (legacy `?job_id=` still accepted), auto-select when only one job exists, "Go to Dashboard" demoted to secondary link.
+  - Evidence: `apps/fieldops_web/src/app/timeline/page.tsx` (commit `d9d4ca0`).
+
+- [x] FOB-006 — "No Show" red badge showing for every unscheduled worker
+  - Type: Web | Priority: HIGH | Status: Done
+  - Fix: added fifth worker status `not_scheduled` (gray, neutral). "No Show" now requires a published `schedule_shifts` row for today + no clock-in. New filter tab; counts split correctly. i18n EN/ES/TH.
+  - Evidence: `apps/fieldops_web/src/app/workers/page.tsx`, `apps/fieldops_web/src/lib/i18n.tsx` (commit `d9d4ca0`).
+
+### Beta features — shipped
+
+- [x] Safety checklist gate on clock-in (PSG regulatory requirement)
+  - Type: Mobile | Priority: HIGH | Status: Done
+  - Fix: new `guardedClockIn(context, ref, jobId, jobName)` helper in `clock_in_with_safety.dart`. Calls `safety.check` → pushes `SafetyChecklistScreen` if not done today → only proceeds on `Navigator.pop(true)`. Network failure on check → non-blocking warning + allow proceed. Foreman/break/clock-out paths untouched.
+  - Evidence: `apps/fieldops_mobile/lib/features/clock/presentation/clock_in_with_safety.dart` (commit `d9d4ca0`).
+
+- [x] Offline clock in/out via local outbox (substation / remote-site use case)
+  - Type: Mobile | Priority: HIGH | Status: Done
+  - Fix: `SupabaseClockRepository` catches `SocketException`/`HttpException`/`FunctionException(status:0)` and writes a byte-identical payload to `pending_events` via Drift/sqlite. `SyncEngine` already had the drain half (15s poll, idempotent retries). `ClockActionResult.queued` signals the UI to show "Saved offline — will sync when connected." Applied uniformly to clockIn/clockOut/breakStart/breakEnd.
+  - Known accepted edge: offline clockOut on a shift the server later rejects (`forbidden_job`) would leave the UI clocked-out while server shows clocked-in. Per product: server is source of truth; future reconciliation UI flagged.
+  - Evidence: commit `c442bf8`.
+
+- [x] Hazardous work permit logging — full lifecycle
+  - Type: Backend + Web + Mobile | Priority: HIGH | Status: Done (Phase 1)
+  - Backend: migration `20260420100000_work_permits.sql` creates `work_permits` table (status draft/issued/expired/revoked, issuer, expires_at nullable, revocation reason, pdf_path for Phase 2) plus `jobs.requires_permit` + `jobs.required_permit_type` enum. RLS: any company user SELECT; supervisor+ INSERT/UPDATE/DELETE. New `permits` edge function with 6 actions: list, create, update, issue, revoke, check_active.
+  - Web: `/projects/permits` supervisor page — filter by job/status, "New Permit" modal, revoke modal with required reason (≥5 chars), status pills, "Blocking clock-in" amber badge on jobs that require a permit but don't have one active. Sidebar entry under operations; i18n EN/ES/TH.
+  - Mobile: new `features/permits/` slice (domain + data + provider). `guardedClockIn` extended — permit check runs BEFORE safety check. If `required && active_permit==null` → hard block dialog "Permit required" with the friendly type (e.g. "HV Electrical"). Offline fallback → non-blocking warning + proceed; real server errors → blocking dialog and abort.
+  - Deferred to Phase 2: PDF attach via Storage, auto-expiry sweeper, rich audit log, supervisor email on expiry.
+  - Evidence: commit `b957cf3`.
+
+- [x] Optional geofence enforcement per job (remote / hybrid / office staff)
+  - Type: Backend + Web | Priority: MEDIUM | Status: Done
+  - Fix: migration adds `jobs.geofence_enforced bool NOT NULL DEFAULT true`. `sync_events` skips the site-coords-configured + haversine distance checks when `geofence_enforced=false`; GPS validity still enforced for audit. Projects form gets a styled checkbox "Enforce geofence on clock-in" with helper text; radius input disables + grays when enforcement is off. Default true preserves existing strict behaviour.
+  - Evidence: commit `4e61118`.
+
+### Carried to Sprint 8.8
+
+- [ ] Multi-site projects (PSG use case: one contract spans multiple substations)
+  - Type: Backend + Web + Mobile | Priority: HIGH | Effort: 2–3 days
+  - Scope: new `project_sites` table with per-site geofence rows + site name/address; jobs optionally link to a site (OR keep site coords directly as today). Schedule + clock-in UI gains a site picker under the project. Backwards-compatible: existing single-site jobs keep working without a site row.
+
+- [ ] Equipment / tools check-out log (HV meters, relay testers, etc.)
+  - Type: Backend + Web + Mobile | Priority: MEDIUM | Effort: 2–3 days
+  - Scope: `equipment(id, company_id, name, serial, category)` + `equipment_checkouts(id, equipment_id, user_id, job_id, checked_out_at, checked_in_at, notes)`. Foreman screen to dispatch equipment to a worker + worker screen to confirm receipt / return. Paired with multi-site since both touch the project data model.
+
+- [ ] Permits Phase 2
+  - Type: Backend + Web | Priority: MEDIUM
+  - PDF attachment via existing media_presign Storage flow; auto-expiry sweeper (cron function flips status=expired past deadline, sends email to creator); rich audit log per permit; supervisor email on near-expiry.
+
+### Contract tests as a standing requirement
+
+All 13 Sprint 8.6 BLOCKERs + today's permit contract could have been caught by a contract test per edge function (POST with the exact mobile body shape, assert response keys). Still open from Sprint 8.6. Re-prioritizing as HIGH for 8.8 since every new function added this week compounds the risk.
+
+### Lessons learned
+
+- See LESSONS 49–52 (Sprint 8.6 ES256 + schema + toString + optional foreman) for the audit-pass playbook.
+- New: geofence enforcement is a product choice per-job, not a platform-wide invariant. Default-on preserves safety; opt-out unlocks remote/hybrid work without bifurcating the codebase. (Potential Lesson 53 candidate — confirm with product before adding.)
