@@ -1,10 +1,15 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 import type { TimelineEvent } from "@/lib/types";
+
+interface JobOption {
+  id: string;
+  name: string;
+}
 
 const EVENT_ICONS: Record<string, string> = {
   clock_event: "🕐",
@@ -42,6 +47,7 @@ export default function TimelinePage() {
 
 function TimelineContent() {
   const { t } = useI18n();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const jobId = searchParams.get("job_id");
 
@@ -49,6 +55,48 @@ function TimelineContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jobName, setJobName] = useState<string | null>(null);
+  const [jobs, setJobs] = useState<JobOption[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
+
+  // Load the job list for the selector on every mount.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error: err } = await getSupabase()
+        .from("jobs")
+        .select("id, name, status")
+        .in("status", ["active", "in_progress", "review", "draft"])
+        .order("name", { ascending: true });
+      if (cancelled) return;
+      if (!err && data) {
+        setJobs(data.map((j) => ({ id: j.id as string, name: j.name as string })));
+      }
+      setJobsLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Auto-select the only job if there's exactly one and nothing in the URL.
+  useEffect(() => {
+    if (jobId || jobsLoading) return;
+    if (jobs.length === 1) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("job_id", jobs[0].id);
+      router.replace(`/timeline?${params.toString()}`);
+    }
+  }, [jobId, jobs, jobsLoading, router, searchParams]);
+
+  function handleJobChange(newId: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (newId) {
+      params.set("job_id", newId);
+    } else {
+      params.delete("job_id");
+    }
+    router.replace(`/timeline?${params.toString()}`);
+  }
 
   const loadTimeline = useCallback(async () => {
     setLoading(true);
@@ -195,24 +243,54 @@ function TimelineContent() {
         </p>
       </div>
 
-      {loading && (
+      {/* Job selector — always present so the page is never a dead end. */}
+      <div className="mb-6 flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1 text-sm text-slate-600">
+          <span className="font-semibold text-slate-700">
+            {t("timeline.jobSelectorLabel")}
+          </span>
+          <select
+            value={jobId ?? ""}
+            onChange={(e) => handleJobChange(e.target.value)}
+            disabled={jobsLoading || jobs.length === 0}
+            className="min-w-[260px] rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:bg-stone-100 disabled:text-slate-400"
+          >
+            <option value="">
+              {jobsLoading
+                ? t("timeline.loadingJobs")
+                : t("timeline.jobSelectorPlaceholder")}
+            </option>
+            {jobs.map((j) => (
+              <option key={j.id} value={j.id}>
+                {j.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {loading && jobId && (
         <div className="flex items-center gap-2 text-slate-500">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
           {t("timeline.loading")}
         </div>
       )}
 
-      {error === "no_job" && (
+      {error === "no_job" && !jobsLoading && jobs.length === 0 && (
         <div className="rounded-xl border border-stone-200 bg-white p-8 text-center">
-          <p className="text-slate-500">
-            {t("timeline.noJob")}
-          </p>
+          <p className="text-slate-500">{t("timeline.noJobsAvailable")}</p>
           <a
-            href="/"
+            href="/projects"
             className="mt-4 inline-block rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600"
           >
-            {t("timeline.goToDashboard")}
+            {t("shell.projects")}
           </a>
+        </div>
+      )}
+
+      {error === "no_job" && !jobsLoading && jobs.length > 0 && (
+        <div className="rounded-xl border border-stone-200 bg-white p-8 text-center">
+          <p className="text-slate-500">{t("timeline.selectJobPrompt")}</p>
         </div>
       )}
 

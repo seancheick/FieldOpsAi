@@ -9,7 +9,7 @@ interface WorkerStatus {
   user_id: string;
   full_name: string;
   role: string;
-  status: "clocked_in" | "on_break" | "clocked_out" | "no_show";
+  status: "clocked_in" | "on_break" | "clocked_out" | "no_show" | "not_scheduled";
   current_job: string | null;
   clock_in_time: string | null;
   hours_today: number;
@@ -20,6 +20,7 @@ const STATUS_ORDER: Record<WorkerStatus["status"], number> = {
   on_break: 1,
   clocked_out: 2,
   no_show: 3,
+  not_scheduled: 4,
 };
 
 export default function WorkersPage() {
@@ -47,11 +48,23 @@ export default function WorkersPage() {
 
       // Fetch today's latest clock event per worker
       const today = new Date().toISOString().split("T")[0];
-      const { data: clockEvents } = await supabase
-        .from("clock_events")
-        .select("user_id, event_subtype, occurred_at, jobs!clock_events_job_id_fkey(name)")
-        .gte("occurred_at", `${today}T00:00:00Z`)
-        .order("occurred_at", { ascending: false });
+      const [clockEventsRes, shiftsRes] = await Promise.all([
+        supabase
+          .from("clock_events")
+          .select("user_id, event_subtype, occurred_at, jobs!clock_events_job_id_fkey(name)")
+          .gte("occurred_at", `${today}T00:00:00Z`)
+          .order("occurred_at", { ascending: false }),
+        // Pull today's published shifts so we can distinguish no-show vs not-scheduled.
+        supabase
+          .from("schedule_shifts")
+          .select("worker_id")
+          .eq("shift_date", today)
+          .eq("status", "published"),
+      ]);
+      const clockEvents = clockEventsRes.data;
+      const scheduledToday = new Set<string>(
+        (shiftsRes.data ?? []).map((s) => s.worker_id as string),
+      );
 
       // Build status map
       const statusMap = new Map<string, { subtype: string; time: string; job: string }>();
@@ -90,8 +103,13 @@ export default function WorkersPage() {
       }
 
       const result: WorkerStatus[] = (users ?? []).map((u) => {
-        const latest = statusMap.get(u.id as string);
-        let status: WorkerStatus["status"] = "no_show";
+        const uid = u.id as string;
+        const latest = statusMap.get(uid);
+        // Default to "not_scheduled" (neutral) instead of "no_show" (alarming).
+        // "no_show" is only for workers who had a published shift today and never clocked in.
+        let status: WorkerStatus["status"] = scheduledToday.has(uid)
+          ? "no_show"
+          : "not_scheduled";
         if (latest) {
           if (latest.subtype === "clock_in") status = "clocked_in";
           else if (latest.subtype === "break_start") status = "on_break";
@@ -100,19 +118,17 @@ export default function WorkersPage() {
         }
 
         return {
-          user_id: u.id as string,
+          user_id: uid,
           full_name: u.full_name as string,
           role: u.role as string,
           status,
           current_job: latest?.job ?? null,
           clock_in_time: latest?.time ?? null,
-          hours_today: +(hoursMap.get(u.id as string) ?? 0).toFixed(1),
+          hours_today: +(hoursMap.get(uid) ?? 0).toFixed(1),
         };
       });
 
-      // Sort: clocked_in first, then on_break, then clocked_out, then no_show
-      const order = { clocked_in: 0, on_break: 1, clocked_out: 2, no_show: 3 };
-      result.sort((a, b) => order[a.status] - order[b.status]);
+      result.sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
 
       setWorkers(result);
     } catch (err) {
@@ -156,8 +172,9 @@ export default function WorkersPage() {
   const STATUS_CONFIG = {
     clocked_in: { label: t("workers.clockedIn"), color: "bg-green-100 text-green-700", dot: "bg-green-500", avatarBg: "bg-green-500" },
     on_break: { label: t("workers.onBreak"), color: "bg-amber-100 text-amber-700", dot: "bg-amber-500", avatarBg: "bg-amber-500" },
-    clocked_out: { label: t("workers.clockedOut"), color: "bg-stone-100 text-stone-500", dot: "bg-stone-400", avatarBg: "bg-stone-400" },
+    clocked_out: { label: t("workers.clockedOut"), color: "bg-blue-100 text-blue-700", dot: "bg-blue-500", avatarBg: "bg-blue-500" },
     no_show: { label: t("workers.noShow"), color: "bg-red-100 text-red-700", dot: "bg-red-500", avatarBg: "bg-red-500" },
+    not_scheduled: { label: t("workers.notScheduled"), color: "bg-stone-100 text-stone-500", dot: "bg-stone-400", avatarBg: "bg-stone-400" },
   };
 
   const filtered = useMemo(() => {
@@ -190,6 +207,7 @@ export default function WorkersPage() {
     on_break: workers.filter((w) => w.status === "on_break").length,
     clocked_out: workers.filter((w) => w.status === "clocked_out").length,
     no_show: workers.filter((w) => w.status === "no_show").length,
+    not_scheduled: workers.filter((w) => w.status === "not_scheduled").length,
   };
 
   function getInitials(name: string): string {
@@ -285,7 +303,7 @@ export default function WorkersPage() {
 
       {/* Status filter tabs */}
       <div className="mb-6 flex flex-wrap gap-2">
-        {(["all", "clocked_in", "on_break", "clocked_out", "no_show"] as const).map((s) => {
+        {(["all", "clocked_in", "on_break", "clocked_out", "no_show", "not_scheduled"] as const).map((s) => {
           const label = s === "all" ? t("workers.all") : STATUS_CONFIG[s as keyof typeof STATUS_CONFIG].label;
           const count = counts[s as keyof typeof counts];
           return (

@@ -32,9 +32,10 @@ interface JobDisplay {
   currentForemanName: string | null;
 }
 
+// Matches public.job_status enum: draft | active | in_progress | review | completed | archived.
+// Excludes completed + archived so foremen can only be assigned to open jobs.
 const ACTIVE_JOB_STATUSES = [
   "draft",
-  "scheduled",
   "active",
   "in_progress",
   "review",
