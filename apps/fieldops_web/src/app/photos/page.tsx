@@ -13,6 +13,8 @@ import { TagFilterBar } from "@/components/photos/TagFilterBar";
 import { BulkTagDialog } from "@/components/photos/BulkTagDialog";
 import { SaveAsGalleryDialog } from "@/components/photos/SaveAsGalleryDialog";
 import { ShareLinkDialog } from "@/components/photos/ShareLinkDialog";
+import { PhotoReviewActions, type ReviewStatus } from "@/components/photos/PhotoReviewActions";
+import { useCurrentUser } from "@/lib/use-role";
 
 interface PhotoEntry {
   id: string;
@@ -139,6 +141,9 @@ function PhotoFeedContent() {
   const [filterMode, setFilterMode] = useState("");
   const [filterCheckpoint, setFilterCheckpoint] = useState(false);
   const [filterVerified, setFilterVerified] = useState<"all" | "verified" | "unverified">("all");
+  const [reviewFilter, setReviewFilter] = useState<"all" | "unreviewed" | "approved" | "flagged">("all");
+  const [reviewStatusMap, setReviewStatusMap] = useState<Map<string, ReviewStatus>>(new Map());
+  const { companyId: currentCompanyId } = useCurrentUser();
 
   // Lightbox state
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
@@ -473,6 +478,70 @@ function PhotoFeedContent() {
     };
   }, [jobId, loadPhotos]);
 
+  // Fetch review status for all currently-loaded photos + subscribe to live updates (FUX-013c).
+  useEffect(() => {
+    if (photos.length === 0 || !currentCompanyId) {
+      setReviewStatusMap(new Map());
+      return;
+    }
+
+    const photoIds = photos.map((p) => p.id);
+    const supabase = getSupabase();
+    let cancelled = false;
+
+    async function loadReviews() {
+      const { data } = await supabase
+        .from("photo_reviews")
+        .select("photo_event_id, status")
+        .eq("company_id", currentCompanyId)
+        .in("photo_event_id", photoIds);
+      if (cancelled) return;
+      const next = new Map<string, ReviewStatus>();
+      for (const row of (data ?? []) as Array<{
+        photo_event_id: string;
+        status: ReviewStatus;
+      }>) {
+        next.set(row.photo_event_id, row.status);
+      }
+      setReviewStatusMap(next);
+    }
+    loadReviews();
+
+    const channel = supabase
+      .channel(`photo-reviews-${currentCompanyId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "photo_reviews",
+          filter: `company_id=eq.${currentCompanyId}`,
+        },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as {
+            photo_event_id?: string;
+            status?: ReviewStatus;
+          } | null;
+          if (!row?.photo_event_id) return;
+          setReviewStatusMap((prev) => {
+            const next = new Map(prev);
+            if (payload.eventType === "DELETE") {
+              next.delete(row.photo_event_id!);
+            } else if (row.status) {
+              next.set(row.photo_event_id!, row.status);
+            }
+            return next;
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [photos, currentCompanyId]);
+
   function formatTime(iso: string) {
     return new Date(iso).toLocaleString(undefined, {
       month: "short",
@@ -565,9 +634,26 @@ function PhotoFeedContent() {
           if (!ids.includes(photo.media_asset_id)) return false;
         }
       }
+      // Review-status filter (FUX-013c). Absent row = "unreviewed".
+      if (reviewFilter !== "all") {
+        const status = reviewStatusMap.get(photo.id) ?? "unreviewed";
+        if (status !== reviewFilter) return false;
+      }
       return true;
     });
-  }, [photos, filterDate, filterWorker, filterTask, filterMode, filterCheckpoint, filterVerified, activeTagFilter, tagPhotoMap]);
+  }, [photos, filterDate, filterWorker, filterTask, filterMode, filterCheckpoint, filterVerified, activeTagFilter, tagPhotoMap, reviewFilter, reviewStatusMap]);
+
+  // Tab counts ignore the reviewFilter itself (so "all" still shows all).
+  const reviewCounts = useMemo(() => {
+    const counts = { all: photos.length, unreviewed: 0, approved: 0, flagged: 0 };
+    for (const p of photos) {
+      const status = reviewStatusMap.get(p.id) ?? "unreviewed";
+      if (status === "unreviewed") counts.unreviewed++;
+      else if (status === "approved") counts.approved++;
+      else if (status === "flagged") counts.flagged++;
+    }
+    return counts;
+  }, [photos, reviewStatusMap]);
 
   // Bulk selection helpers
   function togglePhotoSelection(id: string) {
@@ -751,6 +837,33 @@ function PhotoFeedContent() {
           onViewModeChange={setProjectBrowserView}
           onOpenProject={(projectId) => router.push(`/photos?job_id=${encodeURIComponent(projectId)}&tab=feed`)}
         />
+      )}
+
+      {/* Review status tabs (FUX-013c) */}
+      {jobId && activeTab === "feed" && photos.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {(["all", "unreviewed", "flagged", "approved"] as const).map((f) => {
+            const active = reviewFilter === f;
+            return (
+              <button
+                key={f}
+                onClick={() => setReviewFilter(f)}
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                  active
+                    ? f === "flagged"
+                      ? "bg-rose-600 text-white"
+                      : f === "approved"
+                        ? "bg-emerald-600 text-white"
+                        : "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+                    : "bg-stone-100 text-slate-600 hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                }`}
+              >
+                {t(`photoReview.tab.${f}`)} ·{" "}
+                <span className="tabular-nums">{reviewCounts[f]}</span>
+              </button>
+            );
+          })}
+        </div>
       )}
 
       {/* View mode switcher */}
@@ -1182,6 +1295,17 @@ function PhotoFeedContent() {
                     </code>
                   )}
                 </div>
+                {/* Review actions (FUX-013c) */}
+                {currentCompanyId && (
+                  <div className="mt-3 border-t border-stone-100 pt-3 dark:border-slate-800">
+                    <PhotoReviewActions
+                      photoEventId={photo.id}
+                      photoOccurredAt={photo.occurred_at}
+                      companyId={currentCompanyId}
+                      compact
+                    />
+                  </div>
+                )}
               </div>
             </div>
           );

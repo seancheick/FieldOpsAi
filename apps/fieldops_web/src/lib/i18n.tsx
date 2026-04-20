@@ -170,6 +170,12 @@ const translations: Record<string, TranslationTree> = {
         approved: "Approved",
         flagged: "Flagged",
       },
+      tab: {
+        all: "All",
+        unreviewed: "Unreviewed",
+        flagged: "Flagged",
+        approved: "Approved",
+      },
     },
     activeWorkers: {
       heading: "On the clock",
@@ -891,6 +897,12 @@ const translations: Record<string, TranslationTree> = {
         unreviewed: "Sin revisar",
         approved: "Aprobada",
         flagged: "Marcada",
+      },
+      tab: {
+        all: "Todas",
+        unreviewed: "Sin revisar",
+        flagged: "Marcadas",
+        approved: "Aprobadas",
       },
     },
     activeWorkers: {
