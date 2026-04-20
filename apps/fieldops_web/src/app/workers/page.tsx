@@ -170,9 +170,9 @@ export default function WorkersPage() {
   const STATUS_CONFIG = {
     clocked_in: { label: t("workers.clockedIn"), color: "bg-green-100 text-green-700", dot: "bg-green-500", avatarBg: "bg-green-500" },
     on_break: { label: t("workers.onBreak"), color: "bg-amber-100 text-amber-700", dot: "bg-amber-500", avatarBg: "bg-amber-500" },
-    clocked_out: { label: t("workers.clockedOut"), color: "bg-stone-100 text-stone-500", dot: "bg-stone-400", avatarBg: "bg-stone-400" },
+    clocked_out: { label: t("workers.clockedOut"), color: "bg-stone-100 dark:bg-slate-800 text-stone-500", dot: "bg-stone-400", avatarBg: "bg-stone-400" },
     no_show: { label: t("workers.noShow"), color: "bg-red-100 text-red-700", dot: "bg-red-500", avatarBg: "bg-red-500" },
-    not_scheduled: { label: t("workers.notScheduled"), color: "bg-stone-100 text-stone-600", dot: "bg-stone-400", avatarBg: "bg-stone-400" },
+    not_scheduled: { label: t("workers.notScheduled"), color: "bg-stone-100 dark:bg-slate-800 text-stone-600", dot: "bg-stone-400", avatarBg: "bg-stone-400" },
   };
 
   const filtered = useMemo(() => {
@@ -249,17 +249,17 @@ export default function WorkersPage() {
   return (
     <div>
       <div className="mb-6">
-        <a href="/" className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900">
+        <a href="/" className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-100">
           <span>&larr;</span> {t("common.backToDashboard")}
         </a>
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">{t("workers.title")}</h2>
-            <p className="mt-1 text-slate-600">{t("workers.subtitle")}</p>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t("workers.title")}</h2>
+            <p className="mt-1 text-slate-600 dark:text-slate-300">{t("workers.subtitle")}</p>
           </div>
           <button
             onClick={exportCsv}
-            className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-stone-50"
+            className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 shadow-sm transition-colors hover:bg-stone-50 dark:bg-slate-950"
           >
             {t("workers.exportCsv")}
           </button>
@@ -269,7 +269,7 @@ export default function WorkersPage() {
       {/* Search and role filter */}
       <div className="mb-4 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -277,13 +277,13 @@ export default function WorkersPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t("workers.searchPlaceholder")}
-            className="w-full rounded-lg border border-stone-300 bg-white py-2 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+            className="w-full rounded-lg border border-stone-300 bg-white py-2 pl-10 pr-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:text-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
           />
         </div>
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+          className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-slate-700 dark:text-slate-300 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
         >
           <option value="all">{t("workers.allRoles")}</option>
           <option value="worker">Worker</option>
@@ -311,7 +311,7 @@ export default function WorkersPage() {
               className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
                 filter === s
                   ? "bg-amber-500 text-white"
-                  : "bg-stone-100 text-slate-600 hover:bg-stone-200"
+                  : "bg-stone-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-stone-200"
               }`}
             >
               {label} ({count})
@@ -325,27 +325,27 @@ export default function WorkersPage() {
       )}
 
       {!loading && filtered.length === 0 && (
-        <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-slate-500">
+        <div className="rounded-xl border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-8 text-center text-slate-500">
           {t("workers.noWorkers")}
         </div>
       )}
 
       {/* Worker table */}
       {filtered.length > 0 && (
-        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900 shadow-sm">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-stone-50 text-left text-slate-500">
+              <tr className="border-b bg-stone-50 dark:bg-slate-950 text-left text-slate-500">
                 <th className="w-10 px-3 py-3" />
-                <th className="cursor-pointer select-none px-5 py-3 hover:text-slate-900" onClick={() => handleSort("name")}>
+                <th className="cursor-pointer select-none px-5 py-3 hover:text-slate-900 dark:text-slate-100" onClick={() => handleSort("name")}>
                   {t("workers.worker")} {sortBy === "name" ? (sortDir === "asc" ? "▲" : "▼") : ""}
                 </th>
-                <th className="cursor-pointer select-none px-5 py-3 hover:text-slate-900" onClick={() => handleSort("status")}>
+                <th className="cursor-pointer select-none px-5 py-3 hover:text-slate-900 dark:text-slate-100" onClick={() => handleSort("status")}>
                   {t("workers.status")} {sortBy === "status" ? (sortDir === "asc" ? "▲" : "▼") : ""}
                 </th>
                 <th className="px-5 py-3">{t("workers.currentJob")}</th>
                 <th className="px-5 py-3">{t("workers.since")}</th>
-                <th className="cursor-pointer select-none px-5 py-3 text-right hover:text-slate-900" onClick={() => handleSort("hours")}>
+                <th className="cursor-pointer select-none px-5 py-3 text-right hover:text-slate-900 dark:text-slate-100" onClick={() => handleSort("hours")}>
                   {t("workers.hoursToday")} {sortBy === "hours" ? (sortDir === "asc" ? "▲" : "▼") : ""}
                 </th>
               </tr>
@@ -354,15 +354,15 @@ export default function WorkersPage() {
               {filtered.map((w) => {
                 const cfg = STATUS_CONFIG[w.status];
                 return (
-                  <tr key={w.user_id} className="border-b border-stone-100 last:border-0 transition-colors hover:bg-stone-50">
+                  <tr key={w.user_id} className="border-b border-stone-100 last:border-0 transition-colors hover:bg-stone-50 dark:bg-slate-950">
                     <td className="px-3 py-3">
                       <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white ${cfg.avatarBg}`}>
                         {getInitials(w.full_name)}
                       </div>
                     </td>
                     <td className="px-5 py-3">
-                      <div className="font-semibold text-slate-900">{w.full_name}</div>
-                      <div className="text-xs text-slate-400">{w.role}</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">{w.full_name}</div>
+                      <div className="text-xs text-slate-400 dark:text-slate-500">{w.role}</div>
                     </td>
                     <td className="px-5 py-3">
                       <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${cfg.color}`}>
@@ -370,7 +370,7 @@ export default function WorkersPage() {
                         {cfg.label}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-slate-600">
+                    <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
                       {w.current_job ?? "—"}
                     </td>
                     <td className="px-5 py-3 text-slate-500">
@@ -378,7 +378,7 @@ export default function WorkersPage() {
                         ? new Date(w.clock_in_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
                         : "—"}
                     </td>
-                    <td className="px-5 py-3 text-right font-semibold text-slate-900">
+                    <td className="px-5 py-3 text-right font-semibold text-slate-900 dark:text-slate-100">
                       {w.hours_today > 0 ? `${w.hours_today}h` : "—"}
                     </td>
                   </tr>

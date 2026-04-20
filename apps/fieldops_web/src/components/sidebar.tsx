@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { NAV_ITEMS, NAV_SECTIONS } from "@/lib/nav-items";
+import { AlertBell } from "@/components/alert-bell";
 
 const STORAGE_KEY = "sidebar_collapsed";
 
@@ -166,25 +167,31 @@ export function Sidebar() {
               </div>
             )}
           </div>
-          {/* Desktop toggle */}
+          {/* Desktop: alert bell + collapse toggle */}
           {!isMobile && (
-            <button
-              onClick={toggleCollapsed}
-              aria-label={collapsed ? t("shell.expandSidebar") : t("shell.collapseSidebar")}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-stone-100 hover:text-slate-600"
-            >
-              {collapsed ? <Menu size={16} /> : <ChevronLeft size={16} />}
-            </button>
+            <div className="flex items-center gap-1">
+              {isExpanded && <AlertBell compact />}
+              <button
+                onClick={toggleCollapsed}
+                aria-label={collapsed ? t("shell.expandSidebar") : t("shell.collapseSidebar")}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-stone-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+              >
+                {collapsed ? <Menu size={16} /> : <ChevronLeft size={16} />}
+              </button>
+            </div>
           )}
-          {/* Mobile close */}
+          {/* Mobile: alert bell + close */}
           {isMobile && (
-            <button
-              onClick={() => setMobileOpen(false)}
-              aria-label={t("shell.closeMenu")}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-stone-100 hover:text-slate-600"
-            >
-              <X size={16} />
-            </button>
+            <div className="flex items-center gap-1">
+              <AlertBell compact />
+              <button
+                onClick={() => setMobileOpen(false)}
+                aria-label={t("shell.closeMenu")}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-stone-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+              >
+                <X size={16} />
+              </button>
+            </div>
           )}
         </div>
 

@@ -23,7 +23,7 @@ interface EventGlyph {
 }
 
 const EVENT_GLYPHS: Record<string, EventGlyph> = {
-  clock_event: { Icon: Clock, tint: "bg-slate-100 text-slate-700" },
+  clock_event: { Icon: Clock, tint: "bg-slate-100 text-slate-700 dark:text-slate-300" },
   photo_event: { Icon: Camera, tint: "bg-blue-50 text-blue-700" },
   task_event: { Icon: CheckCircle2, tint: "bg-emerald-50 text-emerald-700" },
   note_event: { Icon: FileText, tint: "bg-amber-50 text-amber-700" },
@@ -33,7 +33,7 @@ const EVENT_GLYPHS: Record<string, EventGlyph> = {
 
 const FALLBACK_GLYPH: EventGlyph = {
   Icon: FileQuestion,
-  tint: "bg-stone-100 text-slate-500",
+  tint: "bg-stone-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400",
 };
 
 const TIMELINE_SOURCE_TABLES = [
@@ -66,7 +66,7 @@ export default function TimelinePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center gap-2 text-slate-500">
+        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
           {t("timeline.loading")}
         </div>
@@ -165,7 +165,7 @@ function TimelineContent() {
 
   if (currentUser.loading) {
     return (
-      <div className="flex items-center gap-2 text-slate-500">
+      <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
         <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
         {t("timeline.loading")}
       </div>
@@ -177,17 +177,17 @@ function TimelineContent() {
       <div className="mb-6">
         <a
           href="/"
-          className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900"
+          className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100"
         >
           <span>&larr;</span> {t("common.backToDashboard")}
         </a>
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
             {selectedJob
               ? t("timeline.titleWithJob", { jobName: selectedJob.name })
               : t("timeline.title")}
           </h2>
-          <p className="mt-1 text-slate-600">{t("timeline.subtitle")}</p>
+          <p className="mt-1 text-slate-600 dark:text-slate-300">{t("timeline.subtitle")}</p>
         </div>
 
         {/* Job picker */}
@@ -196,7 +196,7 @@ function TimelineContent() {
             {jobs.length > 8 && (
               <div className="relative min-w-[200px] flex-1 max-w-xs">
                 <svg
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500 dark:text-slate-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -213,14 +213,14 @@ function TimelineContent() {
                   value={filterText}
                   onChange={(e) => setFilterText(e.target.value)}
                   placeholder="Filter jobs…"
-                  className="w-full rounded-lg border border-stone-300 bg-white py-2 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="w-full rounded-lg border border-stone-300 bg-white dark:border-slate-700 dark:bg-slate-900 py-2 pl-10 pr-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:text-slate-500 dark:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
                 />
               </div>
             )}
             <select
               value={jobId ?? ""}
               onChange={(e) => handleJobChange(e.target.value)}
-              className="min-w-[240px] rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              className="min-w-[240px] rounded-lg border border-stone-300 bg-white dark:border-slate-700 dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
             >
               <option value="">Select a job to view its timeline</option>
               {filteredJobs.map((j) => (
@@ -242,15 +242,15 @@ function TimelineContent() {
 
       {/* No company resolved */}
       {!currentUser.companyId && !currentUser.loading && (
-        <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-slate-500">
+        <div className="rounded-xl border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-8 text-center text-slate-500 dark:text-slate-400">
           {t("timeline.noJob")}
         </div>
       )}
 
       {/* Company with zero jobs */}
       {currentUser.companyId && !jobsLoading && jobs.length === 0 && (
-        <div className="rounded-xl border border-stone-200 bg-white p-8 text-center">
-          <p className="text-slate-500">
+        <div className="rounded-xl border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-8 text-center">
+          <p className="text-slate-500 dark:text-slate-400">
             No jobs in this company yet — create one from the Projects tab.
           </p>
         </div>
@@ -258,13 +258,13 @@ function TimelineContent() {
 
       {/* Jobs exist but none selected */}
       {currentUser.companyId && jobs.length > 0 && !jobId && (
-        <div className="rounded-xl border border-stone-200 bg-white p-8 text-center">
-          <p className="text-slate-500">
+        <div className="rounded-xl border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-8 text-center">
+          <p className="text-slate-500 dark:text-slate-400">
             Select a job above to view its timeline.
           </p>
           <a
             href="/"
-            className="mt-4 inline-block text-sm font-medium text-slate-500 underline hover:text-slate-900"
+            className="mt-4 inline-block text-sm font-medium text-slate-500 dark:text-slate-400 underline hover:text-slate-900 dark:text-slate-100"
           >
             {t("timeline.goToDashboard")}
           </a>
@@ -372,7 +372,7 @@ function TimelineEventsList({ jobId }: TimelineEventsListProps) {
               {label}
             </span>
             {gpsLat != null && gpsLng != null && (
-              <span className="ml-2 text-xs text-slate-500">
+              <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">
                 {t("timeline.gps", {
                   lat: gpsLat.toFixed(4),
                   lng: gpsLng.toFixed(4),
@@ -384,21 +384,21 @@ function TimelineEventsList({ jobId }: TimelineEventsListProps) {
       }
       case "photo_event":
         return (
-          <span className="text-sm text-slate-600">
+          <span className="text-sm text-slate-600 dark:text-slate-300">
             {t("timeline.photoCaptured")}
             {p.is_checkpoint ? t("timeline.checkpoint") : ""}
           </span>
         );
       case "task_event":
         return (
-          <span className="text-sm text-slate-600">
+          <span className="text-sm text-slate-600 dark:text-slate-300">
             {String(p.from_status ?? "—")} → {String(p.to_status ?? "—")}
             {p.note ? `: ${String(p.note)}` : ""}
           </span>
         );
       default:
         return (
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
             {JSON.stringify(p).substring(0, 120)}
           </span>
         );
@@ -407,7 +407,7 @@ function TimelineEventsList({ jobId }: TimelineEventsListProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 text-slate-500">
+      <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
         <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
         {t("timeline.loading")}
       </div>
@@ -424,7 +424,7 @@ function TimelineEventsList({ jobId }: TimelineEventsListProps) {
 
   if (events.length === 0) {
     return (
-      <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-slate-500">
+      <div className="rounded-xl border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-8 text-center text-slate-500 dark:text-slate-400">
         {t("common.noData")}
       </div>
     );
@@ -438,7 +438,7 @@ function TimelineEventsList({ jobId }: TimelineEventsListProps) {
         return (
         <div
           key={event.id}
-          className="flex gap-4 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
+          className="flex gap-4 rounded-xl border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-4 shadow-sm"
         >
           <div
             className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${glyph.tint}`}
@@ -448,7 +448,7 @@ function TimelineEventsList({ jobId }: TimelineEventsListProps) {
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-slate-900">
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 {{
                   clock_event: t("timeline.clockEvent"),
                   photo_event: t("timeline.photoEvent"),
@@ -458,7 +458,7 @@ function TimelineEventsList({ jobId }: TimelineEventsListProps) {
                   correction_event: t("timeline.correctionEvent"),
                 }[event.event_type] ?? event.event_type}
               </span>
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
                 {formatTime(event.occurred_at)}
               </span>
             </div>

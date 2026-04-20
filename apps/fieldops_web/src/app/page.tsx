@@ -18,6 +18,7 @@ import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/use-role";
 import { getSupabase } from "@/lib/supabase";
 import { SkeletonCard } from "@/components/ui/skeleton";
+import { DailyHuddle } from "@/components/daily-huddle";
 import type { JobSummary } from "@/lib/types";
 
 interface DashboardStats {
@@ -70,7 +71,7 @@ QUICK_ACTIONS.foreman = QUICK_ACTIONS.worker;
 
 export default function DashboardPage() {
   const { t } = useI18n();
-  const { role } = useCurrentUser();
+  const { role, companyId } = useCurrentUser();
   const JOBS_PAGE_SIZE = 20;
 
   const [jobs, setJobs] = useState<JobSummary[]>([]);
@@ -210,6 +211,9 @@ export default function DashboardPage() {
           </a>
         </div>
       </div>
+
+      {/* Daily huddle (6am-10am or when missing>0) */}
+      <DailyHuddle companyId={companyId ?? null} />
 
       {/* KPI Cards */}
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
