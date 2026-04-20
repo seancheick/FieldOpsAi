@@ -1643,9 +1643,11 @@ First external beta tester (PSG, electrical contractor in Thailand) surfaced fiv
   - Type: Backend + Web + Mobile | Priority: MEDIUM | Effort: 2–3 days
   - Scope: `equipment(id, company_id, name, serial, category)` + `equipment_checkouts(id, equipment_id, user_id, job_id, checked_out_at, checked_in_at, notes)`. Foreman screen to dispatch equipment to a worker + worker screen to confirm receipt / return. Paired with multi-site since both touch the project data model.
 
-- [ ] Permits Phase 2
+- [-] Permits Phase 2
   - Type: Backend + Web | Priority: MEDIUM
   - PDF attachment via existing media_presign Storage flow; auto-expiry sweeper (cron function flips status=expired past deadline, sends email to creator); rich audit log per permit; supervisor email on near-expiry.
+  - 2026-04-20 progress: auto-expiry sweeper shipped — `permits_expiry_cron` edge function flips `status='issued'` → `'expired'` for rows whose `expires_at < now()` (nullable `expires_at` means "never expires" and is skipped). Gated on `x-cron-secret`, service-role client, returns list of flipped rows for Phase 3 email hook. No new migration — `work_permits_company_expires_idx` was pre-created in `20260420100000_work_permits.sql` for exactly this sweep. Registered in `config.toml` (verify_jwt=false). Schedule via Supabase Scheduler hourly. Evidence: `infra/supabase/functions/permits_expiry_cron/`.
+  - Remaining Phase 2: PDF attachment flow; audit log table; near-expiry + expiry emails.
 
 ### Contract tests as a standing requirement
 
