@@ -1751,7 +1751,7 @@ Carry-over (tracked, not blocking):
 
 ---
 
-## Sprint 8.10 — Operations Command Center (planned)
+## Sprint 8.10 — Operations Command Center (shipped 2026-04-20)
 
 Goal: Ship the exception-first workflow supervisors and foremen actually need. Today the dashboard answers "how much?"; it should answer "what's broken right now?" and "what does my crew look like?"
 
@@ -1759,7 +1759,7 @@ Source: UI/UX audit 2026-04-20, sections "Must-adds #1, #3, #4, #7, #8, #9, #10"
 
 ### Exception inbox (replaces "AI Insights")
 
-- [ ] FUX-009 — `/alerts` page + persistent bell in sidebar
+- [x] FUX-009 — `/alerts` page + persistent bell in sidebar
   - Type: Backend + Web | Priority: HIGH
   - Scope: New SQL view `v_operational_alerts` unioning 6 anomaly types:
     1. Worker clocked in outside geofence (gps_lat/lng vs site + radius, where `geofence_enforced=true`)
@@ -1771,7 +1771,7 @@ Source: UI/UX audit 2026-04-20, sections "Must-adds #1, #3, #4, #7, #8, #9, #10"
   - Definition of Done: `/alerts` lists alerts grouped by severity (RED / AMBER / INFO), each has worker/job chips and a primary action button (Call, View timeline, Revoke/Renew, Dismiss). Sidebar bell shows unread count with a red dot. Dismissed alerts persist per user in `alert_dismissals(user_id, alert_signature, dismissed_at)`. Refreshes via Supabase Realtime on the underlying event tables.
   - Evidence: migration, view definition, page, realtime subscription test.
 
-- [ ] FUX-010 — Replace dashboard "Working Now" avatar strip with exception table
+- [x] FUX-010 — Replace dashboard "Working Now" avatar strip with exception table
   - Type: Web | Priority: MEDIUM
   - Scope: Avatar strip at `page.tsx:365-399` replaced with a compact status table: columns = Worker, Job, Clocked in at, Hours elapsed, Status chip. Filter chips at top: "Clocked in / On break / Over 8h / Outside geofence / No photos". Max 10 rows visible, overflow link to `/workers?filter=active`.
   - Definition of Done: Usable with 50+ active workers; no horizontal scroll on desktop.
@@ -1779,13 +1779,13 @@ Source: UI/UX audit 2026-04-20, sections "Must-adds #1, #3, #4, #7, #8, #9, #10"
 
 ### Crew view (foreman persona)
 
-- [ ] FUX-011 — `/crew` route for foremen
+- [x] FUX-011 — `/crew` route for foremen
   - Type: Web | Priority: HIGH
   - Scope: Foreman lands on `/crew` (not `/`). Shows their crew roster for today: each worker's status (Clocked in / On break / Not scheduled / No show), current job, hours today, last photo time. Quick actions per row: Open timeline, View photos, Copy phone number. Uses existing `job_foremen` and `schedule_shifts` joins.
   - Definition of Done: Loads in <500ms for a 15-person crew; role-guard redirects foremen from `/` to `/crew` by default with a toggle to go back.
   - Evidence: role-routing test + screenshot.
 
-- [ ] FUX-012 — "Daily huddle" widget — scheduled vs. showed up
+- [x] FUX-012 — "Daily huddle" widget — scheduled vs. showed up
   - Type: Web | Priority: MEDIUM
   - Scope: Morning widget on dashboard (and crew page) — today's schedule_shifts joined against today's clock_events. Three numbers: Scheduled / Clocked in / Missing. Expand to see the missing names.
   - Definition of Done: Auto-refreshes every 2 minutes between 6am and 10am local time, hidden after 10am unless missing>0.
@@ -1793,13 +1793,13 @@ Source: UI/UX audit 2026-04-20, sections "Must-adds #1, #3, #4, #7, #8, #9, #10"
 
 ### Photo review + bulk actions
 
-- [ ] FUX-013 — Photo review queue at `/photos?filter=review`
+- [-] FUX-013 — Photo review queue at `/photos?filter=review`
   - Type: Backend + Web | Priority: MEDIUM
   - Scope: New `photo_events.review_status` column (`unreviewed` default / `approved` / `flagged`). Filter tabs on `/photos`: All / Unreviewed / Flagged. Auto-flag rules (server): photo GPS >100m from job site OR photo taken within 30s of previous photo by same user (dup candidate). Supervisor can one-click approve or flag-with-note.
   - Definition of Done: Migration, flagging job (runs on insert via trigger or edge function), UI tabs, keyboard shortcut (A=approve, F=flag) when one photo focused.
   - Evidence: migration + screen recording.
 
-- [ ] FUX-014 — Bulk OT approval + bulk timecard export
+- [-] FUX-014 — Bulk OT approval + bulk timecard export
   - Type: Web | Priority: HIGH
   - Scope: `/overtime` gets row checkboxes + "Approve selected" / "Reject selected with reason" action bar. `/timecards` gets "Export CSV for selected" + "Export PDF for selected." Everything goes through existing single-row endpoints in a loop with a progress toast.
   - Definition of Done: Friday-afternoon payroll flow measurable in <2 minutes for a 20-worker company.
@@ -1807,13 +1807,13 @@ Source: UI/UX audit 2026-04-20, sections "Must-adds #1, #3, #4, #7, #8, #9, #10"
 
 ### Phone heartbeat + expiration surface
 
-- [ ] FUX-015 — Worker "last seen" heartbeat on web
+- [ ] FUX-015 — Worker "last seen" heartbeat on web (CARRIED to 8.10 tail)
   - Type: Backend + Mobile + Web | Priority: MEDIUM
   - Scope: Mobile pings a new `/sync/heartbeat` every 5 min while foreground + on app resume. Stores in `user_heartbeats(user_id, last_seen_at, app_version, battery_pct nullable)`. `/workers` and `/crew` show "Last ping 18 min ago" badge; if >30 min + clocked-in → amber warning; >2h → red.
   - Definition of Done: Battery impact <1%/hour verified; heartbeats respect offline (queued in outbox, drained by SyncEngine).
   - Evidence: mobile battery profile + web screenshot.
 
-- [ ] FUX-016 — Permit + certification expiration surface
+- [-] FUX-016 — Permit + certification expiration surface
   - Type: Backend + Web | Priority: MEDIUM
   - Scope: Extend FUX-009 alerts with cert expiries (requires `user_certifications` table — confirm existence or add: `id, user_id, cert_type, issued_at, expires_at, document_path`). Shows "3 certs expire in 14 days." "Snooze" dismisses for 7 days.
   - Definition of Done: New certifications page under `/settings/certifications`, CRUD for admins, read-only for supervisors, expiry-soon badge on worker rows.
@@ -1824,6 +1824,34 @@ Source: UI/UX audit 2026-04-20, sections "Must-adds #1, #3, #4, #7, #8, #9, #10"
 - All 8 tasks shipped.
 - Supervisor survey: "can you spot today's biggest problem in <10 seconds?" — 4 of 5 yes.
 - Realtime subscription stable over 8h session (no reconnect storms).
+
+### Shipped 2026-04-20 (Parts A, B, C)
+
+**Part A** (commit `c7c9970`): FUX-009b sidebar bell · FUX-011 `/crew` · FUX-012 daily huddle · FUX-006b dark mode rollout to `/map`, `/timeline`, `/workers`.
+
+**Part B** (commit `a4a8106`): FUX-010 exception table · FUX-014 bulk OT + CSV · FUX-013 Phase 1 (photo_reviews table + widget) · FUX-016 Phase 1 (cert table + alerts scan extension).
+
+**Part C** (commit `ccc449b`): FUX-013c deep `/photos` integration — tabs, filter, widget injection.
+
+Key deliverables:
+- `apps/fieldops_web/src/components/alert-bell.tsx` — realtime unread counter.
+- `apps/fieldops_web/src/app/crew/page.tsx` — foreman/supervisor attendance view.
+- `apps/fieldops_web/src/components/daily-huddle.tsx` — 6–10am morning check widget.
+- `apps/fieldops_web/src/components/active-workers-table.tsx` — exception-aware status table.
+- `apps/fieldops_web/src/components/bulk-action-bar.tsx` — reusable multi-select action bar (used on /overtime + /timecards).
+- `apps/fieldops_web/src/components/photos/PhotoReviewActions.tsx` — approve/flag widget with live badge, subscribes to photo_reviews realtime.
+- `infra/supabase/migrations/20260420500000_photo_reviews.sql` — mutable review state separated from event-store immutability.
+- `infra/supabase/migrations/20260420600000_user_certifications.sql` — new registry for cert expiry tracking.
+- `infra/supabase/functions/alerts/index.ts` — extended scan with `permit_expiring` + `cert_expiring` alert types.
+
+Migrations applied to prod via CLI; alerts edge function redeployed. Verification: `tsc --noEmit` clean on web.
+
+### Carried into 8.10 tail / 8.11 (tracked, not blocking)
+
+- **FUX-013b** — Auto-flag trigger (photo GPS >100m from job site, or within 30s of previous photo by same user). Small backend PR on top of `photo_reviews`.
+- **FUX-014b** — Bulk timecard PDF export. Needs a server-side renderer (jsPDF / puppeteer edge function); deferred because client-side PDF is a rabbit hole.
+- **FUX-015** — Phone heartbeat (backend + mobile + web, spans 3 apps). Dedicated session — biggest remaining scope item.
+- **FUX-016b** — Admin `/settings/certifications` CRUD page. Table + RLS live; needs the UI on top.
 
 ---
 
