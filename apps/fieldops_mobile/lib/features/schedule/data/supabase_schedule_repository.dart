@@ -292,4 +292,44 @@ class SupabaseScheduleRepository implements ScheduleRepository {
       );
     }
   }
+
+  @override
+  Future<int> copyWeek({
+    required DateTime sourceStart,
+    required DateTime sourceEnd,
+    required DateTime targetStart,
+  }) async {
+    try {
+      final response = await _client.functions.invoke(
+        'schedule',
+        headers: {
+          'Idempotency-Key': _uuid.v4(),
+          'X-Client-Version': 'fieldops-mobile',
+        },
+        body: {
+          'action': 'copy_week',
+          'source_start': _asDate(sourceStart),
+          'source_end': _asDate(sourceEnd),
+          'target_start': _asDate(targetStart),
+        },
+      );
+
+      final payload = response.data;
+      if (payload is! Map<String, dynamic>) {
+        throw const ScheduleRepositoryException.unknown(
+          'Copy-week response was malformed.',
+        );
+      }
+      return (payload['copied_count'] as num?)?.toInt() ?? 0;
+    } on SocketException {
+      throw const ScheduleRepositoryException.offline();
+    } on FunctionException catch (error) {
+      if (error.status == 0) {
+        throw const ScheduleRepositoryException.offline();
+      }
+      throw ScheduleRepositoryException.unknown(
+        'Could not copy the week (${error.status}).',
+      );
+    }
+  }
 }

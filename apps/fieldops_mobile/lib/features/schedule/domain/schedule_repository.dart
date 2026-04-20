@@ -35,6 +35,17 @@ abstract class ScheduleRepository {
 
   /// Worker-side: cancels one of the caller's own pending swap requests.
   Future<void> cancelSwap(String swapRequestId);
+
+  /// Foreman/supervisor: copy the draft + published shifts from the week
+  /// [sourceStart]..[sourceEnd] (inclusive) into a new week starting at
+  /// [targetStart]. New shifts are inserted as `status='draft'` so the
+  /// foreman can review before publishing. Returns the number of shifts
+  /// copied (0 if the source week was empty).
+  Future<int> copyWeek({
+    required DateTime sourceStart,
+    required DateTime sourceEnd,
+    required DateTime targetStart,
+  });
 }
 
 enum SwapRequestStatus { pending, approved, denied, cancelled }

@@ -1,5 +1,6 @@
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
 import 'package:fieldops_mobile/app/widgets/skeleton_loader.dart';
+import 'package:fieldops_mobile/features/schedule/data/schedule_repository_provider.dart';
 import 'package:fieldops_mobile/features/schedule/domain/crew_schedule_shift.dart';
 import 'package:fieldops_mobile/features/schedule/domain/schedule_repository.dart';
 import 'package:fieldops_mobile/features/schedule/presentation/foreman_schedule_controller.dart';
@@ -20,6 +21,13 @@ class ForemanScheduleScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Crew Schedule'),
         leading: const BackButton(),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.content_copy_rounded),
+            tooltip: 'Copy last week into this week',
+            onPressed: () => _onCopyLastWeek(context, ref),
+          ),
+        ],
       ),
       body: controllerState.when(
         data: (scheduleState) {
@@ -92,6 +100,67 @@ class ForemanScheduleScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _onCopyLastWeek(BuildContext context, WidgetRef ref) async {
+    // Week anchor = Monday of the current week (local clock).
+    final now = DateTime.now();
+    final thisMonday = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: (now.weekday - DateTime.monday) % 7));
+    final lastMonday = thisMonday.subtract(const Duration(days: 7));
+    final lastSunday = thisMonday.subtract(const Duration(days: 1));
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Copy last week?'),
+        content: Text(
+          'Copy every shift from ${_fmt(lastMonday)}–${_fmt(lastSunday)} into '
+          'the week of ${_fmt(thisMonday)} as drafts. Publish them from the '
+          'web schedule once you have reviewed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
+            child: const Text('Copy'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final copied = await ref.read(scheduleRepositoryProvider).copyWeek(
+            sourceStart: lastMonday,
+            sourceEnd: lastSunday,
+            targetStart: thisMonday,
+          );
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            copied == 0
+                ? 'Last week had no shifts to copy.'
+                : 'Copied $copied shift${copied == 1 ? '' : 's'} as drafts.',
+          ),
+        ),
+      );
+      if (copied > 0) {
+        await ref
+            .read(foremanScheduleControllerProvider.notifier)
+            .reload();
+      }
+    } on ScheduleRepositoryException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  static String _fmt(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }
 
 // ─── Approval Banner ──────────────────────────────────────────

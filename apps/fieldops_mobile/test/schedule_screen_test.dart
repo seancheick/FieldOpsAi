@@ -92,4 +92,27 @@ class FakeScheduleRepository implements ScheduleRepository {
   Future<bool> saveCrewReorder(List<CrewScheduleShift> shifts) async {
     return true;
   }
+
+  @override
+  Future<List<SwapRequest>> fetchSwapRequests({String status = 'pending'}) async {
+    return const [];
+  }
+
+  @override
+  Future<void> approveSwap(String swapRequestId, {String? reason}) async {}
+
+  @override
+  Future<void> denySwap(String swapRequestId, {required String reason}) async {}
+
+  @override
+  Future<void> cancelSwap(String swapRequestId) async {}
+
+  @override
+  Future<int> copyWeek({
+    required DateTime sourceStart,
+    required DateTime sourceEnd,
+    required DateTime targetStart,
+  }) async {
+    return 0;
+  }
 }
