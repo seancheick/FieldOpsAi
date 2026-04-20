@@ -13,8 +13,8 @@
     "mem-MEMORY-audit-workflow--mandatory-afte": {
       "id": "mem-MEMORY-audit-workflow--mandatory-afte",
       "category": "core",
-      "confidence": 0.5,
-      "accessCount": 0,
+      "confidence": 0.53,
+      "accessCount": 1,
       "createdAt": 1775848678970
     },
     "mem-MEMORY-key-invariants": {
@@ -76,8 +76,8 @@
     "mem-feedback_no_bulk_api_enrichment----": {
       "id": "mem-feedback_no_bulk_api_enrichment----",
       "category": "feedback_no_bulk_api_enrichment",
-      "confidence": 0.5,
-      "accessCount": 0,
+      "confidence": 0.53,
+      "accessCount": 1,
       "createdAt": 1775848678975
     },
     "mem-project_data_file_roles----": {
@@ -104,8 +104,8 @@
     "mem-project_final_db_architecture-final-db-architecture---correc": {
       "id": "mem-project_final_db_architecture-final-db-architecture---correc",
       "category": "project_final_db_architecture",
-      "confidence": 0.5,
-      "accessCount": 0,
+      "confidence": 0.53,
+      "accessCount": 1,
       "createdAt": 1775848678976
     },
     "mem-project_flutter_roadmap_v2----": {
@@ -118,8 +118,8 @@
     "mem-reference_flutter_repo----": {
       "id": "mem-reference_flutter_repo----",
       "category": "reference_flutter_repo",
-      "confidence": 0.5,
-      "accessCount": 0,
+      "confidence": 0.53,
+      "accessCount": 1,
       "createdAt": 1775848678977
     },
     "mem-reference_supabase_project----": {
@@ -370,8 +370,8 @@
     "mem-MEMORY-phase-1--knowledge-depth": {
       "id": "mem-MEMORY-phase-1--knowledge-depth",
       "category": "core",
-      "confidence": 0.5,
-      "accessCount": 0,
+      "confidence": 0.53,
+      "accessCount": 1,
       "createdAt": 1775848678997
     },
     "mem-MEMORY-constraints": {
