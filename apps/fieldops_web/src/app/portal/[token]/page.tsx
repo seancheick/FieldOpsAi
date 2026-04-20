@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { CheckCircle, Circle, XCircle, Camera, Clock, MapPin } from "lucide-react";
 
@@ -46,12 +46,7 @@ export default function ClientPortalPage() {
   const [label, setLabel] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<PortalPhoto | null>(null);
 
-  useEffect(() => {
-    if (!token) return;
-    fetchPortalData();
-  }, [token]);
-
-  async function fetchPortalData() {
+  const fetchPortalData = useCallback(async () => {
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/client_portal?token=${token}`,
@@ -72,7 +67,12 @@ export default function ClientPortalPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetchPortalData();
+  }, [token, fetchPortalData]);
 
   function taskIcon(status: string) {
     if (status === "completed") return <CheckCircle size={18} className="text-emerald-500" />;

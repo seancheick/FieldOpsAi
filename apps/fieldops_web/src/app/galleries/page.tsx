@@ -204,7 +204,7 @@ function GalleriesInner() {
           <p className="text-sm text-slate-500">Loading…</p>
         ) : galleries.length === 0 ? (
           <div className="rounded-xl border border-dashed border-stone-300 p-8 text-center text-sm text-slate-500">
-            No galleries yet. Bulk-select photos on the Photos page and click "Save as gallery".
+            No galleries yet. Bulk-select photos on the Photos page and click &ldquo;Save as gallery&rdquo;.
           </div>
         ) : (
           <div className="overflow-x-auto">

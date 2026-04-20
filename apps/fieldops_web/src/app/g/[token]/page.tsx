@@ -36,7 +36,6 @@ export default function PublicGalleryPage() {
   const [error, setError] = useState<string | null>(null);
   const [needsPassword, setNeedsPassword] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
-  const [password, setPassword] = useState("");
   const [gallery, setGallery] = useState<GalleryMeta | null>(null);
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
   const [company, setCompany] = useState<GalleryCompany | null>(null);
@@ -116,7 +115,6 @@ export default function PublicGalleryPage() {
           className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm"
           onSubmit={(e) => {
             e.preventDefault();
-            setPassword(passwordInput);
             void fetchGallery(passwordInput);
           }}
         >
@@ -204,7 +202,6 @@ export default function PublicGalleryPage() {
               className="group relative aspect-square overflow-hidden rounded-xl bg-stone-200 shadow-sm"
             >
               {p.url ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={p.url}
                   alt={p.verification_code || "photo"}
@@ -245,7 +242,6 @@ export default function PublicGalleryPage() {
             onClick={(e) => e.stopPropagation()}
           >
             {selected.url && (
-              // eslint-disable-next-line @next/next/no-img-element
               <img src={selected.url} alt="" className="max-h-[70vh] w-full object-contain" />
             )}
             <div className="space-y-1 p-5 text-sm">

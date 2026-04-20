@@ -64,7 +64,7 @@ export function ShareLinkDialog({ open, jobId, accessToken, onClose }: Props) {
           <>
             <h2 className="text-lg font-bold text-slate-900">Share link ready</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Give this URL to your client. They'll see a branded, read-only project view.
+              Give this URL to your client. They&rsquo;ll see a branded, read-only project view.
             </p>
             <div className="mt-4 flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 p-3">
               <code className="flex-1 truncate text-xs text-slate-700">{shareUrl}</code>

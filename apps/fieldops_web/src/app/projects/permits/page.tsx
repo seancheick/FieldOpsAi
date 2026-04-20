@@ -31,8 +31,7 @@ const PERMIT_TYPE_LABELS: Record<PermitType, string> = {
   other: "Other",
 };
 
-const PERMIT_STATUSES = ["draft", "issued", "expired", "revoked"] as const;
-type PermitStatus = (typeof PERMIT_STATUSES)[number];
+type PermitStatus = "draft" | "issued" | "expired" | "revoked";
 
 const STATUS_PILL: Record<PermitStatus, string> = {
   draft: "bg-stone-100 text-stone-600",

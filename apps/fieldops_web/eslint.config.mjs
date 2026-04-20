@@ -10,6 +10,18 @@ const eslintConfig = [
     rules: {
       "@next/next/no-img-element": "off",
       "@next/next/no-html-link-for-pages": "off",
+      // Underscore-prefixed names are intentionally unused (rest-spread
+      // key omission, ignored callback args, etc.).
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
     },
   }),
   {
