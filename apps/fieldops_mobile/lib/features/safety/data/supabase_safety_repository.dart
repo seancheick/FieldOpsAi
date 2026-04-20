@@ -68,11 +68,20 @@ class SupabaseSafetyRepository implements SafetyRepository {
       );
 
       final payload = response.data;
-      if (payload is! Map<String, dynamic>) return false;
+      if (payload is! Map<String, dynamic>) {
+        throw const SafetyRepositoryException('Safety check response malformed.');
+      }
 
       return payload['completed'] as bool? ?? false;
-    } on Exception {
-      return false; // Graceful fallback — don't block the worker
+    } on SocketException {
+      throw const SafetyRepositoryException('No connection available.');
+    } on FunctionException catch (error) {
+      if (error.status == 0) {
+        throw const SafetyRepositoryException('No connection available.');
+      }
+      throw SafetyRepositoryException(
+        'Could not verify safety status (${error.status}).',
+      );
     }
   }
 }

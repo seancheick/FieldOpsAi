@@ -29,9 +29,6 @@ class SafetyChecklistScreen extends ConsumerWidget {
 
     ref.listen(safetyChecklistControllerProvider, (_, next) {
       if (next.isSubmitted && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Safety checklist submitted')),
-        );
         ref.read(safetyChecklistControllerProvider.notifier).reset();
         Navigator.of(context).pop(true);
       }

@@ -7,6 +7,7 @@ import 'package:fieldops_mobile/features/camera/domain/photo_capture_result.dart
 import 'package:fieldops_mobile/features/camera/presentation/camera_capture_screen.dart';
 import 'package:fieldops_mobile/features/camera/presentation/photo_drafts_screen.dart';
 import 'package:fieldops_mobile/features/clock/presentation/clock_in_controller.dart';
+import 'package:fieldops_mobile/features/clock/presentation/clock_in_with_safety.dart';
 import 'package:fieldops_mobile/features/clock/presentation/widgets/shift_wrapup_dialog.dart';
 import 'package:fieldops_mobile/features/expenses/presentation/expense_capture_screen.dart';
 import 'package:fieldops_mobile/features/jobs/domain/job_summary.dart';
@@ -139,10 +140,12 @@ class JobDetailScreen extends ConsumerWidget {
                     ? null
                     : () {
                         HapticFeedback.mediumImpact();
-                        ref.read(clockControllerProvider.notifier).clockIn(
-                              jobId: job.jobId,
-                              jobName: job.jobName,
-                            );
+                        guardedClockIn(
+                          context,
+                          ref,
+                          jobId: job.jobId,
+                          jobName: job.jobName,
+                        );
                       },
                 icon: isSubmitting
                     ? const SizedBox(

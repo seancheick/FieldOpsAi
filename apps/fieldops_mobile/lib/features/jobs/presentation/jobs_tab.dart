@@ -1,6 +1,7 @@
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
 import 'package:fieldops_mobile/app/widgets/skeleton_loader.dart';
 import 'package:fieldops_mobile/features/clock/presentation/clock_in_controller.dart';
+import 'package:fieldops_mobile/features/clock/presentation/clock_in_with_safety.dart';
 import 'package:fieldops_mobile/features/home/presentation/widgets/clock_error_panel.dart';
 import 'package:fieldops_mobile/features/home/presentation/widgets/jobs_error_state.dart';
 import 'package:fieldops_mobile/features/home/presentation/worker_hours_controller.dart';
@@ -94,10 +95,12 @@ class JobsTab extends ConsumerWidget {
                   },
                   onClockIn: () {
                     HapticFeedback.mediumImpact();
-                    ref.read(clockControllerProvider.notifier).clockIn(
-                          jobId: job.jobId,
-                          jobName: job.jobName,
-                        );
+                    guardedClockIn(
+                      context,
+                      ref,
+                      jobId: job.jobId,
+                      jobName: job.jobName,
+                    );
                   },
                 );
               },

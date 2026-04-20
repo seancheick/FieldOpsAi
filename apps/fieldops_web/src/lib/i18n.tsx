@@ -153,6 +153,7 @@ const translations: Record<string, TranslationTree> = {
       onBreak: "On Break",
       clockedOut: "Clocked Out",
       noShow: "No Show",
+      notScheduled: "Not Scheduled",
       unknownJob: "Unknown project",
       failedToLoad: "Failed to load workers",
       noWorkers: "No workers match the current filter.",
@@ -772,6 +773,7 @@ const translations: Record<string, TranslationTree> = {
       onBreak: "En Descanso",
       clockedOut: "Fuera",
       noShow: "Ausente",
+      notScheduled: "Sin Turno",
       unknownJob: "Desconocido",
       failedToLoad: "No se pudo cargar la lista de trabajadores",
       noWorkers: "Ningún trabajador coincide con el filtro actual.",
@@ -1309,6 +1311,10 @@ translations.th = {
     expandSidebar: "ขยายแถบด้านข้าง",
     openMenu: "เปิดเมนู",
     closeMenu: "ปิดเมนู",
+  },
+  workers: {
+    ...(translations.en.workers as TranslationTree),
+    notScheduled: "ไม่มีกะ",
   },
 };
 
