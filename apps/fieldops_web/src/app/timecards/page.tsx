@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
+import { BulkActionBar } from "@/components/bulk-action-bar";
 
 /* ── Types ────────────────────────────────────────────────── */
 
@@ -169,6 +170,64 @@ export default function TimecardsPage() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
   const [weekStart] = useState(() => getWeekStart(new Date()));
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectedTimecards = useMemo(
+    () => timecards.filter((tc) => selectedIds.has(tc.id)),
+    [timecards, selectedIds],
+  );
+
+  const exportCsv = useCallback(() => {
+    if (selectedTimecards.length === 0) return;
+    const esc = (v: string | number | null | undefined) => {
+      const s = v == null ? "" : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = [
+      "worker",
+      "week_start",
+      "week_end",
+      "regular_hours",
+      "ot_hours",
+      "status",
+      "worker_signed_at",
+      "supervisor_signed_at",
+    ].join(",");
+    const rows = selectedTimecards.map((tc) =>
+      [
+        esc(tc.users?.full_name ?? ""),
+        esc(tc.week_start),
+        esc(tc.week_end),
+        esc(tc.total_regular_hours ?? 0),
+        esc(tc.total_ot_hours ?? 0),
+        esc(tc.status),
+        esc(tc.worker_signed_at ?? ""),
+        esc(tc.supervisor_signed_at ?? ""),
+      ].join(","),
+    );
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `timecards-${weekStart}-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setSuccessMessage(
+      t("timecards.bulkExportDone", { count: selectedTimecards.length }),
+    );
+  }, [selectedTimecards, weekStart, t]);
 
   const loadTimecards = useCallback(async () => {
     setLoading(true);
@@ -290,14 +349,40 @@ export default function TimecardsPage() {
           {t("common.noData")}
         </div>
       ) : (
-        <div className="space-y-4">
+        <>
+          <BulkActionBar
+            count={selectedIds.size}
+            onClear={() => setSelectedIds(new Set())}
+            selectedLabel={t("timecards.bulkSelected", { count: selectedIds.size })}
+            actions={[
+              {
+                label: t("timecards.bulkExportCsv"),
+                tone: "primary",
+                onClick: exportCsv,
+              },
+            ]}
+          />
+          <div className="space-y-4">
           {timecards.map((tc) => (
             <div
               key={tc.id}
-              className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
+              className={`rounded-2xl border bg-white p-6 shadow-sm transition-colors dark:bg-slate-900 ${
+                selectedIds.has(tc.id)
+                  ? "border-amber-400 ring-2 ring-amber-200 dark:border-amber-500 dark:ring-amber-900/40"
+                  : "border-stone-200 dark:border-slate-800"
+              }`}
             >
-              <div className="flex items-start justify-between">
-                <div>
+              <div className="flex items-start justify-between gap-3">
+                <label className="flex-shrink-0 cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(tc.id)}
+                    onChange={() => toggleSelect(tc.id)}
+                    className="h-4 w-4 rounded border-stone-300"
+                    aria-label="Select timecard"
+                  />
+                </label>
+                <div className="flex-1">
                   <h3 className="text-lg font-bold text-slate-900">
                     {tc.users?.full_name || t("common.unknown")}
                   </h3>
@@ -394,7 +479,8 @@ export default function TimecardsPage() {
               )}
             </div>
           ))}
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

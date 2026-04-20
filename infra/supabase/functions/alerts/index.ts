@@ -197,6 +197,101 @@ serve(async (req) => {
           }
         }
 
+        // 3. Check for work permits expiring within 72 hours (FUX-016)
+        const permitThreshold = new Date(Date.now() + 72 * 3600 * 1000).toISOString()
+        const { data: expiringPermits } = await supabaseAdmin
+          .from("work_permits")
+          .select("id, job_id, permit_type, expires_at")
+          .eq("company_id", userRecord.company_id)
+          .eq("status", "issued")
+          .not("expires_at", "is", null)
+          .lte("expires_at", permitThreshold)
+          .gt("expires_at", new Date().toISOString())
+
+        for (const p of expiringPermits || []) {
+          const permit = p as { id: string; job_id: string; permit_type: string | null; expires_at: string }
+          // Dedupe: don't re-issue the same alert if an open one already exists for this permit this shift.
+          const { count: existing } = await supabaseAdmin
+            .from("alert_events")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", userRecord.company_id)
+            .eq("status", "open")
+            .eq("alert_type", "permit_expiring")
+            .eq("source_event_uuid", permit.id)
+          if ((existing || 0) > 0) continue
+
+          const alertId = crypto.randomUUID()
+          const hoursLeft = Math.max(
+            0,
+            Math.round(
+              (new Date(permit.expires_at).getTime() - Date.now()) / 3600000,
+            ),
+          )
+          const { error } = await supabaseAdmin
+            .from("alert_events")
+            .insert({
+              id: alertId,
+              company_id: userRecord.company_id,
+              job_id: permit.job_id,
+              alert_type: "permit_expiring",
+              severity: hoursLeft <= 24 ? "high" : "medium",
+              status: "open",
+              message: `Work permit${permit.permit_type ? ` (${permit.permit_type})` : ""} expires in ~${hoursLeft}h`,
+              triggered_at: new Date().toISOString(),
+              source_event_uuid: permit.id,
+              metadata: { permit_id: permit.id, expires_at: permit.expires_at },
+            })
+          if (!error) alertsGenerated.push(alertId)
+        }
+
+        // 4. Check for certifications expiring within 14 days (FUX-016)
+        const certThreshold = new Date(Date.now() + 14 * 86400 * 1000)
+          .toISOString()
+          .split("T")[0]
+        const todayDate = new Date().toISOString().split("T")[0]
+        const { data: expiringCerts } = await supabaseAdmin
+          .from("user_certifications")
+          .select("id, user_id, cert_type, expires_at")
+          .eq("company_id", userRecord.company_id)
+          .not("expires_at", "is", null)
+          .lte("expires_at", certThreshold)
+          .gt("expires_at", todayDate)
+
+        for (const c of expiringCerts || []) {
+          const cert = c as { id: string; user_id: string; cert_type: string; expires_at: string }
+          const { count: existing } = await supabaseAdmin
+            .from("alert_events")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", userRecord.company_id)
+            .eq("status", "open")
+            .eq("alert_type", "cert_expiring")
+            .eq("source_event_uuid", cert.id)
+          if ((existing || 0) > 0) continue
+
+          const alertId = crypto.randomUUID()
+          const daysLeft = Math.max(
+            0,
+            Math.round(
+              (new Date(cert.expires_at).getTime() - Date.now()) / 86400000,
+            ),
+          )
+          const { error } = await supabaseAdmin
+            .from("alert_events")
+            .insert({
+              id: alertId,
+              company_id: userRecord.company_id,
+              user_id: cert.user_id,
+              alert_type: "cert_expiring",
+              severity: daysLeft <= 3 ? "high" : daysLeft <= 7 ? "medium" : "low",
+              status: "open",
+              message: `Certification "${cert.cert_type}" expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`,
+              triggered_at: new Date().toISOString(),
+              source_event_uuid: cert.id,
+              metadata: { cert_id: cert.id, cert_type: cert.cert_type, expires_at: cert.expires_at },
+            })
+          if (!error) alertsGenerated.push(alertId)
+        }
+
         logRequestResult(ENDPOINT, requestId, 200, {
           user_id: user.id,
           action: "scan",

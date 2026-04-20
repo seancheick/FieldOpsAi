@@ -19,6 +19,7 @@ import { useCurrentUser } from "@/lib/use-role";
 import { getSupabase } from "@/lib/supabase";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { DailyHuddle } from "@/components/daily-huddle";
+import { ActiveWorkersTable } from "@/components/active-workers-table";
 import type { JobSummary } from "@/lib/types";
 
 interface DashboardStats {
@@ -39,12 +40,6 @@ interface JobTaskCount {
   job_id: string;
   total: number;
   completed: number;
-}
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return (parts[0]?.[0] ?? "?").toUpperCase();
 }
 
 const QUICK_ACTIONS: Record<string, { label: string; href: string; icon: React.ElementType }[]> = {
@@ -291,41 +286,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Who's Working Now */}
-      {activeWorkersList.length > 0 && (
-        <div className="mb-6">
-          <h2 className="mb-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
-            {t("dashboard.workingNow")}
-          </h2>
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {activeWorkersList.map((w) => (
-              <div
-                key={w.id}
-                className="flex flex-shrink-0 flex-col items-center gap-1"
-              >
-                <div className="relative">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-800 text-sm font-bold text-white">
-                    {getInitials(w.full_name)}
-                  </div>
-                  <span
-                    className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${
-                      w.status === "working" ? "bg-green-500" : "bg-amber-400"
-                    }`}
-                  />
-                </div>
-                <span className="max-w-[4.5rem] truncate text-[11px] font-medium text-slate-700">
-                  {w.full_name.split(" ")[0]}
-                </span>
-                <span className="text-[10px] text-slate-400">
-                  {w.status === "break"
-                    ? t("dashboard.onBreak")
-                    : `${w.hours}h`}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Active workers — exception-aware status table */}
+      <ActiveWorkersTable workers={activeWorkersList} />
 
       {/* Today's flags (rule-based) */}
       {aiHints.length > 0 && (

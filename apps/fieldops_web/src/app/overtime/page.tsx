@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { callFunctionJson } from "@/lib/function-client";
 import { SkeletonCard } from "@/components/ui/skeleton";
+import { BulkActionBar } from "@/components/bulk-action-bar";
 
 interface OTRequest {
   id: string;
@@ -51,6 +52,11 @@ function OvertimeContent() {
   const [decidingId, setDecidingId] = useState<string | null>(null);
   const [hasMoreRequests, setHasMoreRequests] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkInFlight, setBulkInFlight] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [bulkReason, setBulkReason] = useState<"" | "approved" | "denied">("");
+  const [reasonInput, setReasonInput] = useState("");
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -96,7 +102,67 @@ function OvertimeContent() {
 
   useEffect(() => {
     loadRequests();
+    // Clear selection when the filter changes — those rows are no longer visible.
+    setSelectedIds(new Set());
+    setBulkReason("");
+    setReasonInput("");
   }, [loadRequests]);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) =>
+      prev.size === requests.length
+        ? new Set()
+        : new Set(requests.map((r) => r.id)),
+    );
+  }, [requests]);
+
+  const runBulkDecision = useCallback(
+    async (decision: "approved" | "denied", reason: string) => {
+      const ids = Array.from(selectedIds);
+      if (ids.length === 0) return;
+      setBulkInFlight(true);
+      setBulkProgress({ done: 0, total: ids.length });
+      setError(null);
+      try {
+        // Serial loop so we don't overload the edge function; each decision uses its own Idempotency-Key.
+        for (let i = 0; i < ids.length; i++) {
+          await callFunctionJson("ot", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Idempotency-Key": crypto.randomUUID(),
+            },
+            body: JSON.stringify({
+              action: "decide",
+              ot_request_id: ids[i],
+              decision,
+              reason,
+            }),
+          });
+          setBulkProgress({ done: i + 1, total: ids.length });
+        }
+        setSelectedIds(new Set());
+        setBulkReason("");
+        setReasonInput("");
+        await loadRequests();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : t("overtimePage.decisionFailed"));
+      } finally {
+        setBulkInFlight(false);
+        setBulkProgress(null);
+      }
+    },
+    [selectedIds, loadRequests, t],
+  );
 
   async function handleDecision(
     requestId: string,
@@ -222,6 +288,108 @@ function OvertimeContent() {
         </div>
       )}
 
+      {/* Bulk selection bar — pending tab only */}
+      {filterStatus === "pending" && (
+        <>
+          <BulkActionBar
+            count={selectedIds.size}
+            onClear={() => {
+              setSelectedIds(new Set());
+              setBulkReason("");
+              setReasonInput("");
+            }}
+            selectedLabel={
+              bulkProgress
+                ? t("overtimePage.bulkProgress", {
+                    done: bulkProgress.done,
+                    total: bulkProgress.total,
+                  })
+                : t("overtimePage.bulkSelected", { count: selectedIds.size })
+            }
+            actions={[
+              {
+                label: t("overtimePage.bulkApprove"),
+                tone: "primary",
+                disabled: bulkInFlight,
+                onClick: () => {
+                  setBulkReason("approved");
+                  setReasonInput("");
+                },
+              },
+              {
+                label: t("overtimePage.bulkReject"),
+                tone: "danger",
+                disabled: bulkInFlight,
+                onClick: () => {
+                  setBulkReason("denied");
+                  setReasonInput("");
+                },
+              },
+            ]}
+          />
+
+          {bulkReason !== "" && (
+            <div className="mb-4 rounded-xl border border-stone-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                {bulkReason === "approved"
+                  ? t("overtimePage.reasonForApproval")
+                  : t("overtimePage.reasonForDenial")}
+              </label>
+              <textarea
+                value={reasonInput}
+                onChange={(e) => setReasonInput(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                rows={2}
+                placeholder={t("overtimePage.decisionPlaceholder")}
+              />
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => runBulkDecision(bulkReason, reasonInput)}
+                  disabled={!reasonInput.trim() || bulkInFlight}
+                  className={`rounded-lg px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50 ${
+                    bulkReason === "approved"
+                      ? "bg-green-600 hover:bg-green-700"
+                      : "bg-red-600 hover:bg-red-700"
+                  }`}
+                >
+                  {bulkInFlight
+                    ? t("overtimePage.submitting")
+                    : t("overtimePage.confirmBulk", {
+                        count: selectedIds.size,
+                      })}
+                </button>
+                <button
+                  onClick={() => {
+                    setBulkReason("");
+                    setReasonInput("");
+                  }}
+                  disabled={bulkInFlight}
+                  className="rounded-lg bg-stone-100 px-4 py-1.5 text-sm font-semibold text-slate-600 hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+                  {t("common.cancel")}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {requests.length > 0 && (
+            <label className="mb-2 flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <input
+                type="checkbox"
+                checked={
+                  selectedIds.size === requests.length && requests.length > 0
+                }
+                onChange={toggleSelectAll}
+                className="h-3.5 w-3.5 rounded border-stone-300"
+              />
+              {selectedIds.size === requests.length
+                ? t("overtimePage.deselectAll")
+                : t("overtimePage.selectAll")}
+            </label>
+          )}
+        </>
+      )}
+
       <div className="space-y-4">
         {requests.map((req) => (
           <OTRequestCard
@@ -230,6 +398,9 @@ function OvertimeContent() {
             isPending={filterStatus === "pending"}
             isDeciding={decidingId === req.id}
             onDecision={handleDecision}
+            isSelectable={filterStatus === "pending"}
+            isSelected={selectedIds.has(req.id)}
+            onToggleSelect={() => toggleSelect(req.id)}
             formatTime={formatTime}
             t={t}
           />
@@ -256,6 +427,9 @@ function OTRequestCard({
   isPending,
   isDeciding,
   onDecision,
+  isSelectable,
+  isSelected,
+  onToggleSelect,
   formatTime,
   t,
 }: {
@@ -267,6 +441,9 @@ function OTRequestCard({
     decision: "approved" | "denied",
     reason: string,
   ) => void;
+  isSelectable?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
   formatTime: (iso: string) => string;
   t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
@@ -283,9 +460,26 @@ function OTRequestCard({
     (request.jobs as { name: string; code: string } | null)?.code ?? "";
 
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between">
-        <div>
+    <div
+      className={`rounded-2xl border bg-white p-5 shadow-sm transition-colors dark:bg-slate-900 ${
+        isSelected
+          ? "border-amber-400 ring-2 ring-amber-200 dark:border-amber-500 dark:ring-amber-900/40"
+          : "border-stone-200 dark:border-slate-800"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        {isSelectable && (
+          <label className="flex-shrink-0 cursor-pointer pt-0.5">
+            <input
+              type="checkbox"
+              checked={!!isSelected}
+              onChange={onToggleSelect}
+              className="h-4 w-4 rounded border-stone-300"
+              aria-label="Select request"
+            />
+          </label>
+        )}
+        <div className="flex-1">
           <h3 className="font-bold text-slate-900">{workerName}</h3>
           <p className="text-sm text-slate-500">
             {jobName} ({jobCode})
