@@ -19,6 +19,50 @@ abstract class PTORepository {
 
   /// Denies a PTO request with optional reason.
   Future<void> denyRequest(String requestId, {String? reason});
+
+  /// Admin-only: lists PTO allocations for the caller's company for the
+  /// given [year] (defaults to the current UTC year). One entry per
+  /// (worker × pto_type); missing rows surface with the backend-side
+  /// default so the admin can choose to seed a real value.
+  Future<List<PtoAllocation>> fetchAllocations({int? year});
+
+  /// Admin-only: upsert a single `(user_id, pto_type, year)` allocation.
+  /// Returns nothing on success; throws PTORepositoryException on failure.
+  Future<void> upsertAllocation({
+    required String userId,
+    required String ptoType,
+    required int year,
+    required num totalDays,
+  });
+}
+
+/// One (worker, pto_type) slot for the given year. Returned by
+/// `pto.allocations_list`.
+class PtoAllocation {
+  const PtoAllocation({
+    required this.userId,
+    required this.ptoType,
+    required this.year,
+    required this.totalDays,
+    this.workerName,
+  });
+
+  factory PtoAllocation.fromJson(Map<String, dynamic> json) {
+    return PtoAllocation(
+      userId: json['user_id'] as String? ?? '',
+      workerName: json['worker_name'] as String?,
+      ptoType: json['pto_type'] as String? ?? 'vacation',
+      year: (json['year'] as num?)?.toInt() ??
+          DateTime.now().toUtc().year,
+      totalDays: (json['total_days'] as num?)?.toDouble() ?? 0,
+    );
+  }
+
+  final String userId;
+  final String? workerName;
+  final String ptoType; // vacation | sick | personal
+  final int year;
+  final double totalDays;
 }
 
 /// PTO balance broken down by type.

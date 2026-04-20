@@ -30,4 +30,9 @@ extension UserRoleX on UserRole {
       this == UserRole.foreman ||
       this == UserRole.supervisor ||
       this == UserRole.admin;
+
+  /// True only for owner-level admins who can change company-scoped
+  /// settings like PTO allocations, feature flags, etc. Mirrors web
+  /// `isManagementRole()`.
+  bool get canAdministerCompany => this == UserRole.admin;
 }

@@ -7,6 +7,7 @@ import 'package:fieldops_mobile/features/more/presentation/help_screen.dart';
 import 'package:fieldops_mobile/features/time_corrections/presentation/time_correction_screen.dart';
 import 'package:fieldops_mobile/features/more/presentation/profile_screen.dart';
 import 'package:fieldops_mobile/features/more/presentation/settings_screen.dart';
+import 'package:fieldops_mobile/features/pto/presentation/pto_allocations_screen.dart';
 import 'package:fieldops_mobile/features/pto/presentation/pto_request_screen.dart';
 import 'package:fieldops_mobile/features/schedule/presentation/foreman_schedule_screen.dart';
 import 'package:fieldops_mobile/features/timecards/presentation/timecards_screen.dart';
@@ -88,6 +89,15 @@ class MoreTab extends ConsumerWidget {
                 color: palette.steel,
                 onTap: () => _push(context, const TimecardsScreen()),
               ),
+              if (role.canAdministerCompany)
+                _MenuItem(
+                  icon: Icons.account_balance_wallet_rounded,
+                  title: 'PTO Allocations',
+                  subtitle: 'Set per-worker vacation, sick, and personal days',
+                  color: const Color(0xFF0F766E),
+                  onTap: () =>
+                      _push(context, const PtoAllocationsScreen()),
+                ),
             ],
           ),
           const SizedBox(height: 20),

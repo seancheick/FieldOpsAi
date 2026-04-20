@@ -146,6 +146,65 @@ class SupabasePTORepository implements PTORepository {
     }
   }
 
+  @override
+  Future<List<PtoAllocation>> fetchAllocations({int? year}) async {
+    try {
+      final response = await _functions.invoke('pto', body: {
+        'action': 'allocations_list',
+        if (year != null) 'year': year,
+      });
+      final data = response.data as Map<String, dynamic>;
+      final items = data['allocations'] as List<dynamic>? ?? [];
+      return items
+          .cast<Map<String, dynamic>>()
+          .map(PtoAllocation.fromJson)
+          .toList();
+    } on SocketException {
+      throw const PTORepositoryException('No connection available.');
+    } on FunctionException catch (error) {
+      if (error.status == 0) {
+        throw const PTORepositoryException('No connection available.');
+      }
+      throw PTORepositoryException(
+        'Could not fetch PTO allocations (${error.status}).',
+      );
+    }
+  }
+
+  @override
+  Future<void> upsertAllocation({
+    required String userId,
+    required String ptoType,
+    required int year,
+    required num totalDays,
+  }) async {
+    try {
+      await _functions.invoke(
+        'pto',
+        headers: {
+          'Idempotency-Key': _uuid.v4(),
+          'X-Client-Version': 'fieldops-mobile',
+        },
+        body: {
+          'action': 'allocations_upsert',
+          'user_id': userId,
+          'pto_type': ptoType,
+          'year': year,
+          'total_days': totalDays,
+        },
+      );
+    } on SocketException {
+      throw const PTORepositoryException('No connection available.');
+    } on FunctionException catch (error) {
+      if (error.status == 0) {
+        throw const PTORepositoryException('No connection available.');
+      }
+      throw PTORepositoryException(
+        'Could not save allocation (${error.status}).',
+      );
+    }
+  }
+
   String _dateString(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }
