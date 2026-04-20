@@ -410,3 +410,145 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/galleries/deno.json"
 entrypoint = "./functions/galleries/index.ts"
+
+# Sprint 8.7 gap-fill: every remaining user-auth + cron function must set
+# verify_jwt = false so Kong's HS256-only gateway verifier stops rejecting
+# ES256-signed user tokens. In-function `supabase.auth.getUser()` still
+# enforces real auth; cron functions gate on `x-cron-secret`. See Lesson 44.
+
+[functions.alerts]
+enabled = true
+verify_jwt = false
+import_map = "./functions/alerts/deno.json"
+entrypoint = "./functions/alerts/index.ts"
+
+[functions.breadcrumbs]
+enabled = true
+verify_jwt = false
+import_map = "./functions/breadcrumbs/deno.json"
+entrypoint = "./functions/breadcrumbs/index.ts"
+
+[functions.budget]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/budget/index.ts"
+
+[functions.client_portal]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/client_portal/index.ts"
+
+[functions.cost_codes]
+enabled = true
+verify_jwt = false
+import_map = "./functions/cost_codes/deno.json"
+entrypoint = "./functions/cost_codes/index.ts"
+
+[functions.crew]
+enabled = true
+verify_jwt = false
+import_map = "./functions/crew/deno.json"
+entrypoint = "./functions/crew/index.ts"
+
+[functions.device_tokens]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/device_tokens/index.ts"
+
+[functions.expenses]
+enabled = true
+verify_jwt = false
+import_map = "./functions/expenses/deno.json"
+entrypoint = "./functions/expenses/index.ts"
+
+[functions.feature_flags]
+enabled = true
+verify_jwt = false
+import_map = "./functions/feature_flags/deno.json"
+entrypoint = "./functions/feature_flags/index.ts"
+
+[functions.invites]
+enabled = true
+verify_jwt = false
+import_map = "./functions/invites/deno.json"
+entrypoint = "./functions/invites/index.ts"
+
+[functions.job_worker]
+enabled = true
+verify_jwt = false
+import_map = "./functions/job_worker/deno.json"
+entrypoint = "./functions/job_worker/index.ts"
+
+[functions.media_optimize]
+enabled = true
+# Cron-invoked — gated on x-cron-secret header, not user JWT.
+verify_jwt = false
+import_map = "./functions/media_optimize/deno.json"
+entrypoint = "./functions/media_optimize/index.ts"
+
+[functions.media_stamp]
+enabled = true
+verify_jwt = false
+import_map = "./functions/media_stamp/deno.json"
+entrypoint = "./functions/media_stamp/index.ts"
+
+[functions.ot]
+enabled = true
+verify_jwt = false
+import_map = "./functions/ot/deno.json"
+entrypoint = "./functions/ot/index.ts"
+
+[functions.reports]
+enabled = true
+verify_jwt = false
+import_map = "./functions/reports/deno.json"
+entrypoint = "./functions/reports/index.ts"
+
+[functions.safety]
+enabled = true
+verify_jwt = false
+import_map = "./functions/safety/deno.json"
+entrypoint = "./functions/safety/index.ts"
+
+[functions.schedule]
+enabled = true
+verify_jwt = false
+import_map = "./functions/schedule/deno.json"
+entrypoint = "./functions/schedule/index.ts"
+
+[functions.schedule_ai]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/schedule_ai/index.ts"
+
+[functions.shift_reports]
+enabled = true
+verify_jwt = false
+import_map = "./functions/shift_reports/deno.json"
+entrypoint = "./functions/shift_reports/index.ts"
+
+[functions.tasks]
+enabled = true
+verify_jwt = false
+import_map = "./functions/tasks/deno.json"
+entrypoint = "./functions/tasks/index.ts"
+
+[functions.time_corrections]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/time_corrections/index.ts"
+
+[functions.timecards]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/timecards/index.ts"
+
+[functions.worker_history]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/worker_history/index.ts"
+
+[functions.worker_hours]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/worker_hours/index.ts"

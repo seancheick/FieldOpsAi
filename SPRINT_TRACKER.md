@@ -1655,3 +1655,9 @@ All 13 Sprint 8.6 BLOCKERs + today's permit contract could have been caught by a
 
 - See LESSONS 49–52 (Sprint 8.6 ES256 + schema + toString + optional foreman) for the audit-pass playbook.
 - New: geofence enforcement is a product choice per-job, not a platform-wide invariant. Default-on preserves safety; opt-out unlocks remote/hybrid work without bifurcating the codebase. (Potential Lesson 53 candidate — confirm with product before adding.)
+
+### Follow-up patches (2026-04-20, late)
+
+- [x] `config.toml` verify_jwt coverage closed — 24 user-auth + cron functions were relying on a one-time `supabase functions deploy --no-verify-jwt` flag and would revert to ES256-rejecting on the next redeploy. Now explicit `[functions.<name>] verify_jwt = false` for all 36 functions. Lesson 54 candidate: treat `config.toml` as the single source of truth for gateway JWT behaviour.
+- [x] `apps/fieldops_web/src/app/settings/job-foremen/page.tsx` used `"scheduled"` in `ACTIVE_JOB_STATUSES`, which isn't a member of `public.job_status` (`draft | active | in_progress | review | completed | archived`). PostgREST threw `invalid input value for enum job_status: "scheduled"` the moment a management user opened the page. Removed.
+- [x] Deleted legacy `/supabase/` CLI-init leftover (Hello-World `schedule_ai` stub + `.branches` + `.temp`) — real config lives under `/infra/supabase/`.
