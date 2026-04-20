@@ -2,10 +2,17 @@ class ClockActionResult {
   const ClockActionResult({
     required this.eventId,
     required this.occurredAt,
+    this.queued = false,
   });
 
   final String eventId;
   final DateTime occurredAt;
+
+  /// True when the event could not reach the server and was written to the
+  /// local outbox (`pending_events`). `SyncEngine` will replay it when the
+  /// device regains connectivity. Callers should treat this as a success for
+  /// UI state but may want to surface an "offline, will sync later" hint.
+  final bool queued;
 }
 
 abstract class ClockRepository {

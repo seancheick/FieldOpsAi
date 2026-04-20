@@ -41,6 +41,22 @@ class MainShell extends ConsumerWidget {
     final clockState = ref.watch(clockControllerProvider);
     final palette = context.palette;
 
+    // Surface the "saved offline" hint from the clock controller as a
+    // one-shot SnackBar. The controller publishes the string when a clock
+    // event falls through to the outbox; we ack immediately so it fires once.
+    ref.listen<ClockState>(clockControllerProvider, (previous, next) {
+      final msg = next.offlineQueuedMessage;
+      if (msg == null) return;
+      if (previous?.offlineQueuedMessage == msg) return;
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      if (messenger != null) {
+        messenger.showSnackBar(SnackBar(content: Text(msg)));
+      }
+      ref
+          .read(clockControllerProvider.notifier)
+          .acknowledgeOfflineQueuedMessage();
+    });
+
     return Scaffold(
       body: IndexedStack(
         index: tabIndex,

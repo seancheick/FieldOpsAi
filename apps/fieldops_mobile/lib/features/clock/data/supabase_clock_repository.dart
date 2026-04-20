@@ -1,16 +1,24 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
+import 'package:fieldops_mobile/core/data/local_database.dart';
 import 'package:fieldops_mobile/features/clock/domain/clock_repository.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 class SupabaseClockRepository implements ClockRepository {
-  SupabaseClockRepository(this._client, {Uuid? uuid})
-      : _uuid = uuid ?? const Uuid();
+  SupabaseClockRepository(
+    this._client, {
+    LocalDatabase? localDatabase,
+    Uuid? uuid,
+  })  : _localDatabase = localDatabase,
+        _uuid = uuid ?? const Uuid();
 
   final SupabaseClient _client;
+  final LocalDatabase? _localDatabase;
   final Uuid _uuid;
 
   @override
@@ -33,12 +41,29 @@ class SupabaseClockRepository implements ClockRepository {
     required String jobId,
     required String subtype,
   }) async {
-    try {
-      final position = await _resolvePosition();
-      final eventId = _uuid.v4();
-      final occurredAt = DateTime.now().toUtc();
-      final batchId = _uuid.v4();
+    // Resolve position + build the clock-event payload before the try/catch
+    // so location errors still surface as errors (they're not offline).
+    final position = await _resolvePosition();
+    final eventId = _uuid.v4();
+    final occurredAt = DateTime.now().toUtc();
 
+    // NOTE: this object is the byte-identical inner payload that the sync
+    // engine expects. `SyncEngine._syncClockEvent` reads this stored payload
+    // and wraps it as `{batch_id: 'batch-<id>', clock_events: [payload]}`.
+    // Keep the shape in lockstep with the online body below.
+    final clockEvent = <String, dynamic>{
+      'id': eventId,
+      'job_id': jobId,
+      'event_subtype': subtype,
+      'occurred_at': occurredAt.toIso8601String(),
+      'gps': {
+        'lat': position.latitude,
+        'lng': position.longitude,
+        'accuracy_m': position.accuracy,
+      },
+    };
+
+    try {
       final response = await _client.functions.invoke(
         'sync_events',
         headers: {
@@ -46,20 +71,8 @@ class SupabaseClockRepository implements ClockRepository {
           'X-Client-Version': 'fieldops-mobile',
         },
         body: {
-          'batch_id': batchId,
-          'clock_events': [
-            {
-              'id': eventId,
-              'job_id': jobId,
-              'event_subtype': subtype,
-              'occurred_at': occurredAt.toIso8601String(),
-              'gps': {
-                'lat': position.latitude,
-                'lng': position.longitude,
-                'accuracy_m': position.accuracy,
-              },
-            },
-          ],
+          'batch_id': _uuid.v4(),
+          'clock_events': [clockEvent],
         },
       );
 
@@ -99,21 +112,70 @@ class SupabaseClockRepository implements ClockRepository {
 
       throw const ClockRepositoryException.unknown();
     } on SocketException {
-      throw const ClockRepositoryException.offline();
+      return _enqueueOrThrow(
+        eventId: eventId,
+        jobId: jobId,
+        occurredAt: occurredAt,
+        clockEvent: clockEvent,
+      );
     } on HttpException {
-      throw const ClockRepositoryException.offline();
-    } on TimeoutException {
-      throw const ClockRepositoryException.locationUnavailable();
-    } on PermissionDeniedException {
-      throw const ClockRepositoryException.locationDenied();
+      return _enqueueOrThrow(
+        eventId: eventId,
+        jobId: jobId,
+        occurredAt: occurredAt,
+        clockEvent: clockEvent,
+      );
     } on FunctionException catch (error) {
       if (error.status == 0) {
-        throw const ClockRepositoryException.offline();
+        return _enqueueOrThrow(
+          eventId: eventId,
+          jobId: jobId,
+          occurredAt: occurredAt,
+          clockEvent: clockEvent,
+        );
       }
       throw ClockRepositoryException.unknown(
         'Clock request failed (${error.status}).',
       );
     }
+    // NOTE: TimeoutException and PermissionDeniedException intentionally
+    // propagate — they originate from `_resolvePosition()` above and must
+    // surface to the worker. Server-side rejections (invalid_geofence,
+    // forbidden_job) are also left to throw above — we only queue on
+    // network-offline signatures.
+  }
+
+  /// Writes the event to the local outbox if a `LocalDatabase` is wired up,
+  /// otherwise preserves the legacy "offline" throw so tests / unconfigured
+  /// builds behave exactly as before.
+  Future<ClockActionResult> _enqueueOrThrow({
+    required String eventId,
+    required String jobId,
+    required DateTime occurredAt,
+    required Map<String, dynamic> clockEvent,
+  }) async {
+    final db = _localDatabase;
+    if (db == null) {
+      throw const ClockRepositoryException.offline();
+    }
+
+    await db.into(db.pendingEvents).insert(
+          PendingEventsCompanion.insert(
+            id: eventId,
+            eventType: 'clock_event',
+            jobId: jobId,
+            payload: jsonEncode(clockEvent),
+            occurredAt: occurredAt,
+            retryCount: const Value(0),
+            syncStatus: const Value('pending'),
+          ),
+        );
+
+    return ClockActionResult(
+      eventId: eventId,
+      occurredAt: occurredAt,
+      queued: true,
+    );
   }
 
   Future<Position> _resolvePosition() async {

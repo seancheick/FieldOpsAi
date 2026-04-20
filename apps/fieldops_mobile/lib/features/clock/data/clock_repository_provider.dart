@@ -1,4 +1,5 @@
 import 'package:fieldops_mobile/core/config/fieldops_environment.dart';
+import 'package:fieldops_mobile/core/data/local_database.dart';
 import 'package:fieldops_mobile/features/clock/data/supabase_clock_repository.dart';
 import 'package:fieldops_mobile/features/clock/domain/clock_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,7 +11,10 @@ final clockRepositoryProvider = Provider<ClockRepository>((ref) {
     return const _UnconfiguredClockRepository();
   }
 
-  return SupabaseClockRepository(Supabase.instance.client);
+  return SupabaseClockRepository(
+    Supabase.instance.client,
+    localDatabase: ref.watch(localDatabaseProvider),
+  );
 });
 
 class _UnconfiguredClockRepository implements ClockRepository {
