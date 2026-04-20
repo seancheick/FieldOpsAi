@@ -10,6 +10,7 @@ interface Project {
   status: string;
   site_name: string | null;
   geofence_radius_m: number | null;
+  geofence_enforced: boolean;
 }
 
 interface ProjectForm {
@@ -19,6 +20,7 @@ interface ProjectForm {
   status: string;
   site_name: string;
   geofence_radius_m: string;
+  geofence_enforced: boolean;
 }
 
 const STATUS_OPTIONS = [
@@ -36,7 +38,15 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 function emptyForm(): ProjectForm {
-  return { id: "", name: "", code: "", status: "active", site_name: "", geofence_radius_m: "100" };
+  return {
+    id: "",
+    name: "",
+    code: "",
+    status: "active",
+    site_name: "",
+    geofence_radius_m: "100",
+    geofence_enforced: true,
+  };
 }
 
 export default function ProjectsPage() {
@@ -56,7 +66,7 @@ export default function ProjectsPage() {
       const supabase = getSupabase();
       const { data, error: err } = await supabase
         .from("jobs")
-        .select("id, name, code, status, site_name, geofence_radius_m")
+        .select("id, name, code, status, site_name, geofence_radius_m, geofence_enforced")
         .order("created_at", { ascending: false });
       if (err) throw err;
       setProjects((data as Project[]) ?? []);
@@ -86,6 +96,7 @@ export default function ProjectsPage() {
       status: project.status,
       site_name: project.site_name ?? "",
       geofence_radius_m: String(project.geofence_radius_m ?? 100),
+      geofence_enforced: project.geofence_enforced ?? true,
     });
     setIsNew(false);
     setSaveError(null);
@@ -122,6 +133,7 @@ export default function ProjectsPage() {
         status: form.status,
         site_name: form.site_name.trim() || null,
         geofence_radius_m: parseInt(form.geofence_radius_m) || 100,
+        geofence_enforced: form.geofence_enforced,
         company_id: userRow.company_id,
       };
 
@@ -301,6 +313,26 @@ export default function ProjectsPage() {
                   </select>
                 </div>
 
+                <div className="rounded-xl border border-stone-200 bg-stone-50 p-3">
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={form.geofence_enforced}
+                      onChange={(e) => setForm({ ...form, geofence_enforced: e.target.checked })}
+                      className="mt-0.5 h-4 w-4 rounded border-stone-300 text-amber-500 focus:ring-amber-400"
+                    />
+                    <span className="flex-1">
+                      <span className="block text-sm font-semibold text-slate-700">
+                        Enforce geofence on clock-in
+                      </span>
+                      <span className="mt-0.5 block text-xs text-slate-500">
+                        When off, workers can clock in from anywhere. Leave on for on-site crews;
+                        turn off for remote, hybrid, or office-based staff.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-600">
                     Geofence Radius (meters)
@@ -311,8 +343,14 @@ export default function ProjectsPage() {
                     max="5000"
                     value={form.geofence_radius_m}
                     onChange={(e) => setForm({ ...form, geofence_radius_m: e.target.value })}
-                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-amber-400 focus:bg-white focus:outline-none"
+                    disabled={!form.geofence_enforced}
+                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-amber-400 focus:bg-white focus:outline-none disabled:opacity-50"
                   />
+                  {!form.geofence_enforced && (
+                    <p className="mt-1 text-xs text-slate-400">
+                      Ignored while geofence enforcement is off.
+                    </p>
+                  )}
                 </div>
 
                 <div className="pt-2">

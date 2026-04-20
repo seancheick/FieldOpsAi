@@ -111,7 +111,8 @@ serve(async (req) => {
           id,
           site_lat,
           site_lng,
-          geofence_radius_m
+          geofence_radius_m,
+          geofence_enforced
         )
       `)
       .eq("user_id", user.id)
@@ -159,23 +160,29 @@ serve(async (req) => {
         continue
       }
 
-      if (!isValidGpsCoordinates(job.site_lat, job.site_lng)) {
-        rejected.push({
-          id: event.id,
-          reason: "invalid_geofence",
-          message: "job site coordinates are not configured",
-        })
-        continue
-      }
+      // Geofence enforcement is opt-out per job. When `geofence_enforced = false`
+      // (for remote / hybrid workers, office-based support, etc.) we still log
+      // GPS for audit but skip the distance check and the "site coords must be
+      // configured" check.
+      if (job.geofence_enforced !== false) {
+        if (!isValidGpsCoordinates(job.site_lat, job.site_lng)) {
+          rejected.push({
+            id: event.id,
+            reason: "invalid_geofence",
+            message: "job site coordinates are not configured",
+          })
+          continue
+        }
 
-      const distanceM = haversineDistanceMeters(job.site_lat, job.site_lng, event.gps.lat, event.gps.lng)
-      if (distanceM > job.geofence_radius_m) {
-        rejected.push({
-          id: event.id,
-          reason: "invalid_geofence",
-          message: "worker is outside job geofence",
-        })
-        continue
+        const distanceM = haversineDistanceMeters(job.site_lat, job.site_lng, event.gps.lat, event.gps.lng)
+        if (distanceM > job.geofence_radius_m) {
+          rejected.push({
+            id: event.id,
+            reason: "invalid_geofence",
+            message: "worker is outside job geofence",
+          })
+          continue
+        }
       }
 
       const { error: dedupeError } = await supabaseAdmin.from("ingest_event_keys").insert({
