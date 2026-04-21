@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4"
 import {
   applyRateLimit,
   checkCompanyActive,
-  CORS_HEADERS,
+  corsHeaders,
   errorResponse,
   jsonResponse,
   logAdminAction,
@@ -23,7 +23,9 @@ const PRESIGN_EXPIRY_SECONDS = 900
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS_HEADERS })
+    // Must include Access-Control-Allow-Origin — the bare CORS_HEADERS constant
+    // omits it so the preflight fails and the browser reports "Failed to fetch".
+    return new Response("ok", { headers: corsHeaders(req) })
   }
 
   const requestId = makeRequestId(req)
