@@ -27,14 +27,14 @@ export default function RootLayout({
       className={cn("font-sans", geist.variable)}
       suppressHydrationWarning
     >
-      <head>
-        {/* Applies stored/system theme before hydration to avoid flash. */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      </head>
       <body
         className="bg-stone-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100"
         suppressHydrationWarning
       >
+        {/* Applies stored/system theme before hydration to avoid flash.
+            Must be the first child of <body> in App Router — <head> in a layout
+            collides with Next.js's metadata system in prod builds. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <Providers>
           <AuthGuard>
             <div className="flex h-screen overflow-hidden">
