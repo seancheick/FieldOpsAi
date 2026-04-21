@@ -41,8 +41,10 @@ export function AlertBell({ compact = false }: { compact?: boolean }) {
     loadCount();
 
     // Subscribe to INSERT (new alert) + UPDATE (status change) for this company's alerts.
+    // Unique channel name per effect run prevents collisions with a still-alive
+    // subscription from a previous mount (React 18 StrictMode / fast refresh).
     const channel = supabase
-      .channel(`alert-bell-${companyId}`)
+      .channel(`alert-bell-${companyId}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {

@@ -508,7 +508,9 @@ function PhotoFeedContent() {
     loadReviews();
 
     const channel = supabase
-      .channel(`photo-reviews-${currentCompanyId}`)
+      .channel(
+        `photo-reviews-${currentCompanyId}-${Math.random().toString(36).slice(2)}`,
+      )
       .on(
         "postgres_changes",
         {

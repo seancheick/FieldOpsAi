@@ -63,7 +63,9 @@ export function PhotoReviewActions({
     load();
     const supabase = getSupabase();
     const channel = supabase
-      .channel(`photo-review-${photoEventId}`)
+      .channel(
+        `photo-review-${photoEventId}-${Math.random().toString(36).slice(2)}`,
+      )
       .on(
         "postgres_changes",
         {
