@@ -172,13 +172,16 @@ serve(async (req) => {
         )
       }
 
-      // Generate a public URL
+      // Generate a public URL. Cache-buster (`?v=<ms>`) forces <img src> to
+      // refetch after re-uploads — the storage path is always `logo.png` so
+      // the unqualified URL would hit a stale CDN copy from the previous upload.
       const { data: publicUrlData } = supabaseAdmin
         .storage
         .from(LOGO_BUCKET)
         .getPublicUrl(storagePath)
 
-      const logoUrl = publicUrlData?.publicUrl || ""
+      const baseUrl = publicUrlData?.publicUrl || ""
+      const logoUrl = baseUrl ? `${baseUrl}?v=${Date.now()}` : ""
 
       // Convert to base64 data URI for stamp embedding
       const buffer = await fileData.arrayBuffer()
