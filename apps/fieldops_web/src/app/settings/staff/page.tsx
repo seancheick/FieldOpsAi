@@ -52,6 +52,8 @@ export default function StaffPage() {
   const [editing, setEditing] = useState<EditingStaff | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [viewerRole, setViewerRole] = useState<string | null>(null);
@@ -193,11 +195,40 @@ export default function StaffPage() {
           let message = "Failed to send invite.";
           try {
             const parsed = JSON.parse(body);
-            if (parsed.error) message = parsed.error;
+            // Edge functions return { status: "error", message, error_code, ... }
+            // via errorResponse() — earlier code read `parsed.error` which never
+            // exists, so the real cause (SMTP down, rate limit, etc.) was hidden.
+            message =
+              parsed.message ||
+              parsed.error_description ||
+              parsed.error ||
+              message;
           } catch {
-            // use default message
+            // Non-JSON body (e.g. proxy-level HTML error page) — fall through.
           }
           setInviteError(message);
+          return;
+        }
+
+        // Parse response — if email_sent is false but invite_link exists,
+        // surface the link to the admin so they can share it manually.
+        let parsedResp: {
+          invite_link?: string | null;
+          email_sent?: boolean;
+          email_error?: string | null;
+        } = {};
+        try {
+          parsedResp = await response.json();
+        } catch {
+          /* ignore */
+        }
+
+        setEmailSent(parsedResp.email_sent ?? true);
+        if (parsedResp.invite_link && !parsedResp.email_sent) {
+          // Show the copyable link and keep the form open so the admin
+          // can send it before closing.
+          setInviteLink(parsedResp.invite_link);
+          loadStaff();
           return;
         }
 
@@ -206,6 +237,7 @@ export default function StaffPage() {
           setSaved(false);
           setEditing(null);
           setShowAdd(false);
+          setInviteLink(null);
           loadStaff();
         }, 1500);
       } catch {
@@ -600,17 +632,65 @@ export default function StaffPage() {
                   {saved && (
                     <p className="mb-2 text-center text-sm font-medium text-green-600">
                       {showAdd
-                        ? `Invite sent to ${editing.email}`
+                        ? emailSent
+                          ? `Invite emailed to ${editing.email}`
+                          : `Member created — share the activation link below.`
                         : t("staffPage.saved")}
                     </p>
                   )}
-                  <button
-                    onClick={saveStaff}
-                    disabled={!editing.fullName.trim()}
-                    className="w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-40"
-                  >
-                    {showAdd ? t("staffPage.addStaffMember") : t("staffPage.saveChanges")}
-                  </button>
+                  {inviteLink && (
+                    <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs dark:border-amber-900/40 dark:bg-amber-950/30">
+                      <p className="mb-2 font-semibold text-amber-800 dark:text-amber-300">
+                        Email couldn&apos;t be delivered. Copy this link and
+                        share it with {editing.fullName} (SMS, WhatsApp, or
+                        your own email):
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          readOnly
+                          value={inviteLink}
+                          onFocus={(e) => e.currentTarget.select()}
+                          className="flex-1 rounded-md border border-amber-300 bg-white px-2 py-1.5 font-mono text-[11px] text-slate-700 dark:border-amber-900/60 dark:bg-slate-900 dark:text-slate-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(inviteLink);
+                              setSaved(true);
+                              setTimeout(() => setSaved(false), 1500);
+                            } catch {
+                              /* ignore */
+                            }
+                          }}
+                          className="rounded-md bg-amber-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-700"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInviteLink(null);
+                          setEditing(null);
+                          setShowAdd(false);
+                          loadStaff();
+                        }}
+                        className="mt-2 w-full rounded-md bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-stone-50 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  )}
+                  {!inviteLink && (
+                    <button
+                      onClick={saveStaff}
+                      disabled={!editing.fullName.trim()}
+                      className="w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                    >
+                      {showAdd ? t("staffPage.addStaffMember") : t("staffPage.saveChanges")}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

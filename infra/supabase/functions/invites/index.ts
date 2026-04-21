@@ -109,24 +109,81 @@ serve(async (req) => {
         )
       }
 
-      // Create invite via Supabase Auth
+      // Create invite via Supabase Auth.
+      //
+      // Strategy: try inviteUserByEmail first (sends an email if SMTP is
+      // configured), then fall back to generateLink if email sending fails
+      // (no SMTP configured, quota exhausted, domain blocked, etc.). In
+      // either case, return the activation link to the admin so they can
+      // copy/paste it into SMS, WhatsApp, or their own email client.
+      // Without this fallback, a missing/throttled SMTP kills the whole
+      // onboarding flow.
       if (email) {
-        const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-          data: {
-            company_id: userRecord.company_id,
-            full_name: full_name || email.split("@")[0],
-            role: workerRole,
-            invited_by: user.id,
-          },
-        })
+        const metadata = {
+          company_id: userRecord.company_id,
+          full_name: full_name || email.split("@")[0],
+          role: workerRole,
+          invited_by: user.id,
+        }
 
-        if (inviteError) throw inviteError
+        let inviteUserId: string | null = null
+        let emailSent = false
+        let inviteLink: string | null = null
+        let inviteErrorMessage: string | null = null
+
+        const { data: inviteData, error: inviteError } =
+          await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+            data: metadata,
+          })
+
+        if (inviteError) {
+          inviteErrorMessage = inviteError.message || String(inviteError)
+        } else {
+          inviteUserId = inviteData?.user?.id ?? null
+          emailSent = true
+        }
+
+        // Always produce a shareable link so the admin has a way to onboard
+        // the worker even when email delivery fails. If inviteUserByEmail
+        // already created the auth user, generateLink just re-issues the
+        // activation token for the same user.
+        const { data: linkData, error: linkError } =
+          await supabaseAdmin.auth.admin.generateLink({
+            type: "invite",
+            email,
+            options: {
+              data: metadata,
+              redirectTo: Deno.env.get("PUBLIC_WEB_URL")
+                ? `${Deno.env.get("PUBLIC_WEB_URL")}/sign-in`
+                : undefined,
+            },
+          })
+
+        if (!linkError && linkData) {
+          inviteLink = linkData.properties?.action_link ?? null
+          if (!inviteUserId) {
+            inviteUserId = linkData.user?.id ?? null
+          }
+        }
+
+        // Only surface a hard failure when BOTH paths failed.
+        if (!emailSent && !inviteLink) {
+          return errorResponse(
+            requestId,
+            500,
+            "INTERNAL_ERROR",
+            inviteErrorMessage || linkError?.message || "Failed to create invite",
+          )
+        }
 
         return jsonResponse({
           status: "success",
-          invite_id: inviteData?.user?.id || crypto.randomUUID(),
-          method: "email",
+          invite_id: inviteUserId ?? crypto.randomUUID(),
+          method: emailSent ? "email" : "link",
           recipient: email,
+          email_sent: emailSent,
+          email_error: emailSent ? null : inviteErrorMessage,
+          invite_link: inviteLink,
           request_id: requestId,
         }, 201, requestId)
       }

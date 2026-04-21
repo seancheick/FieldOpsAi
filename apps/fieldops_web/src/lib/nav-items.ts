@@ -33,7 +33,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/", icon: LayoutDashboard, labelKey: "shell.dashboard", section: "overview" },
   { href: "/map", icon: MapPin, labelKey: "shell.map", section: "overview" },
   { href: "/workers", icon: Users, labelKey: "shell.workers", section: "overview" },
-  { href: "/crew", icon: Users, labelKey: "shell.crew", section: "overview", supervisorOrAbove: true },
   { href: "/projects", icon: Clipboard, labelKey: "shell.projects", section: "overview" },
   { href: "/schedule", icon: Calendar, labelKey: "shell.schedule", section: "operations" },
   { href: "/timeline", icon: Clock, labelKey: "shell.timeline", section: "operations" },
