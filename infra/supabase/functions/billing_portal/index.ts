@@ -2,14 +2,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Stripe from "npm:stripe@18.5.0"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4"
-import { CORS_HEADERS, errorResponse, jsonResponse, makeRequestId } from "../_shared/api.ts"
+import { corsHeaders, errorResponse, jsonResponse, makeRequestId } from "../_shared/api.ts"
 import { isManagementRole } from "../_shared/roles.ts"
 
 const ENDPOINT = "billing_portal"
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS_HEADERS })
+    return new Response("ok", { headers: corsHeaders(req) })
   }
 
   const requestId = makeRequestId(req)

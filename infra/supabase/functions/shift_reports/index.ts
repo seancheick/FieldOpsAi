@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4"
 import {
   applyRateLimit,
-  CORS_HEADERS,
+  corsHeaders,
   errorResponse,
   jsonResponse,
   logRequestError,
@@ -20,7 +20,7 @@ const RATE_LIMIT = 20
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS_HEADERS })
+    return new Response("ok", { headers: corsHeaders(req) })
   }
 
   const requestId = makeRequestId(req)
