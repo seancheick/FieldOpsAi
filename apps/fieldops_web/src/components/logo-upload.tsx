@@ -117,17 +117,17 @@ export function LogoUpload({ currentLogoUrl, onLogoChanged }: LogoUploadProps) {
 
   return (
     <div className="flex items-center gap-4">
-      {/* Logo preview */}
+      {/* Logo preview — large enough to actually read at the settings page */}
       {currentLogoUrl ? (
         <img
           src={currentLogoUrl}
           alt="Company logo"
-          className="h-8 w-8 rounded-lg object-contain"
+          className="h-20 w-20 rounded-xl border border-stone-200 bg-white object-contain p-2 dark:border-slate-800 dark:bg-slate-900"
         />
       ) : (
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-stone-100">
+        <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-stone-200 bg-stone-50 dark:border-slate-800 dark:bg-slate-900">
           <svg
-            className="h-4 w-4 text-stone-400"
+            className="h-8 w-8 text-stone-400"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
