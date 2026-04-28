@@ -65,7 +65,7 @@ serve(async (req) => {
         return errorResponse(requestId, 500, "DB_ERROR", error.message)
       }
 
-      return jsonResponse(requestId, { breadcrumbs: data ?? [] })
+      return jsonResponse({ breadcrumbs: data ?? [], request_id: requestId }, 200, requestId)
     }
 
     // POST — insert breadcrumb(s)
@@ -106,7 +106,7 @@ serve(async (req) => {
         return errorResponse(requestId, 500, "DB_ERROR", error.message)
       }
 
-      return jsonResponse(requestId, { inserted: rows.length })
+      return jsonResponse({ inserted: rows.length, request_id: requestId }, 200, requestId)
     }
 
     return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Use GET or POST")

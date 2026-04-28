@@ -1582,9 +1582,10 @@ Triggered by Sentry reports: most mobile screens 401-crashing after Supabase rot
   - Type: Backend | Priority: MEDIUM
   - Notes: `TODO(swap-auto-reassign)` flagged in `schedule/index.ts`. Currently supervisor must still call the existing `update` action to move the shift after approving.
 
-- [ ] Contract tests in CI — one integration test per edge function that hits it with a real mobile-shaped body and asserts response keys
-  - Type: Testing | Priority: HIGH
-  - Would have caught every mismatch this sprint surfaced.
+- [x] Contract tests in CI — one integration test per edge function that hits it with a real mobile-shaped body and asserts response keys
+  - Type: Testing | Priority: HIGH | Status: Done (2026-04-20)
+  - Evidence: `execution/test_endpoint_contracts.py` covers 24 functions and 30+ (function, action) pairs with mobile/web-shaped bodies and asserts the response envelope keys. Wired into `run_backend_regression_suite.py` so CI's `workflow_dispatch` integration job runs it after the sprint-1 + schedule + RLS suites.
+  - First-run finding: surfaced a real bug in the breadcrumbs edge function — `jsonResponse(requestId, payload)` was called with positional args swapped (signature is `jsonResponse(payload, status, requestId)`), making both GET and POST throw `RangeError` on the Response constructor and silently fall through to the 500 catch. Mobile breadcrumb playback was returning empty lists for everyone. Fixed in same commit.
 
 - [ ] Delete stale duplicate `/supabase/functions/schedule_ai` (the real one lives under `/infra/supabase/`)
   - Type: Cleanup | Priority: LOW
@@ -1651,7 +1652,7 @@ First external beta tester (PSG, electrical contractor in Thailand) surfaced fiv
 
 ### Contract tests as a standing requirement
 
-All 13 Sprint 8.6 BLOCKERs + today's permit contract could have been caught by a contract test per edge function (POST with the exact mobile body shape, assert response keys). Still open from Sprint 8.6. Re-prioritizing as HIGH for 8.8 since every new function added this week compounds the risk.
+All 13 Sprint 8.6 BLOCKERs + today's permit contract could have been caught by a contract test per edge function (POST with the exact mobile body shape, assert response keys). Closed in Sprint 8.8 — `execution/test_endpoint_contracts.py` is now part of the regression runner and the first-run pass already surfaced the breadcrumbs `jsonResponse` arg-order bug that had been silently 500ing every GET/POST since the function shipped.
 
 ### Lessons learned
 

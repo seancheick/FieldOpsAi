@@ -42,6 +42,7 @@ def build_steps(skip_reset: bool) -> list[list[str]]:
             ["python3", "execution/test_sprint_1.py"],
             ["python3", "execution/test_schedule_flow.py"],
             ["python3", "execution/test_rls_validation.py"],
+            ["python3", "execution/test_endpoint_contracts.py"],
         ]
     return [
         ["supabase", "stop", "--project-id", "FieldsOps_ai", "--no-backup"],
@@ -51,6 +52,7 @@ def build_steps(skip_reset: bool) -> list[list[str]]:
         ["python3", "execution/test_sprint_1.py"],
         ["python3", "execution/test_schedule_flow.py"],
         ["python3", "execution/test_rls_validation.py"],
+        ["python3", "execution/test_endpoint_contracts.py"],
     ]
 
 
