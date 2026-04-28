@@ -40,9 +40,10 @@ const STATUS_PILL: Record<PermitStatus, string> = {
   revoked: "bg-stone-700 text-white",
 };
 
+// Matches public.job_status enum: draft | active | in_progress | review | completed | archived.
+// Excludes completed + archived so permits are only attached to open jobs.
 const ACTIVE_JOB_STATUSES = [
   "draft",
-  "scheduled",
   "active",
   "in_progress",
   "review",

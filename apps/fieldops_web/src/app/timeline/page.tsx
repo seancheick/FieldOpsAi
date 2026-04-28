@@ -45,9 +45,11 @@ const TIMELINE_SOURCE_TABLES = [
   "correction_events",
 ] as const;
 
+// Matches public.job_status enum (foundation_tables.sql):
+// draft | active | in_progress | review | completed | archived.
+// Timeline shows everything except archived.
 const TIMELINE_JOB_STATUSES = [
   "draft",
-  "scheduled",
   "active",
   "in_progress",
   "review",
