@@ -82,4 +82,15 @@ class _UnconfiguredScheduleRepository implements ScheduleRepository {
       'Mobile app is missing Supabase configuration.',
     );
   }
+
+  @override
+  Future<int> copyWeek({
+    required DateTime sourceStart,
+    required DateTime sourceEnd,
+    required DateTime targetStart,
+  }) {
+    throw const ScheduleRepositoryException.unknown(
+      'Mobile app is missing Supabase configuration.',
+    );
+  }
 }

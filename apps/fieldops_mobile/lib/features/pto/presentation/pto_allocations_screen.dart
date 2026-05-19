@@ -85,7 +85,7 @@ class _PtoAllocationsScreenState extends ConsumerState<PtoAllocationsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${_names[userId] ?? 'Worker'} · ${_year}',
+              '${_names[userId] ?? 'Worker'} · $_year',
               style: Theme.of(dialogCtx).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -120,6 +120,7 @@ class _PtoAllocationsScreenState extends ConsumerState<PtoAllocationsScreen> {
       ),
     );
     if (value == null) return;
+    if (!mounted) return;
     final rowKey = '$userId:$ptoType';
     setState(() {
       _saving.add(rowKey);

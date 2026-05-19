@@ -216,7 +216,7 @@ class _CreateBudgetSheetState extends ConsumerState<_CreateBudgetSheet> {
         _error = e.message;
         _saving = false;
       });
-    } catch (e) {
+    } on Object catch (e) {
       setState(() {
         _error = e.toString();
         _saving = false;
