@@ -104,9 +104,10 @@ class ForemanHomeScreen extends ConsumerWidget {
               title: 'Daily Shift Report',
               subtitle: 'Log today\'s work summary',
               color: palette.steel,
-              onTap: () {
-                // TODO: Navigate to shift report form
-              },
+              onTap: () => _showComingSoon(
+                context,
+                'Daily shift reports are coming next sprint.',
+              ),
             ),
             const SizedBox(height: 12),
             _QuickActionCard(
@@ -114,13 +115,21 @@ class ForemanHomeScreen extends ConsumerWidget {
               title: 'Flag Event',
               subtitle: 'Flag a worker event for admin review',
               color: palette.danger,
-              onTap: () {
-                // TODO: Navigate to event flagging
-              },
+              onTap: () => _showComingSoon(
+                context,
+                'Event flagging is coming next sprint. For now, send a note '
+                'via the timeline.',
+              ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  void _showComingSoon(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 4)),
     );
   }
 }
