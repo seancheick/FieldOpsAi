@@ -153,7 +153,7 @@ export function Sidebar() {
         {/* Brand + Toggle */}
         <div className="flex items-center justify-between px-3 py-4">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-sm font-bold text-white shadow-sm">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold tracking-tight text-white shadow-sm dark:bg-slate-100 dark:text-slate-900">
               F
             </div>
             {isExpanded && (
@@ -161,7 +161,7 @@ export function Sidebar() {
                 <div className="truncate text-sm font-bold tracking-tight text-slate-900">
                   {t("shell.appName")}
                 </div>
-                <div className="text-[10px] font-medium text-slate-400">
+                <div className="text-xs font-medium text-slate-500">
                   {t("shell.commandCenter")}
                 </div>
               </div>
@@ -174,7 +174,7 @@ export function Sidebar() {
               <button
                 onClick={toggleCollapsed}
                 aria-label={collapsed ? t("shell.expandSidebar") : t("shell.collapseSidebar")}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-stone-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-stone-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-600"
               >
                 {collapsed ? <Menu size={16} /> : <ChevronLeft size={16} />}
               </button>
@@ -187,9 +187,9 @@ export function Sidebar() {
               <button
                 onClick={() => setMobileOpen(false)}
                 aria-label={t("shell.closeMenu")}
-                className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-stone-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                className="flex h-11 w-11 items-center justify-center rounded-md text-slate-500 hover:bg-stone-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-600"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
           )}
@@ -199,20 +199,20 @@ export function Sidebar() {
         <div ref={!isMobile ? searchRef : undefined} className="relative px-3 pb-2">
           {isExpanded ? (
             <div className="relative">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
                 type="text"
                 placeholder={t("shell.searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
-                className="w-full rounded-lg border border-stone-200 bg-stone-50 py-1.5 pl-8 pr-3 text-[12px] text-slate-600 placeholder:text-slate-300 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-200"
+                className="w-full rounded-lg border border-stone-200 bg-stone-50 py-1.5 pl-8 pr-3 text-xs text-slate-600 placeholder:text-slate-500 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-200"
               />
               {/* Search dropdown */}
               {searchFocused && searchQuery.trim() && (
                 <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
                   {searchResults.length === 0 ? (
-                    <div className="px-3 py-2 text-[12px] text-slate-400">
+                    <div className="px-3 py-2 text-xs text-slate-500">
                       No results
                     </div>
                   ) : (
@@ -222,13 +222,13 @@ export function Sidebar() {
                         <a
                           key={item.href}
                           href={item.href}
-                          className="flex items-center gap-2 px-3 py-2 text-[12px] text-slate-600 hover:bg-stone-50"
+                          className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-stone-50"
                           onClick={() => {
                             setSearchQuery("");
                             setSearchFocused(false);
                           }}
                         >
-                          <Icon size={14} className="shrink-0 text-slate-400" />
+                          <Icon size={14} className="shrink-0 text-slate-500" />
                           <span>
                             {t("shell.searchGoTo")} {t(item.labelKey)}
                           </span>
@@ -250,7 +250,7 @@ export function Sidebar() {
                 }
               }}
               aria-label={t("shell.search")}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-stone-100 hover:text-slate-600"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-stone-100 hover:text-slate-600"
             >
               <Search size={16} />
             </button>
@@ -262,7 +262,7 @@ export function Sidebar() {
           {grouped.map((group) => (
             <div key={group.sectionKey} className="mb-4">
               {isExpanded && (
-                <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-slate-300">
+                <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-slate-600">
                   {group.section}
                 </div>
               )}
@@ -295,7 +295,7 @@ export function Sidebar() {
                     )}
                     {/* Tooltip when collapsed */}
                     {!isExpanded && (
-                      <span className="pointer-events-none absolute left-full ml-2 hidden whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[11px] font-medium text-white shadow-lg group-hover:block">
+                      <span className="pointer-events-none absolute left-full ml-2 hidden whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white shadow-lg group-hover:block">
                         {label}
                       </span>
                     )}
@@ -310,13 +310,13 @@ export function Sidebar() {
         <div className="border-t border-stone-100 px-3 py-4 dark:border-slate-800">
           {isExpanded ? (
             <>
-              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-widest text-slate-300 dark:text-slate-500">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-500">
                 {t("shell.language")}
               </label>
               <select
                 value={locale}
                 onChange={(event) => setLocale(event.target.value as Locale)}
-                className="mb-3 w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-[12px] font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                className="mb-3 w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-600"
               >
                 <option value="en">{t("shell.english")}</option>
                 <option value="es">{t("shell.spanish")}</option>
@@ -324,7 +324,7 @@ export function Sidebar() {
               </select>
               <button
                 onClick={toggleTheme}
-                className="mb-3 flex w-full items-center gap-2 rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-[12px] font-medium text-slate-500 transition-colors hover:bg-stone-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="mb-3 flex w-full items-center gap-2 rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-stone-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-600 dark:hover:bg-slate-800"
                 aria-label={
                   resolvedTheme === "dark"
                     ? t("shell.switchToLight")
@@ -350,14 +350,14 @@ export function Sidebar() {
                 />
               )}
               {userEmail && (
-                <div className="mb-2 truncate text-[11px] text-slate-400 dark:text-slate-500">
+                <div className="mb-2 truncate text-xs text-slate-500 dark:text-slate-500">
                   {userEmail}
                 </div>
               )}
               {userEmail && (
                 <button
                   onClick={() => signOut()}
-                  className="w-full rounded-lg py-1.5 text-[12px] font-medium text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-slate-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                  className="w-full rounded-lg py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-slate-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                 >
                   {t("shell.signOut")}
                 </button>
@@ -367,22 +367,28 @@ export function Sidebar() {
             <div className="flex flex-col items-center gap-2">
               <button
                 onClick={toggleTheme}
+                aria-label={
+                  resolvedTheme === "dark"
+                    ? t("shell.switchToLight")
+                    : t("shell.switchToDark")
+                }
                 title={
                   resolvedTheme === "dark"
                     ? t("shell.switchToLight")
                     : t("shell.switchToDark")
                 }
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-stone-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-stone-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200"
               >
-                {resolvedTheme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+                {resolvedTheme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
               </button>
               {userEmail && (
                 <button
                   onClick={() => signOut()}
+                  aria-label={t("shell.signOut")}
                   title={t("shell.signOut")}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-slate-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                  className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-slate-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                 >
-                  <X size={16} />
+                  <X size={18} />
                 </button>
               )}
             </div>
@@ -399,9 +405,9 @@ export function Sidebar() {
       <button
         onClick={() => setMobileOpen(true)}
         aria-label={t("shell.openMenu")}
-        className="fixed left-3 top-3 z-40 flex h-9 w-9 items-center justify-center rounded-lg bg-white text-slate-600 shadow-md dark:bg-slate-900 dark:text-slate-300 md:hidden"
+        className="fixed left-3 top-3 z-40 flex h-11 w-11 items-center justify-center rounded-lg bg-white text-slate-700 shadow-md dark:bg-slate-900 dark:text-slate-200 md:hidden"
       >
-        <Menu size={18} />
+        <Menu size={20} />
       </button>
 
       {/* Mobile overlay */}
@@ -414,7 +420,7 @@ export function Sidebar() {
 
       {/* Mobile drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r border-stone-200 bg-white transition-transform duration-200 md:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-stone-200 bg-white transition-transform duration-200 md:hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >

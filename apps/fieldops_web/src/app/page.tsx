@@ -9,17 +9,25 @@ import {
   ShieldCheck,
   Clock,
   CalendarDays,
+  CircleDot,
   FileText,
   CalendarOff,
   Receipt,
   CreditCard,
+  HelpCircle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/use-role";
 import { getSupabase } from "@/lib/supabase";
+import { KpiCard } from "@/components/ui/kpi-card";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { DailyHuddle } from "@/components/daily-huddle";
 import { ActiveWorkersTable } from "@/components/active-workers-table";
+import {
+  DashboardWelcome,
+  dashboardWelcomeSeen,
+  markDashboardWelcomeSeen,
+} from "@/components/dashboard-welcome";
 import type { JobSummary } from "@/lib/types";
 
 interface DashboardStats {
@@ -82,6 +90,19 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [hasMoreJobs, setHasMoreJobs] = useState(false);
   const [loadingMoreJobs, setLoadingMoreJobs] = useState(false);
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
+
+  // Auto-open the first-run briefing once per device.
+  useEffect(() => {
+    if (!dashboardWelcomeSeen()) setWelcomeOpen(true);
+  }, []);
+
+  const closeWelcome = useCallback(() => {
+    setWelcomeOpen(false);
+    markDashboardWelcomeSeen();
+  }, []);
+
+  const openWelcome = useCallback(() => setWelcomeOpen(true), []);
 
   const aiHints = useMemo(() => {
     const hints: string[] = [];
@@ -187,20 +208,28 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             {t("dashboard.title")}
           </h1>
-          <p className="mt-0.5 text-sm text-slate-400 dark:text-slate-500">
+          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-500">
             {t("dashboard.subtitle")}
           </p>
         </div>
         <div className="flex gap-2">
           <button
+            type="button"
+            onClick={openWelcome}
+            aria-label={t("dashboard.help")}
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-stone-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+          >
+            <HelpCircle size={18} />
+          </button>
+          <button
             onClick={loadDashboard}
-            className="rounded-lg bg-stone-100 px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+            className="inline-flex min-h-11 items-center rounded-lg bg-stone-100 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             {t("common.refresh")}
           </button>
           <a
             href="/reports"
-            className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+            className="inline-flex min-h-11 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
           >
             {t("dashboard.generateReport")}
           </a>
@@ -210,58 +239,52 @@ export default function DashboardPage() {
       {/* Daily huddle (6am-10am or when missing>0) */}
       <DailyHuddle companyId={companyId ?? null} />
 
-      {/* KPI Cards */}
+      {/* KPI Cards — color is reserved for state thresholds, not category. */}
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KPICard
-          label={t("dashboard.activeJobs")}
+        <KpiCard
+          title={t("dashboard.activeJobs")}
           value={stats.totalJobs.toString()}
-          change={t("dashboard.thisWeek")}
-          color="text-slate-900"
+          subtitle={t("dashboard.thisWeek")}
         />
-        <KPICard
-          label={t("dashboard.workersClockedIn")}
+        <KpiCard
+          title={t("dashboard.workersClockedIn")}
           value={stats.activeWorkers.toString()}
-          change={t("dashboard.today")}
-          color="text-green-600"
+          subtitle={t("dashboard.today")}
         />
-        <KPICard
-          label={t("dashboard.photosToday")}
+        <KpiCard
+          title={t("dashboard.photosToday")}
           value={stats.photosToday.toString()}
-          change={t("dashboard.proofCaptured")}
-          color="text-blue-600"
+          subtitle={t("dashboard.proofCaptured")}
         />
-        <KPICard
-          label={t("dashboard.pendingOt")}
+        <KpiCard
+          title={t("dashboard.pendingOt")}
           value={stats.pendingOT.toString()}
-          change={t("dashboard.awaitingApproval")}
-          color={stats.pendingOT > 0 ? "text-amber-600" : "text-slate-400"}
+          subtitle={t("dashboard.awaitingApproval")}
+          valueClassName={
+            stats.pendingOT > 0
+              ? "text-amber-600 dark:text-amber-400"
+              : undefined
+          }
           href={stats.pendingOT > 0 ? "/overtime" : undefined}
         />
       </div>
 
-      {/* Role-Based Quick Actions */}
+      {/* Role-aware quick-jump pills (compact secondary actions) */}
       {role && QUICK_ACTIONS[role] && (
-        <div className="mb-6">
-          <h2 className="mb-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
-            {t("dashboard.quickActions")}
-          </h2>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {QUICK_ACTIONS[role].map((action) => {
-              const Icon = action.icon;
-              return (
-                <Link
-                  key={action.href}
-                  href={action.href}
-                  className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3.5 shadow-sm transition-all transition-transform hover:scale-[1.02] active:scale-[0.98] hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
-                >
-                  <Icon className="h-5 w-5 flex-shrink-0 text-slate-500" />
-                  <span className="text-sm font-medium text-slate-700">
-                    {t(action.label)}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
+        <div className="mb-6 flex flex-wrap gap-2">
+          {QUICK_ACTIONS[role].map((action) => {
+            const Icon = action.icon;
+            return (
+              <Link
+                key={action.href}
+                href={action.href}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-stone-200 bg-card px-3.5 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-stone-50 dark:border-slate-800 dark:text-slate-200 dark:hover:border-slate-700 dark:hover:bg-slate-800"
+              >
+                <Icon className="h-3.5 w-3.5 flex-shrink-0 text-slate-500 dark:text-slate-400" />
+                {t(action.label)}
+              </Link>
+            );
+          })}
         </div>
       )}
 
@@ -297,7 +320,7 @@ export default function DashboardPage() {
           </h3>
           <ul className="space-y-1">
             {aiHints.map((hint, i) => (
-              <li key={i} className="text-xs text-slate-600 dark:text-slate-300">
+              <li key={i} className="text-xs text-slate-600 dark:text-slate-500">
                 {hint}
               </li>
             ))}
@@ -305,153 +328,225 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Quick Actions */}
-      <div className="mb-6 flex gap-3">
-        <a
-          href="/map"
-          className="rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm transition-all transition-transform hover:scale-[1.02] active:scale-[0.98] hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-700"
-        >
-          {t("dashboard.openLiveMap")} →
-        </a>
-        <a
-          href="/workers"
-          className="rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm transition-all transition-transform hover:scale-[1.02] active:scale-[0.98] hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-700"
-        >
-          {t("dashboard.viewWorkers")} →
-        </a>
-        <a
-          href="/photos"
-          className="rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm transition-all transition-transform hover:scale-[1.02] active:scale-[0.98] hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-700"
-        >
-          {t("dashboard.photoFeed")} →
-        </a>
-      </div>
-
-      {/* Jobs Grid */}
+      {/* Jobs */}
       {!loading && !error && jobs.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-stone-200 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-900">
-          <p className="text-sm text-slate-400">{t("dashboard.noActiveJobs")}</p>
+        <div className="rounded-2xl border border-dashed border-stone-200 bg-card p-10 text-center dark:border-slate-700">
+          <p className="text-sm text-slate-600 dark:text-slate-300">{t("dashboard.noActiveJobs")}</p>
           <a
             href="/projects"
-            className="mt-3 inline-block rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white"
+            className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
           >
             {t("dashboard.createFirstJob")}
           </a>
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {jobs.map((job) => {
-          const tc = jobTasks.find((jt) => jt.job_id === job.id);
-          const pct = tc && tc.total > 0 ? Math.round((tc.completed / tc.total) * 100) : 0;
-          return (
-            <div
-              key={job.id}
-              className="group rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition-all transition-transform hover:scale-[1.02] hover:border-stone-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100">{job.name}</h3>
-                  <p className="text-xs text-slate-400">{job.code}</p>
-                </div>
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                    job.status === "in_progress"
-                      ? "bg-green-50 text-green-600"
-                      : "bg-blue-50 text-blue-600"
-                  }`}
+      {jobs.length > 0 && (
+        <div className="mb-6">
+          <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
+            {t("dashboard.jobsTable.heading")}
+          </h2>
+
+          {/* Mobile: card stack (no horizontal scroll, full 44pt actions). */}
+          <ul className="space-y-3 md:hidden">
+            {jobs.map((job) => {
+              const tc = jobTasks.find((jt) => jt.job_id === job.id);
+              const pct = tc && tc.total > 0 ? Math.round((tc.completed / tc.total) * 100) : 0;
+              const inProgress = job.status === "in_progress";
+              const StatusIcon = inProgress ? Clock : CircleDot;
+              const statusTone = inProgress
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-sky-600 dark:text-sky-400";
+              const statusLabel = job.status.replace("_", " ");
+              return (
+                <li
+                  key={job.id}
+                  className="rounded-xl border border-stone-200 bg-card p-4 shadow-sm dark:border-slate-800"
                 >
-                  {job.status.replace("_", " ")}
-                </span>
-              </div>
-              {job.site_name && (
-                <p className="mt-3 text-xs text-slate-500">{job.site_name}</p>
-              )}
-              <div className="mt-3 text-[11px] text-slate-400">
-                {t("dashboard.geofence", { radius: job.geofence_radius_m })}
-              </div>
-              {/* Task progress */}
-              <div className="mt-3">
-                {tc && tc.total > 0 ? (
-                  <>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-stone-100 dark:bg-slate-800">
-                      <div
-                        className="h-full rounded-full bg-emerald-500 transition-all"
-                        style={{ width: `${pct}%` }}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <StatusIcon
+                        className={`h-4 w-4 shrink-0 ${statusTone}`}
+                        aria-label={statusLabel}
                       />
+                      <div className="min-w-0">
+                        <div className="truncate font-medium text-slate-900 dark:text-slate-100">
+                          {job.name}
+                        </div>
+                        <div className="truncate text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400">
+                          {job.code}
+                        </div>
+                      </div>
                     </div>
-                    <p className="mt-1 text-[10px] text-slate-400">
-                      {t("dashboard.tasksProgress", {
-                        completed: tc.completed,
-                        total: tc.total,
-                      })}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-[10px] text-slate-300">
-                    {t("dashboard.noTasks")}
-                  </p>
-                )}
-              </div>
-              <div className="mt-4 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                <a
-                  href={`/timeline?job_id=${job.id}`}
-                  className="rounded-lg bg-stone-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-stone-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                >
-                  {t("dashboard.timeline")}
-                </a>
-                <a
-                  href={`/photos?job_id=${job.id}`}
-                  className="rounded-lg bg-stone-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-stone-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                >
-                  {t("dashboard.photos")}
-                </a>
-              </div>
+                    <span className="shrink-0 text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                      {job.geofence_radius_m}m
+                    </span>
+                  </div>
+                  {job.site_name && (
+                    <div className="mt-2 text-sm text-slate-700 dark:text-slate-300">
+                      {job.site_name}
+                    </div>
+                  )}
+                  <div className="mt-3">
+                    {tc && tc.total > 0 ? (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100 dark:bg-slate-800">
+                            <div
+                              className="h-full rounded-full bg-emerald-500 transition-[width]"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-semibold tabular-nums text-slate-700 dark:text-slate-300">
+                            {pct}%
+                          </span>
+                        </div>
+                        <div className="mt-1 text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                          {t("dashboard.tasksProgress", {
+                            completed: tc.completed,
+                            total: tc.total,
+                          })}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-xs text-slate-500">{t("dashboard.noTasks")}</span>
+                    )}
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <a
+                      href={`/timeline?job_id=${job.id}`}
+                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg bg-stone-50 px-3 text-xs font-semibold text-slate-700 hover:bg-stone-100 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                    >
+                      {t("dashboard.timeline")}
+                    </a>
+                    <a
+                      href={`/photos?job_id=${job.id}`}
+                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg bg-stone-50 px-3 text-xs font-semibold text-slate-700 hover:bg-stone-100 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                    >
+                      {t("dashboard.photos")}
+                    </a>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Desktop: dense table. */}
+          <div className="hidden overflow-hidden rounded-xl border border-stone-200 bg-card shadow-sm md:block dark:border-slate-800">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-stone-100 dark:divide-slate-800">
+                <thead className="bg-stone-50 dark:bg-slate-950">
+                  <tr className="text-left text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    <th scope="col" className="px-3 py-2 w-10">
+                      <span className="sr-only">{t("dashboard.jobsTable.col.status")}</span>
+                    </th>
+                    <th scope="col" className="px-3 py-2">{t("dashboard.jobsTable.col.name")}</th>
+                    <th scope="col" className="px-3 py-2">{t("dashboard.jobsTable.col.site")}</th>
+                    <th scope="col" className="px-3 py-2">{t("dashboard.jobsTable.col.progress")}</th>
+                    <th scope="col" className="px-3 py-2 text-right tabular-nums">{t("dashboard.jobsTable.col.geofence")}</th>
+                    <th scope="col" className="px-3 py-2">
+                      <span className="sr-only">{t("dashboard.timeline")} / {t("dashboard.photos")}</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100 dark:divide-slate-800">
+                  {jobs.map((job) => {
+                    const tc = jobTasks.find((jt) => jt.job_id === job.id);
+                    const pct = tc && tc.total > 0 ? Math.round((tc.completed / tc.total) * 100) : 0;
+                    const inProgress = job.status === "in_progress";
+                    const StatusIcon = inProgress ? Clock : CircleDot;
+                    const statusTone = inProgress
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-sky-600 dark:text-sky-400";
+                    const statusLabel = job.status.replace("_", " ");
+                    return (
+                      <tr
+                        key={job.id}
+                        className="text-sm text-slate-700 transition-colors hover:bg-stone-50 dark:text-slate-300 dark:hover:bg-slate-800/40"
+                      >
+                        <td className="px-3 py-3 align-middle">
+                          <StatusIcon
+                            className={`h-4 w-4 ${statusTone}`}
+                            aria-label={statusLabel}
+                          />
+                        </td>
+                        <td className="px-3 py-3 align-middle">
+                          <div className="font-medium text-slate-900 dark:text-slate-100">
+                            {job.name}
+                          </div>
+                          <div className="mt-0.5 text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400">
+                            {job.code}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 align-middle text-slate-700 dark:text-slate-300">
+                          {job.site_name ?? "—"}
+                        </td>
+                        <td className="px-3 py-3 align-middle">
+                          {tc && tc.total > 0 ? (
+                            <div className="flex items-center gap-2">
+                              <div className="h-1.5 w-24 overflow-hidden rounded-full bg-stone-100 dark:bg-slate-800">
+                                <div
+                                  className="h-full rounded-full bg-emerald-500 transition-[width]"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-semibold tabular-nums text-slate-700 dark:text-slate-300">
+                                {pct}%
+                              </span>
+                              <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                                {t("dashboard.tasksProgress", {
+                                  completed: tc.completed,
+                                  total: tc.total,
+                                })}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-500">{t("dashboard.noTasks")}</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 align-middle text-right text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                          {job.geofence_radius_m}m
+                        </td>
+                        <td className="px-3 py-3 align-middle">
+                          <div className="flex justify-end gap-1">
+                            <a
+                              href={`/timeline?job_id=${job.id}`}
+                              className="inline-flex min-h-9 items-center rounded-md px-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                            >
+                              {t("dashboard.timeline")}
+                            </a>
+                            <a
+                              href={`/photos?job_id=${job.id}`}
+                              className="inline-flex min-h-9 items-center rounded-md px-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                            >
+                              {t("dashboard.photos")}
+                            </a>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          );
-        })}
-      </div>
+          </div>
+        </div>
+      )}
 
       {hasMoreJobs && (
         <div className="mt-6 flex justify-center">
           <button
             onClick={loadMoreJobs}
             disabled={loadingMoreJobs}
-            className="mx-auto mt-4 flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 shadow-sm hover:bg-stone-50 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="mx-auto mt-4 flex min-h-11 items-center gap-2 rounded-xl border border-stone-200 bg-white px-6 text-sm font-semibold text-slate-700 shadow-sm hover:bg-stone-50 disabled:bg-stone-100 disabled:text-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:disabled:bg-slate-900 dark:disabled:text-slate-500"
           >
             {loadingMoreJobs ? t("common.loadingMore") : t("common.loadMore")}
           </button>
         </div>
       )}
+
+      <DashboardWelcome open={welcomeOpen} onClose={closeWelcome} />
     </div>
   );
 }
 
-function KPICard({
-  label,
-  value,
-  change,
-  color,
-  href,
-}: {
-  label: string;
-  value: string;
-  change: string;
-  color: string;
-  href?: string;
-}) {
-  const content = (
-    <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition-all hover:border-stone-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
-      <div className="text-xs font-medium text-slate-400 dark:text-slate-500">{label}</div>
-      <span className={`mt-1 block text-3xl font-bold tracking-tight tabular-nums ${color}`}>
-        {value}
-      </span>
-      <div className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{change}</div>
-    </div>
-  );
-
-  if (href) {
-    return <a href={href}>{content}</a>;
-  }
-  return content;
-}

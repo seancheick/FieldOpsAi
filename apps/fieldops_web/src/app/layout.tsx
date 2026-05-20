@@ -4,11 +4,20 @@ import { AuthGuard } from "@/components/auth-guard";
 import { Sidebar } from "@/components/sidebar";
 import { CommandPalette } from "@/components/command-palette";
 import { Providers } from "./providers";
-import { Geist } from "next/font/google";
+import { Geist, Manrope } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+// Body voice — Geist Sans (neutral, system-grade workhorse).
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+
+// Display voice — Manrope (more refined character at heavier weights;
+// applied to headings + KPI digits via --font-heading in globals.css).
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-display",
+  weight: ["500", "600", "700", "800"],
+});
 
 export const metadata: Metadata = {
   title: "FieldOps AI — Command Center",
@@ -24,11 +33,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("font-sans", geist.variable)}
+      className={cn("font-sans", geist.variable, manrope.variable)}
       suppressHydrationWarning
     >
       <body
-        className="bg-stone-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100"
+        className="bg-background text-foreground antialiased"
         suppressHydrationWarning
       >
         {/* Applies stored/system theme before hydration to avoid flash.
