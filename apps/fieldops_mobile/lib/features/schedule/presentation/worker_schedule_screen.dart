@@ -208,7 +208,7 @@ class _WorkerScheduleScreenState extends ConsumerState<WorkerScheduleScreen> {
                   child: _ScheduleCard(shift: shift, palette: palette),
                 );
               },
-              onReorder: (oldIndex, newIndex) {
+              onReorderItem: (oldIndex, newIndex) {
                 ref.read(workerScheduleControllerProvider.notifier).reorderShifts(oldIndex, newIndex);
               },
             ),

@@ -20,9 +20,10 @@ class WorkerScheduleController extends AsyncNotifier<List<WorkerScheduleShift>> 
     );
   }
 
+  /// Called from `onReorderItem` (Flutter ≥3.41), which already adjusts
+  /// `newIndex` for the removed-at-oldIndex slot — no manual `newIndex--`
+  /// needed.
   Future<void> reorderShifts(int oldIndex, int newIndex) async {
-    if (newIndex > oldIndex) newIndex--;
-    
     final currentShifts = state.value;
     if (currentShifts == null || currentShifts.length < 2) return;
 

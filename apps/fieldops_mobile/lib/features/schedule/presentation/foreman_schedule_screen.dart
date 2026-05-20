@@ -271,7 +271,7 @@ class _CrewShiftList extends ConsumerWidget {
           ),
         );
       },
-      onReorder: (oldIndex, newIndex) {
+      onReorderItem: (oldIndex, newIndex) {
         HapticFeedback.mediumImpact();
         ref
             .read(foremanScheduleControllerProvider.notifier)

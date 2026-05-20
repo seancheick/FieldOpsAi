@@ -238,11 +238,17 @@ class _MoreTile extends StatelessWidget {
     return Theme(
       // Strip ExpansionTile's default divider so the card edges stay clean.
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: Container(
-        decoration: BoxDecoration(
-          color: palette.surfaceWhite,
+      // The ExpansionTile renders a ListTile, which needs a Material
+      // ancestor to paint its background + ink splash. The outermost
+      // surface uses Material directly (instead of Container + BoxDecoration)
+      // so the ListTile finds Material as its nearest ancestor — fixes
+      // the debug-only "ListTile background color or ink splashes may be
+      // invisible" assertion.
+      child: Material(
+        color: palette.surfaceWhite,
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(FieldOpsRadius.xl),
-          border: Border.all(color: palette.border),
+          side: BorderSide(color: palette.border),
         ),
         child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 16),

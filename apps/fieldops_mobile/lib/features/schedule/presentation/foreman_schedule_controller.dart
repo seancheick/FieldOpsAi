@@ -28,9 +28,10 @@ class ForemanScheduleController
   }
 
   /// Reorders shifts locally after a drag gesture.
+  /// Called from `onReorderItem` (Flutter ≥3.41), which hands back the
+  /// post-removal `newIndex` directly — no manual `newIndex--` adjustment
+  /// needed.
   void reorder(int oldIndex, int newIndex) {
-    if (newIndex > oldIndex) newIndex--;
-
     final current = state.value;
     if (current == null || current.shifts.length < 2) return;
 
