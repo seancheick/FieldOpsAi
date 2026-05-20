@@ -780,7 +780,7 @@ function PhotoFeedContent() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => router.push("/photos")}
-                className="rounded-2xl border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm hover:bg-stone-50"
+                className="rounded-2xl border border-stone-200 bg-card px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm hover:bg-stone-50"
               >
                 All Projects
               </button>
@@ -794,7 +794,7 @@ function PhotoFeedContent() {
             </div>
           </div>
         ) : (
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             Open a project folder to review proof photos by feed, timeline, or map.
           </p>
         )}
@@ -802,7 +802,7 @@ function PhotoFeedContent() {
         {/* Stats summary bar */}
         {jobId && !loading && !error && photos.length > 0 && (
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="rounded-xl border border-stone-200 bg-white px-4 py-3 text-center">
+            <div className="rounded-xl border border-stone-200 bg-card px-4 py-3 text-center">
               <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
               <p className="text-xs text-slate-500">Total Photos</p>
             </div>
@@ -857,7 +857,7 @@ function PhotoFeedContent() {
                       : f === "approved"
                         ? "bg-emerald-600 text-white"
                         : "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-                    : "bg-stone-100 text-slate-600 hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    : "bg-stone-100 text-slate-600 hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-700"
                 }`}
               >
                 {t(`photoReview.tab.${f}`)} ·{" "}
@@ -877,7 +877,7 @@ function PhotoFeedContent() {
               onClick={() => setFeedViewMode(mode)}
               className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
                 feedViewMode === mode
-                  ? "bg-white text-slate-900 shadow-sm"
+                  ? "bg-card text-slate-900 shadow-sm"
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -893,7 +893,7 @@ function PhotoFeedContent() {
 
       {/* Filter bar */}
       {jobId && activeTab === "feed" && photos.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 bg-white p-3">
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 bg-card p-3">
           {/* Date */}
           <label className="flex items-center gap-1.5 text-sm text-slate-600">
             {t("photos.filterByDate")}
@@ -901,7 +901,7 @@ function PhotoFeedContent() {
               type="date"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
-              className="rounded-lg border border-stone-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              className="rounded-lg border border-stone-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
             />
           </label>
 
@@ -909,7 +909,7 @@ function PhotoFeedContent() {
           <select
             value={filterWorker}
             onChange={(e) => setFilterWorker(e.target.value)}
-            className="rounded-lg border border-stone-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="rounded-lg border border-stone-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
           >
             <option value="">{t("photos.allWorkers")}</option>
             {uniqueWorkers.map((w) => (
@@ -921,7 +921,7 @@ function PhotoFeedContent() {
           <select
             value={filterTask}
             onChange={(e) => setFilterTask(e.target.value)}
-            className="rounded-lg border border-stone-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="rounded-lg border border-stone-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
           >
             <option value="">{t("photos.allTasks")}</option>
             {uniqueTasks.map((tk) => (
@@ -933,7 +933,7 @@ function PhotoFeedContent() {
           <select
             value={filterMode}
             onChange={(e) => setFilterMode(e.target.value)}
-            className="rounded-lg border border-stone-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="rounded-lg border border-stone-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
           >
             <option value="">{t("photos.allModes")}</option>
             <option value="before">{t("photos.before")}</option>
@@ -945,7 +945,7 @@ function PhotoFeedContent() {
           <select
             value={filterVerified}
             onChange={(e) => setFilterVerified(e.target.value as "all" | "verified" | "unverified")}
-            className="rounded-lg border border-stone-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="rounded-lg border border-stone-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
           >
             <option value="all">All verification</option>
             <option value="verified">Verified only</option>
@@ -970,7 +970,7 @@ function PhotoFeedContent() {
                 type="checkbox"
                 checked={filteredPhotos.length > 0 && selectedPhotos.size === filteredPhotos.length}
                 onChange={toggleSelectAll}
-                className="h-4 w-4 rounded border-stone-300 text-amber-500 focus:ring-amber-400"
+                className="h-4 w-4 rounded border-stone-300 text-amber-500 focus:ring-ring"
               />
               {t("photos.selectAll")}
             </label>
@@ -985,14 +985,14 @@ function PhotoFeedContent() {
                 <button
                   onClick={exportProofPack}
                   disabled={exporting}
-                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors disabled:bg-stone-100 disabled:text-slate-400"
                 >
                   {exporting ? "Exporting..." : `Export Proof Pack (${selectedPhotos.size})`}
                 </button>
                 <button
                   onClick={() => setShowTagDialog(true)}
                   disabled={selectedMediaAssetIds.length === 0}
-                  className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
+                  className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors disabled:bg-stone-100 disabled:text-slate-400"
                 >
                   Tag ({selectedMediaAssetIds.length})
                 </button>
@@ -1000,7 +1000,7 @@ function PhotoFeedContent() {
                   <button
                     onClick={() => setShowGalleryDialog(true)}
                     disabled={selectedMediaAssetIds.length === 0}
-                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:bg-stone-100 disabled:text-slate-400"
                   >
                     Save as gallery ({selectedMediaAssetIds.length})
                   </button>
@@ -1011,7 +1011,7 @@ function PhotoFeedContent() {
               <>
                 <button
                   onClick={() => setShowShareDialog(true)}
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                  className="rounded-lg border border-slate-300 bg-card px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   Share link
                 </button>
@@ -1019,7 +1019,7 @@ function PhotoFeedContent() {
                   onClick={() =>
                     router.push(`/galleries?job_id=${encodeURIComponent(jobId)}`)
                   }
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                  className="rounded-lg border border-slate-300 bg-card px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   Manage deliverables
                 </button>
@@ -1066,7 +1066,7 @@ function PhotoFeedContent() {
       )}
 
       {!loading && !error && jobId && photos.length === 0 && (
-        <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-slate-500">
+        <div className="rounded-xl border border-stone-200 bg-card p-8 text-center text-slate-500">
           {t("photos.noPhotos")}
         </div>
       )}
@@ -1104,7 +1104,7 @@ function PhotoFeedContent() {
 
       {/* Sheet view */}
       {jobId && activeTab === "feed" && feedViewMode === "sheet" && filteredPhotos.length > 0 && (
-        <div className="mb-6 overflow-x-auto rounded-2xl border border-stone-200 bg-white">
+        <div className="mb-6 overflow-x-auto rounded-2xl border border-stone-200 bg-card">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-stone-100 bg-stone-50">
@@ -1145,7 +1145,7 @@ function PhotoFeedContent() {
                     <td className="px-4 py-2 text-slate-500">{task ?? <span className="text-stone-300">—</span>}</td>
                     <td className="px-4 py-2 text-slate-500 whitespace-nowrap">{formatTime(photo.occurred_at)}</td>
                     <td className="px-4 py-2">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase ${
                         mode === "before" ? "bg-violet-100 text-violet-700" :
                         mode === "after" ? "bg-rose-100 text-rose-700" :
                         "bg-stone-100 text-slate-500"
@@ -1153,14 +1153,20 @@ function PhotoFeedContent() {
                     </td>
                     <td className="px-4 py-2">
                       {isVerified ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">✓ Verified</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                          <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                          Verified
+                        </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Pending</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                          <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                          Pending
+                        </span>
                       )}
                     </td>
                     <td className="px-4 py-2">
                       {code ? (
-                        <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono text-slate-600">{code as string}</code>
+                        <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-slate-600">{code as string}</code>
                       ) : <span className="text-stone-300">—</span>}
                     </td>
                   </tr>
@@ -1196,8 +1202,8 @@ function PhotoFeedContent() {
               key={photo.id}
               className={`break-inside-avoid mb-4 overflow-hidden rounded-2xl border shadow-sm transition-shadow hover:shadow-md ${
                 isVerified
-                  ? "border-emerald-200 bg-white"
-                  : "border-stone-200 bg-white"
+                  ? "border-emerald-200 bg-card"
+                  : "border-stone-200 bg-card"
               }`}
             >
               {/* Photo with stamp overlay */}
@@ -1214,7 +1220,7 @@ function PhotoFeedContent() {
                     type="checkbox"
                     checked={selectedPhotos.has(photo.id)}
                     onChange={() => togglePhotoSelection(photo.id)}
-                    className="h-4 w-4 rounded border-stone-300 text-amber-500 focus:ring-amber-400 cursor-pointer"
+                    className="h-4 w-4 rounded border-stone-300 text-amber-500 focus:ring-ring cursor-pointer"
                   />
                 </div>
 
@@ -1232,7 +1238,7 @@ function PhotoFeedContent() {
                 )}
                 {/* Stamp overlay */}
                 {stampLines.length > 0 && (
-                  <div className="absolute bottom-2 left-2 right-2 rounded-lg bg-black/65 px-3 py-2 text-[10px] leading-relaxed text-white">
+                  <div className="absolute bottom-2 left-2 right-2 rounded-lg bg-black/65 px-3 py-2 text-xs leading-relaxed text-white">
                     {stampLines.map((line, i) => (
                       <div
                         key={i}
@@ -1247,17 +1253,17 @@ function PhotoFeedContent() {
                 {/* Top-right badges */}
                 <div className="absolute right-2 top-2 flex flex-col items-end gap-1">
                   {(photo.is_checkpoint as boolean) && (
-                    <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                    <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">
                       {t("photos.checkpoint")}
                     </span>
                   )}
                   {photoMode === "before" && (
-                    <span className="rounded-full bg-violet-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                    <span className="rounded-full bg-violet-500 px-2 py-0.5 text-xs font-bold text-white">
                       BEFORE
                     </span>
                   )}
                   {photoMode === "after" && (
-                    <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                    <span className="rounded-full bg-rose-500 px-2 py-0.5 text-xs font-bold text-white">
                       AFTER
                     </span>
                   )}
@@ -1270,7 +1276,7 @@ function PhotoFeedContent() {
                   <span className="font-semibold text-slate-900">
                     {workerName}
                   </span>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-500">
                     {formatTime(photo.occurred_at)}
                   </span>
                 </div>
@@ -1281,18 +1287,18 @@ function PhotoFeedContent() {
                 )}
                 <div className="mt-2 flex items-center gap-2 flex-wrap">
                   {isVerified ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
                       Verified
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
                       Pending
                     </span>
                   )}
                   {verificationCode && (
-                    <code className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-mono text-slate-600">
+                    <code className="rounded bg-slate-100 px-2 py-0.5 text-xs font-mono text-slate-600">
                       {verificationCode as string}
                     </code>
                   )}
@@ -1320,7 +1326,7 @@ function PhotoFeedContent() {
           <button
             onClick={loadMorePhotos}
             disabled={loadingMorePhotos}
-            className="mx-auto flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 shadow-sm hover:bg-stone-50 disabled:opacity-50"
+            className="mx-auto flex items-center gap-2 rounded-xl border border-stone-200 bg-card px-6 py-2.5 text-sm font-semibold text-slate-600 shadow-sm hover:bg-stone-50 disabled:bg-stone-100 disabled:text-slate-400"
           >
             {loadingMorePhotos ? t("common.loadingMore") : t("common.loadMore")}
           </button>
@@ -1352,7 +1358,7 @@ function PhotoFeedContent() {
             onClick={closeLightbox}
           >
             <div
-              className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+              className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-card shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -1380,7 +1386,7 @@ function PhotoFeedContent() {
                 </div>
                 <button
                   onClick={closeLightbox}
-                  className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  className="rounded-lg p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                   aria-label={t("photos.close")}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1432,7 +1438,7 @@ function PhotoFeedContent() {
               <div className="space-y-3 p-6">
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-semibold text-slate-900">{lbWorker}</span>
-                  <span className="text-sm text-slate-400">{formatTime(lightboxPhoto.occurred_at)}</span>
+                  <span className="text-sm text-slate-500">{formatTime(lightboxPhoto.occurred_at)}</span>
                 </div>
                 {lbTask && (
                   <p className="text-sm text-slate-600">
@@ -1455,7 +1461,7 @@ function PhotoFeedContent() {
                 {/* SHA-256 integrity hash — tamper-proof evidence */}
                 {lbSha256 && (
                   <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 mb-1">Integrity Hash (SHA-256)</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 mb-1">Integrity Hash (SHA-256)</p>
                     <code className="block text-xs font-mono text-emerald-800 break-all">{lbSha256}</code>
                   </div>
                 )}
@@ -1474,7 +1480,7 @@ function PhotoFeedContent() {
                   </span>
                 )}
                 {/* Photo counter */}
-                <p className="text-xs text-slate-400 text-center pt-2">
+                <p className="text-xs text-slate-500 text-center pt-2">
                   {selectedPhotoIndex + 1} of {filteredPhotos.length}
                 </p>
               </div>
