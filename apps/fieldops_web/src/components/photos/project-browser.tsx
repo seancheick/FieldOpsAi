@@ -54,9 +54,9 @@ export function ProjectBrowser({
               value={search}
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder="Search projects"
-              className="min-w-[220px] rounded-2xl border border-stone-300 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
+              className="min-w-[220px] rounded-2xl border border-stone-300 bg-card px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
             />
-            <div className="flex rounded-2xl border border-stone-200 bg-white p-1 shadow-sm">
+            <div className="flex rounded-2xl border border-stone-200 bg-card p-1 shadow-sm">
               <button
                 onClick={() => onViewModeChange("icons")}
                 className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
@@ -79,7 +79,7 @@ export function ProjectBrowser({
       </div>
 
       {filteredProjects.length === 0 ? (
-        <div className="rounded-[28px] border border-dashed border-stone-300 bg-white p-12 text-center text-sm text-slate-500">
+        <div className="rounded-[28px] border border-dashed border-stone-300 bg-card p-12 text-center text-sm text-slate-500">
           No matching projects yet.
         </div>
       ) : viewMode === "icons" ? (
@@ -88,13 +88,13 @@ export function ProjectBrowser({
             <button
               key={project.id}
               onClick={() => onOpenProject(project.id)}
-              className="group rounded-[28px] border border-stone-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
+              className="group rounded-[28px] border border-stone-200 bg-card p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-3xl shadow-inner shadow-amber-200/60">
                   📁
                 </div>
-                <span className="rounded-full bg-stone-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   {project.status ?? "active"}
                 </span>
               </div>
@@ -108,7 +108,7 @@ export function ProjectBrowser({
 
               <div className="mt-5 flex items-end justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                     Photos
                   </p>
                   <p className="mt-1 text-2xl font-semibold text-slate-900">
@@ -116,7 +116,7 @@ export function ProjectBrowser({
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                     Last Activity
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
@@ -128,7 +128,7 @@ export function ProjectBrowser({
           ))}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[28px] border border-stone-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-[28px] border border-stone-200 bg-card shadow-sm">
           {filteredProjects.map((project) => (
             <button
               key={project.id}
@@ -143,16 +143,16 @@ export function ProjectBrowser({
                 <div className="truncate text-sm text-slate-500">{project.code}</div>
               </div>
               <div className="hidden text-right sm:block">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Photos</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Photos</div>
                 <div className="text-sm font-semibold text-slate-700">{project.photoCount ?? 0}</div>
               </div>
               <div className="hidden text-right lg:block">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Last Activity</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Last Activity</div>
                 <div className="text-sm text-slate-600">
                   {project.lastPhotoAt ? new Date(project.lastPhotoAt).toLocaleDateString() : "No photos"}
                 </div>
               </div>
-              <span className="rounded-full bg-stone-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {project.status ?? "active"}
               </span>
             </button>

@@ -70,7 +70,7 @@ export function TagFilterBar({ jobId, active, onToggle, accessToken, onTagsLoade
             className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
               isActive
                 ? "border-amber-500 bg-amber-500 text-white"
-                : "border-stone-200 bg-white text-slate-700 hover:border-amber-300"
+                : "border-stone-200 bg-card text-slate-700 hover:border-amber-300"
             }`}
           >
             {t.tag} · {t.count}

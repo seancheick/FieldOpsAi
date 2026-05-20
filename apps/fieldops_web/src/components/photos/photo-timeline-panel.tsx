@@ -27,7 +27,7 @@ export function PhotoTimelinePanel({ photos }: { photos: TimelinePhoto[] }) {
 
   if (groupEntries.length === 0) {
     return (
-      <div className="rounded-[28px] border border-dashed border-stone-300 bg-white p-12 text-center text-sm text-slate-500">
+      <div className="rounded-[28px] border border-dashed border-stone-300 bg-card p-12 text-center text-sm text-slate-500">
         No photo events yet for this project.
       </div>
     );
@@ -36,10 +36,10 @@ export function PhotoTimelinePanel({ photos }: { photos: TimelinePhoto[] }) {
   return (
     <div className="space-y-6">
       {groupEntries.map(([dateLabel, items]) => (
-        <section key={dateLabel} className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
+        <section key={dateLabel} className="rounded-[28px] border border-stone-200 bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Timeline</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Timeline</p>
               <h3 className="mt-1 text-lg font-semibold text-slate-900">{dateLabel}</h3>
             </div>
             <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-slate-600">
@@ -56,16 +56,16 @@ export function PhotoTimelinePanel({ photos }: { photos: TimelinePhoto[] }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-slate-900">{photo.workerName}</span>
-                    <span className="text-sm text-slate-400">
+                    <span className="text-sm text-slate-500">
                       {new Date(photo.occurredAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </span>
                     {photo.isCheckpoint && (
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
                         Checkpoint
                       </span>
                     )}
                     {photo.mode !== "standard" && (
-                      <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-semibold uppercase text-white">
+                      <span className="rounded-full bg-slate-900 px-2 py-0.5 text-xs font-semibold uppercase text-white">
                         {photo.mode}
                       </span>
                     )}

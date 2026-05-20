@@ -113,16 +113,16 @@ export function PhotoMapPanel({ photos }: { photos: MapPhoto[] }) {
 
   if (photoPins.length === 0) {
     return (
-      <div className="rounded-[28px] border border-dashed border-stone-300 bg-white p-12 text-center text-sm text-slate-500">
+      <div className="rounded-[28px] border border-dashed border-stone-300 bg-card p-12 text-center text-sm text-slate-500">
         No geo-tagged photos are available for this project yet.
       </div>
     );
   }
 
   return (
-    <section className="overflow-hidden rounded-[28px] border border-stone-200 bg-white shadow-sm">
+    <section className="overflow-hidden rounded-[28px] border border-stone-200 bg-card shadow-sm">
       <div className="border-b border-stone-100 px-5 py-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Map View</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Map View</p>
         <h3 className="mt-1 text-lg font-semibold text-slate-900">Photos by capture location</h3>
       </div>
       {mapError ? (

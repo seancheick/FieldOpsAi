@@ -14,7 +14,7 @@ export function ProjectWorkspaceTabs({
   ];
 
   return (
-    <div className="inline-flex rounded-2xl border border-stone-200 bg-white p-1 shadow-sm">
+    <div className="inline-flex rounded-2xl border border-stone-200 bg-card p-1 shadow-sm">
       {tabs.map((tab) => (
         <button
           key={tab.value}

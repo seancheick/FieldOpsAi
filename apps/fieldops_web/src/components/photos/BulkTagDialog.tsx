@@ -52,7 +52,7 @@ export function BulkTagDialog({ open, mediaAssetIds, accessToken, onClose, onTag
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={onClose}>
       <form
-        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+        className="w-full max-w-md rounded-2xl bg-card p-6 shadow-xl"
         onSubmit={handleSubmit}
         onClick={(e) => e.stopPropagation()}
       >
@@ -78,7 +78,7 @@ export function BulkTagDialog({ open, mediaAssetIds, accessToken, onClose, onTag
           <button
             type="submit"
             disabled={saving || !tag.trim()}
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+            className="inline-flex min-h-11 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white disabled:bg-stone-100 disabled:text-slate-400"
           >
             {saving ? "Tagging…" : "Apply tag"}
           </button>

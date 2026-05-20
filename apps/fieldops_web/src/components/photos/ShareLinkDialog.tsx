@@ -59,7 +59,7 @@ export function ShareLinkDialog({ open, jobId, accessToken, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         {shareUrl ? (
           <>
             <h2 className="text-lg font-bold text-slate-900">Share link ready</h2>
@@ -78,7 +78,7 @@ export function ShareLinkDialog({ open, jobId, accessToken, onClose }: Props) {
             </div>
             <button
               onClick={onClose}
-              className="mt-5 w-full rounded-lg bg-amber-500 py-2 text-sm font-semibold text-white hover:bg-amber-600"
+              className="mt-5 w-full rounded-lg inline-flex min-h-11 items-center justify-center bg-slate-900 text-sm font-semibold text-white transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
             >
               Done
             </button>
@@ -144,7 +144,7 @@ export function ShareLinkDialog({ open, jobId, accessToken, onClose }: Props) {
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+                className="inline-flex min-h-11 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white disabled:bg-stone-100 disabled:text-slate-400"
               >
                 {saving ? "Creating…" : "Create link"}
               </button>

@@ -115,12 +115,12 @@ export function PhotoReviewActions({
 
   const badge = (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
         status === "approved"
           ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
           : status === "flagged"
             ? "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
-            : "bg-stone-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+            : "bg-stone-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500"
       }`}
     >
       {status === "approved" ? (
@@ -146,7 +146,7 @@ export function PhotoReviewActions({
         <button
           onClick={() => upsertReview("approved", null)}
           disabled={busy || status === "approved"}
-          className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-40 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
+          className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:bg-stone-100 disabled:text-slate-400 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
           aria-label={t("photoReview.approve")}
         >
           ✓
@@ -154,7 +154,7 @@ export function PhotoReviewActions({
         <button
           onClick={() => setFlagging(true)}
           disabled={busy}
-          className="rounded-md bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-40 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-950/60"
+          className="rounded-md bg-rose-50 px-1.5 py-0.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:bg-stone-100 disabled:text-slate-400 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-950/60"
           aria-label={t("photoReview.flag")}
         >
           ⚑
@@ -172,13 +172,13 @@ export function PhotoReviewActions({
           onChange={(e) => setFlagReason(e.target.value)}
           placeholder={t("photoReview.flagReasonPlaceholder")}
           autoFocus
-          className="w-full rounded-md border border-rose-200 bg-white px-2 py-1 text-xs dark:border-rose-900/60 dark:bg-slate-900 dark:text-slate-100"
+          className="w-full rounded-md border border-rose-200 bg-card px-2 py-1 text-xs dark:border-rose-900/60 dark:bg-slate-900 dark:text-slate-100"
         />
         <div className="flex gap-1.5">
           <button
             onClick={() => upsertReview("flagged", flagReason.trim() || null)}
             disabled={busy || flagReason.trim().length < 3}
-            className="rounded-md bg-rose-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
+            className="rounded-md bg-rose-600 px-2 py-1 text-xs font-semibold text-white hover:bg-rose-700 disabled:bg-stone-100 disabled:text-slate-400"
           >
             {t("photoReview.confirmFlag")}
           </button>
@@ -188,14 +188,14 @@ export function PhotoReviewActions({
               setFlagReason("");
             }}
             disabled={busy}
-            className="rounded-md bg-stone-100 px-2 py-1 text-[10px] font-semibold text-slate-600 hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+            className="rounded-md bg-stone-100 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-700"
             aria-label={t("common.cancel")}
           >
             <X size={10} />
           </button>
         </div>
         {error && (
-          <p className="text-[10px] text-rose-700 dark:text-rose-400">{error}</p>
+          <p className="text-xs text-rose-700 dark:text-rose-400">{error}</p>
         )}
       </div>
     );
@@ -207,24 +207,24 @@ export function PhotoReviewActions({
       <button
         onClick={() => upsertReview("approved", null)}
         disabled={busy || status === "approved"}
-        className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-40 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
+        className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:bg-stone-100 disabled:text-slate-400 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
       >
         <CheckCircle2 size={12} /> {t("photoReview.approve")}
       </button>
       <button
         onClick={() => setFlagging(true)}
         disabled={busy}
-        className="inline-flex items-center gap-1 rounded-md bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-40 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-950/60"
+        className="inline-flex items-center gap-1 rounded-md bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:bg-stone-100 disabled:text-slate-400 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-950/60"
       >
         <Flag size={12} /> {t("photoReview.flag")}
       </button>
       {review?.flag_reason && status === "flagged" && (
-        <span className="text-[10px] italic text-rose-700 dark:text-rose-400">
+        <span className="text-xs italic text-rose-700 dark:text-rose-400">
           &ldquo;{review.flag_reason}&rdquo;
         </span>
       )}
       {error && (
-        <span className="text-[10px] text-rose-700 dark:text-rose-400">{error}</span>
+        <span className="text-xs text-rose-700 dark:text-rose-400">{error}</span>
       )}
     </div>
   );
