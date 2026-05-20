@@ -296,7 +296,7 @@ export default function MapPage() {
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{t("mapPage.title")}</h1>
-          <p className="mt-0.5 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">{t("mapPage.subtitle")}</p>
+          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{t("mapPage.subtitle")}</p>
         </div>
         <div className="flex gap-4 text-xs">
           <div className="flex items-center gap-1.5">
@@ -321,7 +321,7 @@ export default function MapPage() {
           className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
             filterClockedIn
               ? "border-green-300 bg-green-50 text-green-700"
-              : "border-stone-200 bg-white text-slate-500 dark:text-slate-400 hover:bg-stone-50 dark:bg-slate-950"
+              : "border-stone-200 bg-card text-slate-500 dark:text-slate-400 hover:bg-stone-50 dark:bg-slate-950"
           }`}
         >
           <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-green-500" />
@@ -332,7 +332,7 @@ export default function MapPage() {
           className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
             filterJobSitesOnly
               ? "border-amber-300 bg-amber-50 text-amber-700"
-              : "border-stone-200 bg-white text-slate-500 dark:text-slate-400 hover:bg-stone-50 dark:bg-slate-950"
+              : "border-stone-200 bg-card text-slate-500 dark:text-slate-400 hover:bg-stone-50 dark:bg-slate-950"
           }`}
         >
           <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
@@ -340,7 +340,7 @@ export default function MapPage() {
         </button>
         <button
           disabled
-          className="cursor-not-allowed rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-medium text-slate-300"
+          className="cursor-not-allowed rounded-full border border-stone-200 bg-card px-3 py-1 text-xs font-medium text-slate-500"
           title="Coming soon"
         >
           {t("mapPage.showBreadcrumbs")}
@@ -376,10 +376,10 @@ export default function MapPage() {
               <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {t("mapPage.workerPositions")}
               </p>
-              <div className="overflow-hidden rounded-xl border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+              <div className="overflow-hidden rounded-xl border border-stone-200 bg-card dark:border-slate-800 dark:bg-slate-900">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b bg-stone-50 dark:bg-slate-950 text-left text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                    <tr className="border-b bg-stone-50 dark:bg-slate-950 text-left text-slate-500 dark:text-slate-400">
                       <th className="px-3 py-2">{t("mapPage.worker")}</th>
                       <th className="px-3 py-2">{t("mapPage.status")}</th>
                       <th className="px-3 py-2">{t("mapPage.job")}</th>
@@ -397,7 +397,7 @@ export default function MapPage() {
                             className={
                               w.event_subtype === "clock_in"
                                 ? "text-green-600"
-                                : "text-slate-400 dark:text-slate-500 dark:text-slate-400"
+                                : "text-slate-500 dark:text-slate-400"
                             }
                           >
                             {w.event_subtype === "clock_in"
@@ -406,7 +406,7 @@ export default function MapPage() {
                           </span>
                         </td>
                         <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{w.job_name}</td>
-                        <td className="px-3 py-2 font-mono text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                        <td className="px-3 py-2 font-mono text-slate-500 dark:text-slate-400">
                           {w.gps_lat.toFixed(4)}, {w.gps_lng.toFixed(4)}
                         </td>
                       </tr>
@@ -420,7 +420,7 @@ export default function MapPage() {
       )}
 
       {loading && !mapError && (
-        <div className="flex h-96 items-center justify-center text-slate-400 dark:text-slate-500 dark:text-slate-400">
+        <div className="flex h-96 items-center justify-center text-slate-500 dark:text-slate-400">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-stone-200 border-t-slate-900" />
           <span className="ml-3 text-sm">{t("mapPage.loadingMap")}</span>
         </div>
@@ -441,7 +441,7 @@ export default function MapPage() {
           {/* Right sidebar toggle button */}
           <button
             onClick={() => setSidebarOpen((v) => !v)}
-            className="flex w-6 items-center justify-center border-l border-stone-200 bg-stone-50 dark:bg-slate-950 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-stone-100 dark:bg-slate-800 hover:text-slate-600 dark:text-slate-300"
+            className="flex w-6 items-center justify-center border-l border-stone-200 bg-stone-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 hover:bg-stone-100 dark:bg-slate-800 hover:text-slate-600 dark:text-slate-500"
             aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           >
             <svg
@@ -458,12 +458,12 @@ export default function MapPage() {
 
           {/* Right sidebar panel — Who's Working */}
           {sidebarOpen && (
-            <div className="flex w-72 flex-col border-l border-stone-200 bg-white">
+            <div className="flex w-72 flex-col border-l border-stone-200 bg-card">
               <div className="border-b border-stone-100 px-4 py-3">
                 <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                   {t("mapPage.whosWorking")}
                 </h2>
-                <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   {clockedIn} {t("mapPage.clockedInTitle").toLowerCase()}
                 </p>
               </div>
@@ -480,18 +480,18 @@ export default function MapPage() {
                         onClick={() => panToWorker(w)}
                         className="flex w-full items-center gap-3 border-b border-stone-50 px-4 py-2.5 text-left transition-colors hover:bg-stone-50 dark:bg-slate-950"
                       >
-                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white">
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-green-500 text-xs font-bold text-white">
                           {getInitials(w.full_name)}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-xs font-semibold text-slate-900 dark:text-slate-100">
                             {w.full_name}
                           </div>
-                          <div className="truncate text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                          <div className="truncate text-xs text-slate-500 dark:text-slate-400">
                             {w.job_name}
                           </div>
                         </div>
-                        <div className="text-[10px] text-slate-300">
+                        <div className="text-xs text-slate-500">
                           {new Date(w.occurred_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </div>
                       </button>
@@ -501,7 +501,7 @@ export default function MapPage() {
                 {/* Clocked-out group */}
                 {clockedOutWorkers.length > 0 && (
                   <div>
-                    <div className="sticky top-0 bg-slate-50 px-4 py-1.5 text-xs font-semibold text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                    <div className="sticky top-0 bg-slate-50 px-4 py-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                       {t("mapPage.clockedOutTitle")} ({clockedOutWorkers.length})
                     </div>
                     {clockedOutWorkers.map((w) => (
@@ -510,18 +510,18 @@ export default function MapPage() {
                         onClick={() => panToWorker(w)}
                         className="flex w-full items-center gap-3 border-b border-stone-50 px-4 py-2.5 text-left transition-colors hover:bg-stone-50 dark:bg-slate-950"
                       >
-                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-slate-300 text-[10px] font-bold text-white">
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-slate-300 text-xs font-bold text-white">
                           {getInitials(w.full_name)}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
                             {w.full_name}
                           </div>
-                          <div className="truncate text-[11px] text-slate-300">
+                          <div className="truncate text-xs text-slate-500">
                             {w.job_name}
                           </div>
                         </div>
-                        <div className="text-[10px] text-slate-300">
+                        <div className="text-xs text-slate-500">
                           {new Date(w.occurred_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </div>
                       </button>
@@ -529,7 +529,7 @@ export default function MapPage() {
                   </div>
                 )}
                 {workers.length === 0 && !loading && (
-                  <div className="px-4 py-8 text-center text-xs text-slate-300">
+                  <div className="px-4 py-8 text-center text-xs text-slate-500">
                     {t("common.noData")}
                   </div>
                 )}
@@ -540,7 +540,7 @@ export default function MapPage() {
       )}
 
       {/* Refresh indicator */}
-      <div className="mt-2 text-center text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
+      <div className="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">
         {t("mapPage.refreshEvery")}
       </div>
     </div>
