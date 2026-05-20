@@ -496,6 +496,7 @@ const translations: Record<string, TranslationTree> = {
       ot: "OT",
       total: "Total",
       exportPdf: "Export PDF",
+      exportQuickbooks: "Export for QuickBooks",
       hoursChart: "Hours Breakdown",
       taskChart: "Task Status",
       regularLabel: "Regular",
@@ -506,6 +507,7 @@ const translations: Record<string, TranslationTree> = {
       completed: "Completed",
       inProgress: "In Progress",
       notStarted: "Not Started",
+      requiresPhoto: "Requires photo proof",
     },
     schedulePage: {
       title: "Schedule",
@@ -1267,6 +1269,7 @@ const translations: Record<string, TranslationTree> = {
       ot: "HE",
       total: "Total",
       exportPdf: "Exportar PDF",
+      exportQuickbooks: "Exportar a QuickBooks",
       hoursChart: "Desglose de Horas",
       taskChart: "Estado de Tareas",
       regularLabel: "Regular",
@@ -1277,6 +1280,7 @@ const translations: Record<string, TranslationTree> = {
       completed: "Completado",
       inProgress: "En Progreso",
       notStarted: "No Iniciado",
+      requiresPhoto: "Requiere prueba fotográfica",
     },
     schedulePage: {
       title: "Horario",

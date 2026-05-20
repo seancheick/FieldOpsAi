@@ -206,25 +206,29 @@ export default function ReportsPage() {
       <div className="mb-8">
         <a
           href="/"
-          className="no-print mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900"
+          className="no-print mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
         >
-          <span>&larr;</span> {t("common.backToDashboard")}
+          <span aria-hidden="true">&larr;</span> {t("common.backToDashboard")}
         </a>
-        <h2 className="text-2xl font-bold text-slate-900">{t("reports.title")}</h2>
-        <p className="mt-1 text-slate-600">{t("reports.subtitle")}</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+          {t("reports.title")}
+        </h1>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+          {t("reports.subtitle")}
+        </p>
       </div>
 
       {/* Controls */}
-      <div className="no-print mb-8 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+      <div className="no-print mb-8 rounded-2xl border border-stone-200 bg-card p-6 shadow-sm dark:border-slate-800">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
               {t("reports.job")}
             </label>
             <select
               value={selectedJob}
               onChange={(e) => setSelectedJob(e.target.value)}
-              className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              className="w-full rounded-xl border border-stone-200 bg-card px-4 py-2.5 text-sm text-slate-900 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 dark:border-slate-700 dark:text-slate-100"
             >
               <option value="">{t("reports.allJobs")}</option>
               {jobs.map((j) => (
@@ -235,65 +239,69 @@ export default function ReportsPage() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
               {t("reports.from")}
             </label>
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              className="w-full rounded-xl border border-stone-200 bg-card px-4 py-2.5 text-sm tabular-nums text-slate-900 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 dark:border-slate-700 dark:text-slate-100"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
               {t("reports.to")}
             </label>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              className="w-full rounded-xl border border-stone-200 bg-card px-4 py-2.5 text-sm tabular-nums text-slate-900 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 dark:border-slate-700 dark:text-slate-100"
             />
           </div>
           <div className="flex items-end gap-2">
             <button
+              type="button"
               onClick={() => generateReport("job_report")}
               disabled={generating || !selectedJob}
-              className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+              className="inline-flex min-h-11 items-center rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:bg-stone-100 disabled:text-slate-400 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
             >
               {generating ? t("reports.generating") : t("reports.jobReport")}
             </button>
             <button
+              type="button"
               onClick={() => generateReport("timesheet")}
               disabled={generating}
-              className="rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-50"
+              className="inline-flex min-h-11 items-center rounded-xl border border-stone-200 bg-card px-5 text-sm font-semibold text-slate-700 transition-colors hover:bg-stone-50 disabled:bg-stone-100 disabled:text-slate-400 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:disabled:bg-slate-900 dark:disabled:text-slate-500"
             >
-              {generating ? "..." : t("reports.timesheet")}
+              {generating ? "…" : t("reports.timesheet")}
             </button>
           </div>
         </div>
 
         {/* Action row: Export PDF + Presets */}
-        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-stone-100 pt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-stone-200 pt-4 dark:border-slate-800">
           {/* Export PDF */}
           <button
+            type="button"
             onClick={handleExportPdf}
             disabled={!reportData}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-stone-50 disabled:opacity-40"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-stone-200 bg-card px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-stone-50 disabled:bg-stone-100 disabled:text-slate-400 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:disabled:bg-slate-900 dark:disabled:text-slate-500"
           >
-            <FileDown size={16} />
+            <FileDown size={16} aria-hidden="true" />
             {t("reports.exportPdf")}
           </button>
 
           {/* Export for QuickBooks */}
           <button
+            type="button"
             onClick={downloadQuickbooksExport}
             disabled={!csvData}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-stone-50 disabled:opacity-40"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-stone-200 bg-card px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-stone-50 disabled:bg-stone-100 disabled:text-slate-400 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:disabled:bg-slate-900 dark:disabled:text-slate-500"
           >
-            <FileDown size={16} />
-            Export for QuickBooks
+            <FileDown size={16} aria-hidden="true" />
+            {t("reports.exportQuickbooks")}
           </button>
 
           {/* Save Preset */}
@@ -305,29 +313,36 @@ export default function ReportsPage() {
                 onChange={(e) => setPresetName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSavePreset()}
                 placeholder={t("reports.presetName")}
-                className="rounded-xl border border-stone-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="min-h-11 rounded-xl border border-stone-200 bg-card px-3 text-sm text-slate-900 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 dark:border-slate-700 dark:text-slate-100"
                 autoFocus
               />
               <button
+                type="button"
                 onClick={handleSavePreset}
                 disabled={!presetName.trim()}
-                className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                aria-label={t("reports.savePreset")}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white transition-colors hover:bg-emerald-700 disabled:bg-stone-100 disabled:text-slate-400 dark:disabled:bg-slate-900 dark:disabled:text-slate-500"
               >
-                <Save size={16} />
+                <Save size={16} aria-hidden="true" />
               </button>
               <button
-                onClick={() => { setShowPresetInput(false); setPresetName(""); }}
-                className="text-sm text-slate-500 hover:text-slate-700"
+                type="button"
+                onClick={() => {
+                  setShowPresetInput(false);
+                  setPresetName("");
+                }}
+                className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
               >
                 {t("common.cancel")}
               </button>
             </div>
           ) : (
             <button
+              type="button"
               onClick={() => setShowPresetInput(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-stone-50"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-stone-200 bg-card px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-stone-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
             >
-              <Save size={16} />
+              <Save size={16} aria-hidden="true" />
               {t("reports.savePreset")}
             </button>
           )}
@@ -336,19 +351,26 @@ export default function ReportsPage() {
           {presets.length > 0 && (
             <div className="relative">
               <button
+                type="button"
                 onClick={() => setShowPresetDropdown(!showPresetDropdown)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-stone-50"
+                aria-expanded={showPresetDropdown}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-stone-200 bg-card px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-stone-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
               >
-                <ChevronDown size={16} />
+                <ChevronDown size={16} aria-hidden="true" />
                 {t("reports.loadPreset")}
               </button>
               {showPresetDropdown && (
-                <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-xl border border-stone-200 bg-white py-1 shadow-lg">
+                <div
+                  role="menu"
+                  className="absolute left-0 top-full z-20 mt-1 w-56 rounded-xl border border-stone-200 bg-popover py-1 shadow-lg dark:border-slate-700"
+                >
                   {presets.map((p) => (
                     <button
                       key={p.name}
+                      type="button"
+                      role="menuitem"
                       onClick={() => applyPreset(p)}
-                      className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-stone-50"
+                      className="block w-full px-4 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-stone-50 dark:text-slate-200 dark:hover:bg-slate-800"
                     >
                       {p.name}
                     </button>
@@ -361,28 +383,36 @@ export default function ReportsPage() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div
+          role="alert"
+          className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
+        >
           {error}
         </div>
       )}
 
       {/* CSV Download */}
       {csvData && (
-        <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 p-5">
-          <div className="flex items-center justify-between">
+        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="font-bold text-green-900">{t("reports.timesheetReady")}</h3>
-              <p className="text-sm text-green-700">
+              <h3 className="font-bold tracking-tight text-emerald-900 dark:text-emerald-200">
+                {t("reports.timesheetReady")}
+              </h3>
+              <p className="mt-1 text-sm tabular-nums text-emerald-700 dark:text-emerald-300">
                 {t("reports.timesheetSummary", {
-                  rows: (reportData as Record<string, unknown>)?.row_count as number ?? 0,
+                  rows:
+                    ((reportData as Record<string, unknown>)?.row_count as number) ??
+                    0,
                   from: dateFrom,
                   to: dateTo,
                 })}
               </p>
             </div>
             <button
+              type="button"
               onClick={downloadCsv}
-              className="no-print rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
+              className="no-print inline-flex min-h-11 items-center rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
             >
               {t("reports.downloadCsv")}
             </button>

@@ -1,6 +1,28 @@
 "use client";
 
+import { Camera, Check, Circle, Clock } from "lucide-react";
 import { ReportCharts } from "./ReportCharts";
+
+const STATUS_PRESENTATION: Record<
+  string,
+  { Icon: typeof Check; tone: string; bg: string }
+> = {
+  completed: {
+    Icon: Check,
+    tone: "text-emerald-700 dark:text-emerald-300",
+    bg: "bg-emerald-50 dark:bg-emerald-950/40",
+  },
+  in_progress: {
+    Icon: Clock,
+    tone: "text-amber-700 dark:text-amber-300",
+    bg: "bg-amber-50 dark:bg-amber-950/40",
+  },
+};
+const DEFAULT_STATUS = {
+  Icon: Circle,
+  tone: "text-slate-600 dark:text-slate-400",
+  bg: "bg-stone-50 dark:bg-slate-800",
+} as const;
 
 export function JobReportView({
   report,
@@ -18,17 +40,18 @@ export function JobReportView({
   return (
     <div className="space-y-6">
       {/* Job header */}
-      <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between">
+      <div className="rounded-2xl border border-stone-200 bg-card p-6 shadow-sm dark:border-slate-800">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-xl font-bold text-slate-900">
+            <h3 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
               {job.name}
             </h3>
-            <p className="text-sm text-slate-500">
-              {job.code} &middot; {job.status} &middot; {job.site_name || t("reports.noSite")}
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+              <span className="tabular-nums">{job.code}</span> &middot; {job.status}{" "}
+              &middot; {job.site_name || t("reports.noSite")}
             </p>
           </div>
-          <span className="text-xs text-slate-400">
+          <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
             {t("reports.generated", {
               time: new Date(report.generated_at as string).toLocaleString(),
             })}
@@ -36,22 +59,27 @@ export function JobReportView({
         </div>
       </div>
 
-      {/* Summary stats */}
+      {/* Summary stats — proof-grade voice (Manrope + tabular-nums). */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {[
           { label: t("reports.clockEvents"), value: summary.total_clock_events },
           { label: t("reports.photos"), value: summary.total_photos },
-          { label: t("reports.tasks"), value: `${summary.completed_tasks}/${summary.total_tasks}` },
+          {
+            label: t("reports.tasks"),
+            value: `${summary.completed_tasks}/${summary.total_tasks}`,
+          },
           { label: t("reports.otDecisions"), value: summary.total_ot_decisions },
         ].map((stat) => (
           <div
             key={stat.label}
-            className="rounded-xl border border-stone-200 bg-white p-4 text-center"
+            className="rounded-xl border border-stone-200 bg-card p-4 text-center dark:border-slate-800"
           >
-            <div className="text-2xl font-bold text-slate-900">
+            <div className="font-heading text-2xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
               {stat.value}
             </div>
-            <div className="text-xs text-slate-500">{stat.label}</div>
+            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {stat.label}
+            </div>
           </div>
         ))}
       </div>
@@ -66,99 +94,114 @@ export function JobReportView({
 
       {/* Worker hours table */}
       {workerHours && workerHours.length > 0 && (
-        <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <h4 className="mb-4 font-bold text-slate-900">{t("reports.workerHours")}</h4>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-slate-500">
-                <th className="pb-2">{t("reports.worker")}</th>
-                <th className="pb-2">{t("reports.sessions")}</th>
-                <th className="pb-2">{t("reports.regular")}</th>
-                <th className="pb-2">{t("reports.ot")}</th>
-                <th className="pb-2">{t("reports.total")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {workerHours.map((wh) => (
-                <tr key={wh.worker as string} className="border-b border-stone-100">
-                  <td className="py-2 font-medium text-slate-900">
-                    {wh.worker as string}
-                  </td>
-                  <td className="py-2">{wh.sessions as number}</td>
-                  <td className="py-2">{wh.regular_hours as number}h</td>
-                  <td className="py-2 text-amber-600">
-                    {wh.ot_hours as number}h
-                  </td>
-                  <td className="py-2 font-semibold">
-                    {wh.total_hours as number}h
-                  </td>
+        <div className="rounded-2xl border border-stone-200 bg-card p-6 shadow-sm dark:border-slate-800">
+          <h4 className="mb-4 font-heading font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {t("reports.workerHours")}
+          </h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-stone-200 text-left text-xs font-semibold uppercase tracking-widest text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  <th className="pb-2">{t("reports.worker")}</th>
+                  <th className="pb-2 tabular-nums">{t("reports.sessions")}</th>
+                  <th className="pb-2 tabular-nums">{t("reports.regular")}</th>
+                  <th className="pb-2 tabular-nums">{t("reports.ot")}</th>
+                  <th className="pb-2 tabular-nums">{t("reports.total")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {workerHours.map((wh) => (
+                  <tr
+                    key={wh.worker as string}
+                    className="border-b border-stone-100 text-slate-700 dark:border-slate-800 dark:text-slate-300"
+                  >
+                    <td className="py-2 font-medium text-slate-900 dark:text-slate-100">
+                      {wh.worker as string}
+                    </td>
+                    <td className="py-2 tabular-nums">{wh.sessions as number}</td>
+                    <td className="py-2 tabular-nums">
+                      {wh.regular_hours as number}h
+                    </td>
+                    <td className="py-2 tabular-nums text-amber-700 dark:text-amber-400">
+                      {wh.ot_hours as number}h
+                    </td>
+                    <td className="py-2 font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                      {wh.total_hours as number}h
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* Tasks */}
+      {/* Tasks — status paired with icon (no color-only). */}
       {tasks && tasks.length > 0 && (
-        <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <h4 className="mb-4 font-bold text-slate-900">{t("reports.tasks")}</h4>
-          <div className="space-y-2">
-            {tasks.map((task, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between rounded-lg bg-stone-50 px-4 py-2"
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`h-2 w-2 rounded-full ${
-                      task.status === "completed"
-                        ? "bg-green-500"
-                        : task.status === "in_progress"
-                          ? "bg-amber-500"
-                          : "bg-stone-300"
-                    }`}
-                  />
-                  <span className="text-sm text-slate-900">
-                    {task.name as string}
+        <div className="rounded-2xl border border-stone-200 bg-card p-6 shadow-sm dark:border-slate-800">
+          <h4 className="mb-4 font-heading font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {t("reports.tasks")}
+          </h4>
+          <ul className="space-y-2">
+            {tasks.map((task, i) => {
+              const status = task.status as string;
+              const presentation =
+                STATUS_PRESENTATION[status] ?? DEFAULT_STATUS;
+              const { Icon, tone, bg } = presentation;
+              return (
+                <li
+                  key={i}
+                  className={`flex items-center justify-between gap-3 rounded-lg px-4 py-2 ${bg}`}
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Icon
+                      className={`h-3.5 w-3.5 shrink-0 ${tone}`}
+                      aria-hidden="true"
+                    />
+                    <span className="truncate text-sm text-slate-900 dark:text-slate-100">
+                      {task.name as string}
+                    </span>
+                    {(task.requires_photo as boolean) && (
+                      <Camera
+                        className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400"
+                        aria-label={t("reports.requiresPhoto")}
+                      />
+                    )}
+                  </div>
+                  <span className={`text-xs font-medium ${tone}`}>
+                    {status}
                   </span>
-                  {(task.requires_photo as boolean) && (
-                    <span className="text-xs text-amber-600">📷</span>
-                  )}
-                </div>
-                <span className="text-xs text-slate-500">
-                  {task.status as string}
-                </span>
-              </div>
-            ))}
-          </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
       {/* Photos */}
       {photos && photos.length > 0 && (
-        <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <h4 className="mb-4 font-bold text-slate-900">
+        <div className="rounded-2xl border border-stone-200 bg-card p-6 shadow-sm dark:border-slate-800">
+          <h4 className="mb-4 font-heading font-bold tracking-tight text-slate-900 dark:text-slate-100">
             {t("reports.photoProof", { count: photos.length })}
           </h4>
-          <div className="space-y-2">
+          <ul className="space-y-2">
             {photos.map((p, i) => (
-              <div
+              <li
                 key={i}
-                className="flex items-center justify-between rounded-lg bg-stone-50 px-4 py-2 text-sm"
+                className="flex items-center justify-between gap-3 rounded-lg bg-stone-50 px-4 py-2 text-sm dark:bg-slate-800"
               >
-                <span className="text-slate-600">
+                <span className="tabular-nums text-slate-700 dark:text-slate-300">
                   {new Date(p.occurred_at as string).toLocaleString()}
                   {(p.is_checkpoint as boolean) && ` ${t("reports.checkpoint")}`}
                 </span>
                 {(p.verification_code as string | null) && (
-                  <code className="rounded bg-slate-200 px-2 py-0.5 text-xs font-mono text-slate-700">
+                  <code className="rounded bg-stone-200 px-2 py-0.5 font-mono text-xs text-slate-700 dark:bg-slate-700 dark:text-slate-200">
                     {p.verification_code as string}
                   </code>
                 )}
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       )}
     </div>

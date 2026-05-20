@@ -13,7 +13,13 @@ import {
   Legend,
 } from "recharts";
 
-const PIE_COLORS = ["#10b981", "#f59e0b", "#94a3b8"]; // completed, in_progress, not_started
+// Pie palette: completed (teal — "good"), in_progress (indigo — "active"),
+// not_started (slate — "inactive"). Tokens are color-blind-safe and dark-mode aware.
+const PIE_COLORS = [
+  "var(--chart-2)", // completed
+  "var(--chart-1)", // in_progress
+  "var(--chart-5)", // not_started
+];
 
 export function ReportCharts({
   workerHours,
@@ -66,8 +72,10 @@ export function ReportCharts({
     <div className="grid gap-6 lg:grid-cols-2">
       {/* Task status donut / pie */}
       {hasPieData && (
-        <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <h4 className="mb-4 font-bold text-slate-900">{t("reports.taskChart")}</h4>
+        <div className="rounded-2xl border border-stone-200 bg-card p-6 shadow-sm dark:border-slate-800">
+          <h4 className="mb-4 font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {t("reports.taskChart")}
+          </h4>
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie
@@ -94,8 +102,10 @@ export function ReportCharts({
 
       {/* Hours breakdown bar chart */}
       {hasBarData && (
-        <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <h4 className="mb-4 font-bold text-slate-900">{t("reports.hoursChart")}</h4>
+        <div className="rounded-2xl border border-stone-200 bg-card p-6 shadow-sm dark:border-slate-800">
+          <h4 className="mb-4 font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {t("reports.hoursChart")}
+          </h4>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={barData}>
               <XAxis dataKey="name" tick={{ fontSize: 12 }} />
@@ -106,14 +116,14 @@ export function ReportCharts({
                 dataKey="regular"
                 name={t("reports.regularLabel")}
                 stackId="hours"
-                fill="#10b981"
+                fill="var(--chart-2)"
                 radius={[0, 0, 0, 0]}
               />
               <Bar
                 dataKey="ot"
                 name={t("reports.overtime")}
                 stackId="hours"
-                fill="#f59e0b"
+                fill="var(--chart-3)"
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>
