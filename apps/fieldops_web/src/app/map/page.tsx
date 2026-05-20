@@ -321,7 +321,7 @@ export default function MapPage() {
           className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
             filterClockedIn
               ? "border-green-300 bg-green-50 text-green-700"
-              : "border-stone-200 bg-card text-slate-500 dark:text-slate-400 hover:bg-stone-50 dark:bg-slate-950"
+              : "border-stone-200 bg-card text-slate-500 dark:text-slate-400 hover:bg-stone-50 dark:bg-slate-950 dark:hover:bg-slate-900"
           }`}
         >
           <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-green-500" />
@@ -332,7 +332,7 @@ export default function MapPage() {
           className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
             filterJobSitesOnly
               ? "border-amber-300 bg-amber-50 text-amber-700"
-              : "border-stone-200 bg-card text-slate-500 dark:text-slate-400 hover:bg-stone-50 dark:bg-slate-950"
+              : "border-stone-200 bg-card text-slate-500 dark:text-slate-400 hover:bg-stone-50 dark:bg-slate-950 dark:hover:bg-slate-900"
           }`}
         >
           <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
@@ -441,7 +441,7 @@ export default function MapPage() {
           {/* Right sidebar toggle button */}
           <button
             onClick={() => setSidebarOpen((v) => !v)}
-            className="flex w-6 items-center justify-center border-l border-stone-200 bg-stone-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 hover:bg-stone-100 dark:bg-slate-800 hover:text-slate-600 dark:text-slate-400"
+            className="flex w-6 items-center justify-center border-l border-stone-200 bg-stone-50 text-slate-500 transition-colors hover:bg-stone-100 hover:text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
             aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           >
             <svg
@@ -478,7 +478,7 @@ export default function MapPage() {
                       <button
                         key={w.user_id}
                         onClick={() => panToWorker(w)}
-                        className="flex w-full items-center gap-3 border-b border-stone-50 px-4 py-2.5 text-left transition-colors hover:bg-stone-50 dark:bg-slate-950"
+                        className="flex w-full items-center gap-3 border-b border-stone-50 px-4 py-2.5 text-left transition-colors hover:bg-stone-50 dark:bg-slate-950 dark:hover:bg-slate-900"
                       >
                         <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-green-500 text-xs font-bold text-white">
                           {getInitials(w.full_name)}
@@ -508,7 +508,7 @@ export default function MapPage() {
                       <button
                         key={w.user_id}
                         onClick={() => panToWorker(w)}
-                        className="flex w-full items-center gap-3 border-b border-stone-50 px-4 py-2.5 text-left transition-colors hover:bg-stone-50 dark:bg-slate-950"
+                        className="flex w-full items-center gap-3 border-b border-stone-50 px-4 py-2.5 text-left transition-colors hover:bg-stone-50 dark:bg-slate-950 dark:hover:bg-slate-900"
                       >
                         <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-slate-300 text-xs font-bold text-white">
                           {getInitials(w.full_name)}

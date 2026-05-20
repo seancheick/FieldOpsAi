@@ -356,18 +356,26 @@ export function CommandPalette() {
         </div>
 
         {/* Footer hint */}
-        <div className="flex items-center justify-between border-t border-stone-100 bg-stone-50 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
-          <span>
-            <kbd className="mr-1 rounded bg-card px-1 py-0.5 font-medium dark:bg-slate-800">
-              ↑↓
-            </kbd>
-            {t("commandPalette.navigate")}
+        <div className="flex items-center justify-between gap-3 border-t border-stone-100 bg-stone-50 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
+          <span className="flex items-center gap-3">
+            <span>
+              <kbd className="mr-1 rounded bg-card px-1 py-0.5 font-medium dark:bg-slate-800">
+                ↑↓
+              </kbd>
+              {t("commandPalette.navigate")}
+            </span>
+            <span>
+              <kbd className="mr-1 rounded bg-card px-1 py-0.5 font-medium dark:bg-slate-800">
+                ↵
+              </kbd>
+              {t("commandPalette.open")}
+            </span>
           </span>
           <span>
             <kbd className="mr-1 rounded bg-card px-1 py-0.5 font-medium dark:bg-slate-800">
-              ↵
+              ?
             </kbd>
-            {t("commandPalette.open")}
+            {t("commandPalette.allShortcuts")}
           </span>
         </div>
       </div>

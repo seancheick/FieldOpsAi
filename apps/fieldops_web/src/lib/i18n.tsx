@@ -216,6 +216,7 @@ const translations: Record<string, TranslationTree> = {
       recentPhotos: "Recent photos",
       navigate: "navigate",
       open: "open",
+      allShortcuts: "all shortcuts",
     },
     photoReview: {
       approve: "Approve",
@@ -1003,6 +1004,7 @@ const translations: Record<string, TranslationTree> = {
       recentPhotos: "Fotos recientes",
       navigate: "navegar",
       open: "abrir",
+      allShortcuts: "todos los atajos",
     },
     photoReview: {
       approve: "Aprobar",
