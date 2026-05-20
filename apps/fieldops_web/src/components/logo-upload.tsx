@@ -122,7 +122,7 @@ export function LogoUpload({ currentLogoUrl, onLogoChanged }: LogoUploadProps) {
         <img
           src={currentLogoUrl}
           alt="Company logo"
-          className="h-20 w-20 rounded-xl border border-stone-200 bg-white object-contain p-2 dark:border-slate-800 dark:bg-slate-900"
+          className="h-20 w-20 rounded-xl border border-stone-200 bg-card object-contain p-2 dark:border-slate-800 dark:bg-slate-900"
         />
       ) : (
         <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-stone-200 bg-stone-50 dark:border-slate-800 dark:bg-slate-900">
@@ -152,7 +152,7 @@ export function LogoUpload({ currentLogoUrl, onLogoChanged }: LogoUploadProps) {
         type="button"
         onClick={() => fileInputRef.current?.click()}
         disabled={uploading}
-        className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-stone-50 disabled:opacity-50"
+        className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-stone-50 disabled:bg-stone-100 disabled:text-slate-400"
       >
         {uploading ? (
           <span className="flex items-center gap-1.5">

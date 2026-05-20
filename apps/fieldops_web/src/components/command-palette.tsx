@@ -291,7 +291,7 @@ export function CommandPalette() {
       aria-label={t("commandPalette.title")}
     >
       <div
-        className="w-full max-w-xl overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+        className="w-full max-w-xl overflow-hidden rounded-2xl border border-stone-200 bg-card shadow-2xl dark:border-slate-800 dark:bg-slate-900"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Input */}
@@ -303,9 +303,9 @@ export function CommandPalette() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onInputKey}
             placeholder={t("commandPalette.placeholder")}
-            className="flex-1 bg-transparent text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none dark:text-slate-100"
+            className="flex-1 bg-transparent text-sm text-slate-800 placeholder:text-slate-500 focus:outline-none dark:text-slate-100"
           />
-          <kbd className="hidden rounded border border-stone-200 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 sm:inline-block dark:border-slate-700 dark:text-slate-400">
+          <kbd className="hidden rounded border border-stone-200 px-1.5 py-0.5 text-xs font-medium text-slate-500 sm:inline-block dark:border-slate-700 dark:text-slate-400">
             ESC
           </kbd>
         </div>
@@ -313,14 +313,14 @@ export function CommandPalette() {
         {/* Results */}
         <div className="max-h-[60vh] overflow-y-auto py-1">
           {allResults.length === 0 && !remoteLoading && (
-            <div className="px-4 py-8 text-center text-sm text-slate-400 dark:text-slate-400">
+            <div className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
               {t("commandPalette.noResults")}
             </div>
           )}
 
           {grouped.map(([group, items]) => (
             <div key={group} className="py-1">
-              <div className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-400">
+              <div className="px-4 pt-2 pb-1 text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                 {t(GROUP_LABEL_KEY[group])}
               </div>
               {items.map((r) => {
@@ -335,13 +335,13 @@ export function CommandPalette() {
                     className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm ${
                       isSel
                         ? "bg-stone-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100"
-                        : "text-slate-700 dark:text-slate-300"
+                        : "text-slate-700 dark:text-slate-400"
                     }`}
                   >
                     <Icon size={14} className="shrink-0 text-slate-400" />
                     <span className="flex-1 truncate">{r.label}</span>
                     {r.sublabel && (
-                      <span className="truncate text-xs text-slate-400 dark:text-slate-400">
+                      <span className="truncate text-xs text-slate-500 dark:text-slate-400">
                         {r.sublabel}
                       </span>
                     )}
@@ -356,15 +356,15 @@ export function CommandPalette() {
         </div>
 
         {/* Footer hint */}
-        <div className="flex items-center justify-between border-t border-stone-100 bg-stone-50 px-4 py-2 text-[11px] text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
+        <div className="flex items-center justify-between border-t border-stone-100 bg-stone-50 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
           <span>
-            <kbd className="mr-1 rounded bg-white px-1 py-0.5 font-medium dark:bg-slate-800">
+            <kbd className="mr-1 rounded bg-card px-1 py-0.5 font-medium dark:bg-slate-800">
               ↑↓
             </kbd>
             {t("commandPalette.navigate")}
           </span>
           <span>
-            <kbd className="mr-1 rounded bg-white px-1 py-0.5 font-medium dark:bg-slate-800">
+            <kbd className="mr-1 rounded bg-card px-1 py-0.5 font-medium dark:bg-slate-800">
               ↵
             </kbd>
             {t("commandPalette.open")}

@@ -129,7 +129,7 @@ export default function PublicGalleryPage() {
             type="password"
             value={passwordInput}
             onChange={(e) => setPasswordInput(e.target.value)}
-            className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
+            className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
             placeholder="Password"
             autoFocus
           />

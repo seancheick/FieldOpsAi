@@ -89,7 +89,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   if (!session) {
     return (
       <div className="mx-auto mt-20 max-w-md">
-        <div className="rounded-2xl border border-stone-200 bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-stone-200 bg-card p-8 shadow-sm">
           <h2 className="text-xl font-bold text-slate-900">
             {t("auth.title")}
           </h2>
@@ -110,7 +110,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="mt-1 w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
                 required
               />
             </div>
@@ -126,7 +126,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="mt-1 w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
                 required
               />
             </div>
@@ -146,7 +146,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             <button
               type="submit"
               disabled={signingIn}
-              className="w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
+              className="w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-600 disabled:bg-stone-100 disabled:text-slate-400"
             >
               {signingIn ? t("auth.signingIn") : t("auth.signIn")}
             </button>
@@ -156,7 +156,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                 type="button"
                 onClick={handleForgotPassword}
                 disabled={sendingReset}
-                className="text-xs text-slate-400 hover:text-slate-600 disabled:opacity-50"
+                className="text-xs text-slate-500 hover:text-slate-600 disabled:bg-stone-100 disabled:text-slate-400"
               >
                 {sendingReset ? "Sending…" : "Forgot password?"}
               </button>

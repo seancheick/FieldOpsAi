@@ -216,7 +216,7 @@ export default function FeatureFlagsPage() {
                           onChange={(e) =>
                             setOverride(f.flag_key, e.target.checked)
                           }
-                          className="h-4 w-4 rounded border-stone-300 text-amber-500 focus:ring-amber-500"
+                          className="h-4 w-4 rounded border-stone-300 text-amber-500 focus:ring-ring"
                         />
                         <span
                           className={`text-xs font-semibold ${
