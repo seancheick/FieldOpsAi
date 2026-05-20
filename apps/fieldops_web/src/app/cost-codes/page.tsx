@@ -96,8 +96,8 @@ export default function CostCodesPage() {
         >
           <span>&larr;</span> {t("common.backToDashboard")}
         </a>
-        <h2 className="text-2xl font-bold text-slate-900">{t("costCodesPage.title")}</h2>
-        <p className="mt-1 text-slate-600">{t("costCodesPage.subtitle")}</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{t("costCodesPage.title")}</h1>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t("costCodesPage.subtitle")}</p>
       </div>
 
       <div className="mb-6 grid gap-4 lg:grid-cols-[320px,1fr]">

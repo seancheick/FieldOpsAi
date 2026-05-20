@@ -154,7 +154,7 @@ export default function AlertsPage() {
         </a>
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">Alerts</h2>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Alerts</h1>
             <p className="mt-1 text-slate-600">
               Operational anomalies detected from clock events, OT, and job
               activity. Run a scan to generate new alerts, then resolve or
@@ -178,7 +178,7 @@ export default function AlertsPage() {
       )}
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">
           {error}
         </div>
       )}

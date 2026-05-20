@@ -249,12 +249,12 @@ export default function WorkersPage() {
   return (
     <div>
       <div className="mb-6">
-        <a href="/" className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-100">
+        <a href="/" className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900 dark:hover:text-slate-100">
           <span>&larr;</span> {t("common.backToDashboard")}
         </a>
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t("workers.title")}</h2>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{t("workers.title")}</h1>
             <p className="mt-1 text-slate-600 dark:text-slate-400">{t("workers.subtitle")}</p>
           </div>
           <button
@@ -277,13 +277,13 @@ export default function WorkersPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t("workers.searchPlaceholder")}
-            className="w-full rounded-lg border border-stone-300 bg-card py-2 pl-10 pr-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+            className="w-full rounded-lg border border-stone-300 bg-card py-2 pl-10 pr-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:text-slate-400 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
           />
         </div>
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="rounded-lg border border-stone-300 bg-card px-3 py-2 text-sm text-slate-700 dark:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+          className="rounded-lg border border-stone-300 bg-card px-3 py-2 text-sm text-slate-700 dark:text-slate-400 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
         >
           <option value="all">{t("workers.allRoles")}</option>
           <option value="worker">Worker</option>
@@ -294,7 +294,7 @@ export default function WorkersPage() {
       </div>
 
       {loadError && (
-        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">
           {loadError}
         </div>
       )}
@@ -337,15 +337,15 @@ export default function WorkersPage() {
             <thead>
               <tr className="border-b bg-stone-50 dark:bg-slate-950 text-left text-slate-500">
                 <th className="w-10 px-3 py-3" />
-                <th className="cursor-pointer select-none px-5 py-3 hover:text-slate-900 dark:text-slate-100" onClick={() => handleSort("name")}>
+                <th className="cursor-pointer select-none px-5 py-3 hover:text-slate-900 dark:hover:text-slate-100" onClick={() => handleSort("name")}>
                   {t("workers.worker")} {sortBy === "name" ? (sortDir === "asc" ? "▲" : "▼") : ""}
                 </th>
-                <th className="cursor-pointer select-none px-5 py-3 hover:text-slate-900 dark:text-slate-100" onClick={() => handleSort("status")}>
+                <th className="cursor-pointer select-none px-5 py-3 hover:text-slate-900 dark:hover:text-slate-100" onClick={() => handleSort("status")}>
                   {t("workers.status")} {sortBy === "status" ? (sortDir === "asc" ? "▲" : "▼") : ""}
                 </th>
                 <th className="px-5 py-3">{t("workers.currentJob")}</th>
                 <th className="px-5 py-3">{t("workers.since")}</th>
-                <th className="cursor-pointer select-none px-5 py-3 text-right hover:text-slate-900 dark:text-slate-100" onClick={() => handleSort("hours")}>
+                <th className="cursor-pointer select-none px-5 py-3 text-right hover:text-slate-900 dark:hover:text-slate-100" onClick={() => handleSort("hours")}>
                   {t("workers.hoursToday")} {sortBy === "hours" ? (sortDir === "asc" ? "▲" : "▼") : ""}
                 </th>
               </tr>

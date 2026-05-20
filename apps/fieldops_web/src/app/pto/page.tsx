@@ -116,7 +116,7 @@ export default function PTOPage() {
         <a href="/" className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900">
           <span>&larr;</span> {t("common.backToDashboard")}
         </a>
-        <h2 className="text-2xl font-bold text-slate-900">Time Off Requests</h2>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Time Off Requests</h1>
         <p className="mt-1 text-slate-600">Review and manage worker PTO requests.</p>
       </div>
 
@@ -137,7 +137,7 @@ export default function PTOPage() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>
+        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">{error}</div>
       )}
 
       {/* Filter tabs */}
@@ -207,7 +207,7 @@ export default function PTOPage() {
                         value={decisionReason}
                         onChange={(e) => setDecisionReason(e.target.value)}
                         placeholder="Reason (optional)..."
-                        className="w-full rounded-xl border border-stone-200 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="w-full rounded-xl border border-stone-200 px-4 py-2.5 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
                         rows={2}
                       />
                       <div className="flex gap-2">

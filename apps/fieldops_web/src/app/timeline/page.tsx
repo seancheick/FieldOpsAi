@@ -23,12 +23,30 @@ interface EventGlyph {
 }
 
 const EVENT_GLYPHS: Record<string, EventGlyph> = {
-  clock_event: { Icon: Clock, tint: "bg-slate-100 text-slate-700 dark:text-slate-400" },
-  photo_event: { Icon: Camera, tint: "bg-blue-50 text-blue-700" },
-  task_event: { Icon: CheckCircle2, tint: "bg-emerald-50 text-emerald-700" },
-  note_event: { Icon: FileText, tint: "bg-amber-50 text-amber-700" },
-  ot_approval_event: { Icon: Timer, tint: "bg-orange-50 text-orange-700" },
-  correction_event: { Icon: PencilLine, tint: "bg-rose-50 text-rose-700" },
+  clock_event: {
+    Icon: Clock,
+    tint: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+  },
+  photo_event: {
+    Icon: Camera,
+    tint: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
+  },
+  task_event: {
+    Icon: CheckCircle2,
+    tint: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+  },
+  note_event: {
+    Icon: FileText,
+    tint: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+  },
+  ot_approval_event: {
+    Icon: Timer,
+    tint: "bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300",
+  },
+  correction_event: {
+    Icon: PencilLine,
+    tint: "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300",
+  },
 };
 
 const FALLBACK_GLYPH: EventGlyph = {
@@ -179,16 +197,16 @@ function TimelineContent() {
       <div className="mb-6">
         <a
           href="/"
-          className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100"
+          className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
         >
           <span>&larr;</span> {t("common.backToDashboard")}
         </a>
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             {selectedJob
               ? t("timeline.titleWithJob", { jobName: selectedJob.name })
               : t("timeline.title")}
-          </h2>
+          </h1>
           <p className="mt-1 text-slate-600 dark:text-slate-400">{t("timeline.subtitle")}</p>
         </div>
 
@@ -215,14 +233,14 @@ function TimelineContent() {
                   value={filterText}
                   onChange={(e) => setFilterText(e.target.value)}
                   placeholder="Filter jobs…"
-                  className="w-full rounded-lg border border-stone-300 bg-card dark:border-slate-700 dark:bg-slate-900 py-2 pl-10 pr-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="w-full rounded-lg border border-stone-300 bg-card dark:border-slate-700 dark:bg-slate-900 py-2 pl-10 pr-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:text-slate-400 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
                 />
               </div>
             )}
             <select
               value={jobId ?? ""}
               onChange={(e) => handleJobChange(e.target.value)}
-              className="min-w-[240px] rounded-lg border border-stone-300 bg-card dark:border-slate-700 dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              className="min-w-[240px] rounded-lg border border-stone-300 bg-card dark:border-slate-700 dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-400 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
             >
               <option value="">Select a job to view its timeline</option>
               {filteredJobs.map((j) => (
@@ -237,7 +255,7 @@ function TimelineContent() {
       </div>
 
       {jobsError && (
-        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
           {jobsError}
         </div>
       )}
@@ -266,7 +284,7 @@ function TimelineContent() {
           </p>
           <a
             href="/"
-            className="mt-4 inline-block text-sm font-medium text-slate-500 dark:text-slate-400 underline hover:text-slate-900 dark:text-slate-100"
+            className="mt-4 inline-block text-sm font-medium text-slate-500 dark:text-slate-400 underline hover:text-slate-900 dark:hover:text-slate-100"
           >
             {t("timeline.goToDashboard")}
           </a>
@@ -418,7 +436,7 @@ function TimelineEventsList({ jobId }: TimelineEventsListProps) {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
         {error}
       </div>
     );

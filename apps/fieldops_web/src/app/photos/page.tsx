@@ -771,10 +771,10 @@ function PhotoFeedContent() {
           <span>&larr;</span> {t("common.backToDashboard")}
         </a>
 
-        <h2 className="text-2xl font-bold text-slate-900">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
           {jobName ? t("photos.titleWithJob", { jobName }) : t("photos.title")}
-        </h2>
-        <p className="mt-1 text-slate-600">{t("photos.subtitle")}</p>
+        </h1>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t("photos.subtitle")}</p>
         {jobId ? (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">

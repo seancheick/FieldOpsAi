@@ -324,10 +324,10 @@ export default function SchedulePage() {
         >
           ← {t("nav.home") || "Home"}
         </a>
-        <h1 className="text-2xl font-bold text-stone-900">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
           {t("schedulePage.title")}
         </h1>
-        <p className="text-sm text-stone-500">{t("schedulePage.subtitle")}</p>
+        <p className="text-sm text-slate-600 dark:text-slate-400">{t("schedulePage.subtitle")}</p>
       </header>
 
       <ScheduleToolbar
@@ -371,7 +371,7 @@ export default function SchedulePage() {
       />
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
           {error}
         </div>
       )}

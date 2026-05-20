@@ -113,7 +113,7 @@ export function ScheduleToolbar(props: Props) {
             type="button"
             onClick={onCopyPrev}
             disabled={busyAction === "copy"}
-            className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-50"
+            className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:bg-stone-100 disabled:text-slate-400"
           >
             {labels.copyPrev}
           </button>
@@ -130,7 +130,7 @@ export function ScheduleToolbar(props: Props) {
             type="button"
             onClick={onPublish}
             disabled={draftCount === 0 || busyAction === "publish"}
-            className="rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-slate-400"
           >
             {busyAction === "publish"
               ? labels.publishing
@@ -145,7 +145,7 @@ export function ScheduleToolbar(props: Props) {
           value={workerSearch}
           onChange={(e) => onWorkerSearchChange(e.target.value)}
           placeholder={labels.searchWorkers}
-          className="w-56 rounded-lg border border-stone-200 px-3 py-1.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+          className="w-56 rounded-lg border border-stone-200 px-3 py-1.5 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
         />
         <span className="text-xs font-medium uppercase tracking-wide text-stone-500">
           {labels.jobs}:

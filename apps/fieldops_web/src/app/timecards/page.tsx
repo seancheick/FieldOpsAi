@@ -321,20 +321,20 @@ export default function TimecardsPage() {
         >
           <span>&larr;</span> {t("common.backToDashboard")}
         </a>
-        <h2 className="text-2xl font-bold text-slate-900">{t("timecards.title")}</h2>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{t("timecards.title")}</h1>
         <p className="mt-1 text-slate-600">
           {t("timecards.weekOf")} {weekStart}
         </p>
       </div>
 
       {error && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
           {error}
         </div>
       )}
 
       {successMessage && (
-        <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+        <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
           {successMessage}
         </div>
       )}

@@ -157,8 +157,8 @@ export default function FeatureFlagsPage() {
         >
           <span>&larr;</span> Back to Settings
         </a>
-        <h2 className="text-2xl font-bold text-slate-900">Feature Flags</h2>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Feature Flags</h1>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
           Toggle features on or off for your company. Overrides win over the
           global default until you reset them.
         </p>

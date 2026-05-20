@@ -296,7 +296,7 @@ function ExpensesContent() {
         >
           <span>&larr;</span> {t("common.backToDashboard")}
         </a>
-        <h2 className="text-2xl font-bold text-slate-900">{t("expensesPage.title")}</h2>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{t("expensesPage.title")}</h1>
         <p className="mt-1 text-slate-600">{t("expensesPage.subtitle")}</p>
 
         {/* KPI Summary Row */}
@@ -355,7 +355,7 @@ function ExpensesContent() {
       )}
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
           {error}
           <button onClick={loadExpenses} className="ml-3 font-semibold underline">
             {t("common.retry")}
@@ -496,7 +496,7 @@ function ExpenseCard({
                   <textarea
                     value={reason}
                     onChange={(event) => setReason(event.target.value)}
-                    className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
                     rows={2}
                     placeholder={t("expensesPage.decisionPlaceholder")}
                   />
@@ -564,13 +564,13 @@ function ExpenseCard({
                   <input
                     value={reimbursementReference}
                     onChange={(event) => setReimbursementReference(event.target.value)}
-                    className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
                     placeholder={t("expensesPage.reimbursementReferencePlaceholder")}
                   />
                   <textarea
                     value={reimbursementNotes}
                     onChange={(event) => setReimbursementNotes(event.target.value)}
-                    className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
                     rows={2}
                     placeholder={t("expensesPage.reimbursementNotesPlaceholder")}
                   />
