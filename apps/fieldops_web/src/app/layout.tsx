@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthGuard } from "@/components/auth-guard";
 import { Sidebar } from "@/components/sidebar";
 import { CommandPalette } from "@/components/command-palette";
+import { KeyboardShortcutsProvider } from "@/components/keyboard-shortcuts-provider";
 import { Providers } from "./providers";
 import { Geist, Manrope } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,7 @@ export default function RootLayout({
               </main>
             </div>
             <CommandPalette />
+            <KeyboardShortcutsProvider />
           </AuthGuard>
         </Providers>
       </body>
