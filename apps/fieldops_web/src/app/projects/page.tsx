@@ -365,7 +365,7 @@ export default function ProjectsPage() {
                   <button
                     onClick={saveProject}
                     disabled={saving || !form.name.trim() || !form.code.trim()}
-                    className="w-full rounded-xl bg-amber-500 py-3 text-sm font-semibold text-white hover:bg-amber-600 disabled:bg-stone-100 disabled:text-slate-400"
+                    className="w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:bg-stone-100 disabled:text-slate-400 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
                   >
                     {saving ? "Saving..." : isNew ? "Create Project" : "Save Changes"}
                   </button>

@@ -644,7 +644,7 @@ function NewPermitModal({ jobs, onClose, onCreated }: NewPermitModalProps) {
               type="submit"
               disabled={submitting}
               aria-disabled={submitting}
-              className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:bg-stone-100 disabled:text-slate-400"
+              className="inline-flex min-h-11 items-center rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:bg-stone-100 disabled:text-slate-400 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
             >
               {submitting ? "Saving…" : "Create"}
             </button>
