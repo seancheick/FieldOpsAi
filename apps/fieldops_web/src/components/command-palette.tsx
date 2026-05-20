@@ -313,14 +313,14 @@ export function CommandPalette() {
         {/* Results */}
         <div className="max-h-[60vh] overflow-y-auto py-1">
           {allResults.length === 0 && !remoteLoading && (
-            <div className="px-4 py-8 text-center text-sm text-slate-400 dark:text-slate-500">
+            <div className="px-4 py-8 text-center text-sm text-slate-400 dark:text-slate-400">
               {t("commandPalette.noResults")}
             </div>
           )}
 
           {grouped.map(([group, items]) => (
             <div key={group} className="py-1">
-              <div className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              <div className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-400">
                 {t(GROUP_LABEL_KEY[group])}
               </div>
               {items.map((r) => {
@@ -341,7 +341,7 @@ export function CommandPalette() {
                     <Icon size={14} className="shrink-0 text-slate-400" />
                     <span className="flex-1 truncate">{r.label}</span>
                     {r.sublabel && (
-                      <span className="truncate text-xs text-slate-400 dark:text-slate-500">
+                      <span className="truncate text-xs text-slate-400 dark:text-slate-400">
                         {r.sublabel}
                       </span>
                     )}
@@ -356,7 +356,7 @@ export function CommandPalette() {
         </div>
 
         {/* Footer hint */}
-        <div className="flex items-center justify-between border-t border-stone-100 bg-stone-50 px-4 py-2 text-[11px] text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-500">
+        <div className="flex items-center justify-between border-t border-stone-100 bg-stone-50 px-4 py-2 text-[11px] text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
           <span>
             <kbd className="mr-1 rounded bg-white px-1 py-0.5 font-medium dark:bg-slate-800">
               ↑↓

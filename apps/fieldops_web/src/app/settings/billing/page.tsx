@@ -117,7 +117,7 @@ export default function BillingPage() {
   }
 
   if (loading || currentUser.loading) {
-    return <div className="pt-20 text-sm text-slate-400">Loading billing...</div>;
+    return <div className="pt-20 text-sm text-slate-500">Loading billing...</div>;
   }
 
   return (
@@ -125,7 +125,7 @@ export default function BillingPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Manage Billing</h1>
-          <p className="mt-1 text-sm text-slate-400">Review plan, status, and launch the Stripe billing portal.</p>
+          <p className="mt-1 text-sm text-slate-500">Review plan, status, and launch the Stripe billing portal.</p>
         </div>
         {company?.billing_mode === "demo" ? (
           <span className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">
@@ -135,7 +135,7 @@ export default function BillingPage() {
           <button
             onClick={handleManageBilling}
             disabled={launching}
-            className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
+            className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:bg-stone-100 disabled:text-slate-400"
           >
             {launching ? "Opening..." : "Open billing portal"}
           </button>
@@ -149,14 +149,14 @@ export default function BillingPage() {
       )}
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Plan</p>
+        <div className="rounded-2xl border border-stone-200 bg-card p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan</p>
           <p className="mt-2 text-2xl font-semibold text-slate-900">{company?.billing_plan ?? "starter"}</p>
           <p className="mt-2 text-sm text-slate-500">Active users: {activeUsers}</p>
         </div>
 
-        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Mode</p>
+        <div className="rounded-2xl border border-stone-200 bg-card p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Mode</p>
           <p className="mt-2 text-2xl font-semibold capitalize text-slate-900">{company?.billing_mode ?? "demo"}</p>
           <p className="mt-2 text-sm text-slate-500">
             {company?.billing_mode === "demo"
@@ -165,8 +165,8 @@ export default function BillingPage() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</p>
+        <div className="rounded-2xl border border-stone-200 bg-card p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</p>
           <p className="mt-2 text-2xl font-semibold text-slate-900">{company?.payment_status ?? "trialing"}</p>
           <p className="mt-2 text-sm text-slate-500">
             Billing email: {company?.billing_email || currentUser.email || "Not set"}
@@ -174,8 +174,8 @@ export default function BillingPage() {
         </div>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Customer record</p>
+      <div className="mt-6 rounded-2xl border border-stone-200 bg-card p-5 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Customer record</p>
         <p className="mt-2 text-sm text-slate-600">
           Company: <span className="font-medium text-slate-900">{company?.name ?? currentUser.companyName ?? "Unknown"}</span>
         </p>

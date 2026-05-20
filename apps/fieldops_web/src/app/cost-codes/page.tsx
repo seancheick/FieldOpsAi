@@ -101,8 +101,8 @@ export default function CostCodesPage() {
       </div>
 
       <div className="mb-6 grid gap-4 lg:grid-cols-[320px,1fr]">
-        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-          <div className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">
+        <div className="rounded-2xl border border-stone-200 bg-card p-5 shadow-sm">
+          <div className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
             {t("costCodesPage.jobFilter")}
           </div>
           <select
@@ -124,13 +124,13 @@ export default function CostCodesPage() {
           </button>
         </div>
 
-        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">
+        <div className="rounded-2xl border border-stone-200 bg-card p-5 shadow-sm">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
             {t("costCodesPage.knownCostCodes")}
           </div>
           <div className="flex flex-wrap gap-2">
             {codes.length === 0 && (
-              <span className="text-sm text-slate-400">{t("costCodesPage.noCodes")}</span>
+              <span className="text-sm text-slate-500">{t("costCodesPage.noCodes")}</span>
             )}
             {codes.map((code) => (
               <span
@@ -158,10 +158,10 @@ export default function CostCodesPage() {
       )}
 
       {!loading && !error && (
-        <div className="rounded-2xl border border-stone-200 bg-white shadow-sm">
+        <div className="rounded-2xl border border-stone-200 bg-card shadow-sm">
           <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+              <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">
                 {t("costCodesPage.profitabilityView")}
               </div>
               <div className="text-lg font-bold text-slate-900">

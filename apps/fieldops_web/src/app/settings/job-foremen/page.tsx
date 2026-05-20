@@ -253,7 +253,7 @@ export default function JobForemenPage() {
   if (!authorized) {
     return (
       <div className="p-6">
-        <div className="rounded-2xl border border-stone-200 bg-white p-6">
+        <div className="rounded-2xl border border-stone-200 bg-card p-6">
           <h1 className="text-xl font-semibold text-stone-900">
             Access denied
           </h1>
@@ -287,11 +287,11 @@ export default function JobForemenPage() {
       {loading ? (
         <SkeletonTable rows={8} cols={3} />
       ) : jobs.length === 0 ? (
-        <div className="rounded-2xl border border-stone-200 bg-white p-6 text-sm text-stone-500">
+        <div className="rounded-2xl border border-stone-200 bg-card p-6 text-sm text-stone-500">
           No active jobs.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
+        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-card">
           <table className="w-full text-sm">
             <thead className="bg-stone-50 text-xs uppercase text-stone-500">
               <tr>
@@ -335,7 +335,7 @@ export default function JobForemenPage() {
                             )
                           }
                           aria-label={`Foreman for ${row.job.name}`}
-                          className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm text-stone-900"
+                          className="rounded-lg border border-stone-300 bg-card px-3 py-1.5 text-sm text-stone-900"
                         >
                           <option value="">— None —</option>
                           {options.map((o) => (

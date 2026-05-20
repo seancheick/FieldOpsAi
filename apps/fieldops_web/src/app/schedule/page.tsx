@@ -382,7 +382,7 @@ export default function SchedulePage() {
       )}
 
       {loading ? (
-        <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
+        <div className="rounded-2xl border border-stone-200 bg-card p-8 text-center text-sm text-stone-500">
           Loading schedule…
         </div>
       ) : isMobile ? (

@@ -112,7 +112,7 @@ export default function PublicGalleryPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-stone-50 px-4">
         <form
-          className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm"
+          className="w-full max-w-sm rounded-2xl bg-card p-8 shadow-sm"
           onSubmit={(e) => {
             e.preventDefault();
             void fetchGallery(passwordInput);
@@ -148,7 +148,7 @@ export default function PublicGalleryPage() {
   if (error || !gallery) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-stone-50 px-4 text-center">
-        <div className="rounded-2xl bg-white p-10 shadow-sm">
+        <div className="rounded-2xl bg-card p-10 shadow-sm">
           <div className="mb-4 text-4xl">🔒</div>
           <h1 className="text-xl font-bold text-slate-900">Gallery unavailable</h1>
           <p className="mt-2 text-slate-500">{error || "This gallery is no longer active."}</p>
@@ -160,7 +160,7 @@ export default function PublicGalleryPage() {
   return (
     <div className="min-h-screen bg-stone-50">
       {/* Branded header */}
-      <div className="border-b border-stone-200 bg-white px-6 py-4">
+      <div className="border-b border-stone-200 bg-card px-6 py-4">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <div className="flex items-center gap-3">
             {company?.logo && (
@@ -179,7 +179,7 @@ export default function PublicGalleryPage() {
             <button
               onClick={handleDownloadPdf}
               disabled={pdfLoading}
-              className="flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-stone-50"
+              className="flex items-center gap-1.5 rounded-lg border border-stone-200 bg-card px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-stone-50"
             >
               <FileText size={14} /> PDF packet
             </button>
@@ -189,7 +189,7 @@ export default function PublicGalleryPage() {
 
       <div className="mx-auto max-w-5xl space-y-6 px-6 py-8">
         {gallery.description && (
-          <p className="rounded-2xl bg-white p-5 text-sm text-slate-600 shadow-sm">
+          <p className="rounded-2xl bg-card p-5 text-sm text-slate-600 shadow-sm">
             {gallery.description}
           </p>
         )}
@@ -216,17 +216,17 @@ export default function PublicGalleryPage() {
                 <img
                   src={company.logo}
                   alt=""
-                  className="pointer-events-none absolute bottom-2 right-2 h-6 w-6 rounded bg-white/80 p-0.5"
+                  className="pointer-events-none absolute bottom-2 right-2 h-6 w-6 rounded bg-card/80 p-0.5"
                 />
               )}
-              <div className="absolute bottom-1 left-1 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-mono text-white">
+              <div className="absolute bottom-1 left-1 rounded bg-black/50 px-1.5 py-0.5 text-xs font-mono text-white">
                 #{p.verification_code || "—"}
               </div>
             </button>
           ))}
         </div>
 
-        <p className="flex items-center gap-2 pt-4 text-xs text-slate-400">
+        <p className="flex items-center gap-2 pt-4 text-xs text-slate-500">
           <ShieldCheck size={12} />
           Every photo is verified by SHA-256 hash and a unique code — tamper-evident chain of custody.
         </p>
@@ -238,7 +238,7 @@ export default function PublicGalleryPage() {
           onClick={() => setSelected(null)}
         >
           <div
-            className="max-h-[90vh] max-w-4xl overflow-hidden rounded-2xl bg-white"
+            className="max-h-[90vh] max-w-4xl overflow-hidden rounded-2xl bg-card"
             onClick={(e) => e.stopPropagation()}
           >
             {selected.url && (
@@ -254,7 +254,7 @@ export default function PublicGalleryPage() {
                 </p>
               )}
               {selected.sha256_hash && (
-                <p className="break-all font-mono text-[10px] text-slate-400">
+                <p className="break-all font-mono text-xs text-slate-500">
                   sha256 {selected.sha256_hash}
                 </p>
               )}

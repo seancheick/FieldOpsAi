@@ -208,7 +208,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             {t("dashboard.title")}
           </h1>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-500">
+          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
             {t("dashboard.subtitle")}
           </p>
         </div>
@@ -314,13 +314,13 @@ export default function DashboardPage() {
 
       {/* Today's flags (rule-based) */}
       {aiHints.length > 0 && (
-        <div className="mb-6 rounded-xl border border-stone-200 border-l-4 border-l-amber-400 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+        <div className="mb-6 rounded-xl border border-stone-200 border-l-4 border-l-amber-400 bg-card p-4 dark:border-slate-800">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-widest text-amber-700">
             {t("dashboard.todaysFlags")}
           </h3>
           <ul className="space-y-1">
             {aiHints.map((hint, i) => (
-              <li key={i} className="text-xs text-slate-600 dark:text-slate-500">
+              <li key={i} className="text-xs text-slate-600 dark:text-slate-400">
                 {hint}
               </li>
             ))}

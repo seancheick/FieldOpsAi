@@ -360,7 +360,7 @@ export default function StaffPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("staffPage.title")}</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             {t("staffPage.summary", { active: activeCount, total: staff.length })}
           </p>
         </div>
@@ -384,12 +384,12 @@ export default function StaffPage() {
               onClick={() => setActiveRoleTab(tab.key)}
               className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
                 activeRoleTab === tab.key
-                  ? "bg-white text-slate-900 shadow-sm"
+                  ? "bg-card text-slate-900 shadow-sm"
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
               {tab.label}
-              <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+              <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-xs font-bold ${
                 activeRoleTab === tab.key ? "bg-amber-100 text-amber-700" : "bg-stone-200 text-slate-500"
               }`}>
                 {count}
@@ -410,7 +410,7 @@ export default function StaffPage() {
           </button>
           <button
             onClick={exportStaffCsv}
-            className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-stone-50"
+            className="rounded-lg border border-stone-300 bg-card px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-stone-50"
           >
             {t("staff.exportList")}
           </button>
@@ -420,15 +420,15 @@ export default function StaffPage() {
       <div className="flex gap-6">
         <div className="flex-1">
           {loading && (
-            <div className="flex items-center gap-2 text-sm text-slate-400">
+            <div className="flex items-center gap-2 text-sm text-slate-500">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-stone-200 border-t-slate-900" />
               {t("staffPage.loading")}
             </div>
           )}
 
           {!loading && tabFilteredStaff.length === 0 && (
-            <div className="rounded-2xl border-2 border-dashed border-stone-200 bg-white p-10 text-center">
-              <p className="text-sm text-slate-400">
+            <div className="rounded-2xl border-2 border-dashed border-stone-200 bg-card p-10 text-center">
+              <p className="text-sm text-slate-500">
                 {staff.length === 0 ? t("staffPage.noStaff") : `No ${ROLE_TABS.find(t => t.key === activeRoleTab)?.label ?? ""} members yet.`}
               </p>
               {staff.length === 0 && (
@@ -472,7 +472,7 @@ export default function StaffPage() {
                     className={`w-full rounded-xl border p-4 text-left transition-all ${
                       isEditing
                         ? "border-slate-900 bg-slate-50 shadow-sm"
-                        : "border-stone-200 bg-white hover:border-stone-300 hover:shadow-sm"
+                        : "border-stone-200 bg-card hover:border-stone-300 hover:shadow-sm"
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -480,19 +480,19 @@ export default function StaffPage() {
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-slate-900">{member.full_name}</span>
                           {!member.is_active && (
-                            <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-500">
+                            <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-bold text-red-500">
                               {t("staffPage.inactive")}
                             </span>
                           )}
                         </div>
-                        <div className="mt-0.5 text-xs text-slate-400">
+                        <div className="mt-0.5 text-xs text-slate-500">
                           {member.email ?? member.phone ?? t("staffPage.noContact")}
                         </div>
                       </div>
                       {/* Role badge with tooltip */}
                       <div className="group relative">
                         <span
-                          className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide ${
                             member.role === OWNER_ROLE
                               ? "bg-amber-100 text-amber-800"
                               : member.role === ADMIN_ROLE
@@ -506,7 +506,7 @@ export default function StaffPage() {
                         >
                           {roleLabel(member.role)}
                         </span>
-                        <div className="absolute bottom-full right-0 z-10 mb-2 hidden w-56 rounded-lg border border-stone-200 bg-white p-2.5 text-xs text-slate-600 shadow-lg group-hover:block">
+                        <div className="absolute bottom-full right-0 z-10 mb-2 hidden w-56 rounded-lg border border-stone-200 bg-card p-2.5 text-xs text-slate-600 shadow-lg group-hover:block">
                           {ROLE_TOOLTIPS[member.role] ?? member.role}
                         </div>
                       </div>
@@ -520,9 +520,9 @@ export default function StaffPage() {
 
         {editing && (
           <div className="w-96 flex-shrink-0">
-            <div className="sticky top-6 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+            <div className="sticky top-6 rounded-2xl border border-stone-200 bg-card p-6 shadow-sm">
               <div className="mb-5 flex items-center justify-between">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">
                   {showAdd ? t("staffPage.addStaffPanel") : t("staffPage.editStaffPanel")}
                 </h2>
                 <button
@@ -530,7 +530,7 @@ export default function StaffPage() {
                     setEditing(null);
                     setShowAdd(false);
                   }}
-                  className="text-xs text-slate-400 hover:text-slate-600"
+                  className="text-xs text-slate-500 hover:text-slate-600"
                 >
                   {t("staffPage.close")}
                 </button>
@@ -596,7 +596,7 @@ export default function StaffPage() {
                             <span className="text-xs font-bold text-slate-900">✓</span>
                           )}
                         </div>
-                        <p className="mt-0.5 text-[11px] text-slate-400">{role.description}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">{role.description}</p>
                       </button>
                     ))}
                   </div>
@@ -606,7 +606,7 @@ export default function StaffPage() {
                   <div className="flex items-center justify-between rounded-lg border border-stone-200 p-3">
                     <div>
                       <span className="text-sm font-medium text-slate-700">{t("staffPage.activeStatus")}</span>
-                      <p className="text-[11px] text-slate-400">{t("staffPage.activeStatusHint")}</p>
+                      <p className="text-xs text-slate-500">{t("staffPage.activeStatusHint")}</p>
                     </div>
                     <button
                       onClick={() => setEditing({ ...editing, isActive: !editing.isActive })}
@@ -615,7 +615,7 @@ export default function StaffPage() {
                       }`}
                     >
                       <span
-                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-card shadow-sm transition-transform ${
                           editing.isActive ? "translate-x-5" : "translate-x-0.5"
                         }`}
                       />
@@ -650,7 +650,7 @@ export default function StaffPage() {
                           readOnly
                           value={inviteLink}
                           onFocus={(e) => e.currentTarget.select()}
-                          className="flex-1 rounded-md border border-amber-300 bg-white px-2 py-1.5 font-mono text-[11px] text-slate-700 dark:border-amber-900/60 dark:bg-slate-900 dark:text-slate-200"
+                          className="flex-1 rounded-md border border-amber-300 bg-card px-2 py-1.5 font-mono text-xs text-slate-700 dark:border-amber-900/60 dark:bg-slate-900 dark:text-slate-200"
                         />
                         <button
                           type="button"
@@ -663,7 +663,7 @@ export default function StaffPage() {
                               /* ignore */
                             }
                           }}
-                          className="rounded-md bg-amber-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-700"
+                          className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
                         >
                           Copy
                         </button>
@@ -676,7 +676,7 @@ export default function StaffPage() {
                           setShowAdd(false);
                           loadStaff();
                         }}
-                        className="mt-2 w-full rounded-md bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-stone-50 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                        className="mt-2 w-full rounded-md bg-card px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-stone-50 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                       >
                         Done
                       </button>
@@ -686,7 +686,7 @@ export default function StaffPage() {
                     <button
                       onClick={saveStaff}
                       disabled={!editing.fullName.trim()}
-                      className="w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                      className="w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:bg-stone-100 disabled:text-slate-400 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-card"
                     >
                       {showAdd ? t("staffPage.addStaffMember") : t("staffPage.saveChanges")}
                     </button>
@@ -727,7 +727,7 @@ function EditField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm transition-colors focus:border-slate-900 focus:bg-white focus:outline-none"
+        className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm transition-colors focus:border-slate-900 focus:bg-card focus:outline-none"
       />
     </div>
   );

@@ -346,7 +346,7 @@ export default function OnboardingPage() {
       </div>
 
       {step === 0 && (
-        <div className="rounded-2xl border border-stone-200 bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-stone-200 bg-card p-8 shadow-sm">
           <div className="space-y-5">
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">
@@ -357,7 +357,7 @@ export default function OnboardingPage() {
                 value={companyName}
                 onChange={(event) => setCompanyName(event.target.value)}
                 placeholder={t("onboardingPage.placeholders.companyName")}
-                className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm transition-colors focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5"
+                className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm transition-colors focus:border-slate-900 focus:bg-card focus:outline-none focus:ring-2 focus:ring-slate-900/5"
               />
             </div>
 
@@ -369,7 +369,7 @@ export default function OnboardingPage() {
                 <select
                   value={industry}
                   onChange={(event) => setIndustry(event.target.value)}
-                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5"
+                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-card focus:outline-none focus:ring-2 focus:ring-slate-900/5"
                 >
                   {INDUSTRY_VALUES.map((value) => (
                     <option key={value} value={value}>
@@ -385,7 +385,7 @@ export default function OnboardingPage() {
                 <select
                   value={timezone}
                   onChange={(event) => setTimezone(event.target.value)}
-                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5"
+                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-card focus:outline-none focus:ring-2 focus:ring-slate-900/5"
                 >
                   {TIMEZONE_VALUES.map((value) => (
                     <option key={value} value={value}>
@@ -399,14 +399,14 @@ export default function OnboardingPage() {
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                 {t("onboardingPage.logoUrl")}{" "}
-                <span className="text-slate-400">({t("onboardingPage.optional")})</span>
+                <span className="text-slate-500">({t("onboardingPage.optional")})</span>
               </label>
               <input
                 type="url"
                 value={companyLogo}
                 onChange={(event) => setCompanyLogo(event.target.value)}
                 placeholder={t("onboardingPage.placeholders.logoUrl")}
-                className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5"
+                className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-card focus:outline-none focus:ring-2 focus:ring-slate-900/5"
               />
             </div>
           </div>
@@ -414,14 +414,14 @@ export default function OnboardingPage() {
           <div className="mt-8 flex items-center justify-between">
             <button
               onClick={() => { setSaveError(null); setStep(1); }}
-              className="text-sm font-medium text-slate-400 hover:text-slate-600"
+              className="text-sm font-medium text-slate-500 hover:text-slate-600"
             >
               {t("onboardingPage.skipForNow")} &rarr;
             </button>
             <button
               onClick={saveCompanyStep}
               disabled={!canProceedStep0 || saving}
-              className="rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-slate-800 disabled:opacity-40"
+              className="rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-slate-800 disabled:bg-stone-100 disabled:text-slate-400"
             >
               {saving ? "Saving…" : t("onboardingPage.continue")}
             </button>
@@ -444,10 +444,10 @@ export default function OnboardingPage() {
           </div>
 
           {workers.length === 0 && (
-            <div className="rounded-2xl border-2 border-dashed border-stone-200 bg-white p-12 text-center">
+            <div className="rounded-2xl border-2 border-dashed border-stone-200 bg-card p-12 text-center">
               <div className="text-3xl text-stone-300">👷</div>
               <p className="mt-3 text-sm font-medium text-slate-500">{t("onboardingPage.noWorkersYet")}</p>
-              <p className="mt-1 text-xs text-slate-400">{t("onboardingPage.noWorkersHint")}</p>
+              <p className="mt-1 text-xs text-slate-500">{t("onboardingPage.noWorkersHint")}</p>
               <button
                 onClick={addWorker}
                 className="mt-5 rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
@@ -458,9 +458,9 @@ export default function OnboardingPage() {
           )}
 
           {workers.map((worker, index) => (
-            <div key={worker.id} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+            <div key={worker.id} className="rounded-2xl border border-stone-200 bg-card p-5 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-400">
+                <span className="text-xs font-semibold text-slate-500">
                   {t("onboardingPage.workerLabel", { index: index + 1 })}
                 </span>
                 <button
@@ -481,7 +481,7 @@ export default function OnboardingPage() {
                     value={worker.firstName}
                     onChange={(event) => updateWorker(worker.id, "firstName", event.target.value)}
                     placeholder={t("onboardingPage.placeholders.firstName")}
-                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
+                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-card focus:outline-none"
                   />
                 </div>
                 <div>
@@ -493,20 +493,20 @@ export default function OnboardingPage() {
                     value={worker.lastName}
                     onChange={(event) => updateWorker(worker.id, "lastName", event.target.value)}
                     placeholder={t("onboardingPage.placeholders.lastName")}
-                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
+                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-card focus:outline-none"
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-600">
                     {t("onboardingPage.email")}
-                    <span className="ml-1 font-normal text-slate-400">(required to send invite)</span>
+                    <span className="ml-1 font-normal text-slate-500">(required to send invite)</span>
                   </label>
                   <input
                     type="email"
                     value={worker.email}
                     onChange={(event) => updateWorker(worker.id, "email", event.target.value)}
                     placeholder={t("onboardingPage.placeholders.email")}
-                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
+                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-card focus:outline-none"
                   />
                 </div>
                 <div>
@@ -518,33 +518,33 @@ export default function OnboardingPage() {
                     value={worker.phone}
                     onChange={(event) => updateWorker(worker.id, "phone", event.target.value)}
                     placeholder={t("onboardingPage.placeholders.phone")}
-                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
+                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-card focus:outline-none"
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-600">
                     {t("onboardingPage.address")}{" "}
-                    <span className="text-slate-300">({t("onboardingPage.optional")})</span>
+                    <span className="text-slate-500">({t("onboardingPage.optional")})</span>
                   </label>
                   <input
                     type="text"
                     value={worker.address}
                     onChange={(event) => updateWorker(worker.id, "address", event.target.value)}
                     placeholder={t("onboardingPage.placeholders.address")}
-                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
+                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-card focus:outline-none"
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-600">
                     {t("onboardingPage.notes")}{" "}
-                    <span className="text-slate-300">({t("onboardingPage.optional")})</span>
+                    <span className="text-slate-500">({t("onboardingPage.optional")})</span>
                   </label>
                   <input
                     type="text"
                     value={worker.notes}
                     onChange={(event) => updateWorker(worker.id, "notes", event.target.value)}
                     placeholder={t("onboardingPage.placeholders.notes")}
-                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
+                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-card focus:outline-none"
                   />
                 </div>
               </div>
@@ -561,14 +561,14 @@ export default function OnboardingPage() {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => { setSaveError(null); setStep(2); }}
-                className="text-sm font-medium text-slate-400 hover:text-slate-600"
+                className="text-sm font-medium text-slate-500 hover:text-slate-600"
               >
                 {t("onboardingPage.skipForNow")} &rarr;
               </button>
               <button
                 onClick={saveTeamStep}
                 disabled={!canProceedStep1 || saving}
-                className="rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-40"
+                className="rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:bg-stone-100 disabled:text-slate-400"
               >
                 {saving ? "Sending invites…" : t("onboardingPage.continue")}
               </button>
@@ -576,7 +576,7 @@ export default function OnboardingPage() {
           </div>
 
           {workers.filter((w) => !w.email.trim()).length > 0 && (
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Workers without an email address will not receive an invite — you can add them manually later from Settings → Staff.
             </p>
           )}
@@ -584,7 +584,7 @@ export default function OnboardingPage() {
       )}
 
       {step === 2 && (
-        <div className="rounded-2xl border border-stone-200 bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-stone-200 bg-card p-8 shadow-sm">
           <div className="space-y-5">
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">
@@ -595,21 +595,21 @@ export default function OnboardingPage() {
                 value={jobName}
                 onChange={(event) => setJobName(event.target.value)}
                 placeholder={t("onboardingPage.placeholders.jobName")}
-                className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5"
+                className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-card focus:outline-none focus:ring-2 focus:ring-slate-900/5"
               />
             </div>
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                   {t("onboardingPage.jobCode")}
-                  <span className="ml-1 font-normal text-slate-400">(auto-generated if blank)</span>
+                  <span className="ml-1 font-normal text-slate-500">(auto-generated if blank)</span>
                 </label>
                 <input
                   type="text"
                   value={jobCode}
                   onChange={(event) => setJobCode(event.target.value)}
                   placeholder={jobName ? toJobCode(jobName) : t("onboardingPage.placeholders.jobCode")}
-                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5"
+                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-card focus:outline-none focus:ring-2 focus:ring-slate-900/5"
                 />
               </div>
               <div>
@@ -621,7 +621,7 @@ export default function OnboardingPage() {
                   value={jobAddress}
                   onChange={(event) => setJobAddress(event.target.value)}
                   placeholder={t("onboardingPage.placeholders.jobAddress")}
-                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5"
+                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm focus:border-slate-900 focus:bg-card focus:outline-none focus:ring-2 focus:ring-slate-900/5"
                 />
               </div>
             </div>
@@ -641,7 +641,7 @@ export default function OnboardingPage() {
                     </span>
                   ))}
                 </div>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-slate-500">
                   {t("onboardingPage.allWorkersAssigned", { count: workers.length, noun: workerNoun })}
                 </p>
               </div>
@@ -658,7 +658,7 @@ export default function OnboardingPage() {
             <button
               onClick={saveJobStep}
               disabled={!canProceedStep2 || saving}
-              className="rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-40"
+              className="rounded-xl bg-slate-900 px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:bg-stone-100 disabled:text-slate-400"
             >
               {saving ? "Creating job…" : t("onboardingPage.continue")}
             </button>
@@ -667,7 +667,7 @@ export default function OnboardingPage() {
       )}
 
       {step === 3 && (
-        <div className="rounded-2xl border border-stone-200 bg-white p-10 text-center shadow-sm">
+        <div className="rounded-2xl border border-stone-200 bg-card p-10 text-center shadow-sm">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-green-50">
             <span className="text-3xl">✓</span>
           </div>
@@ -679,13 +679,13 @@ export default function OnboardingPage() {
           </p>
 
           <div className="mx-auto mt-8 max-w-md rounded-xl bg-stone-50 p-5 text-left">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               {t("onboardingPage.nextSteps")}
             </p>
             <ol className="mt-3 space-y-2 text-sm text-slate-600">
               {[1, 2, 3, 4].map((index) => (
                 <li key={index} className="flex items-start gap-2">
-                  <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white">
+                  <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
                     {index}
                   </span>
                   {t(`onboardingPage.nextStepItems.${index}`)}

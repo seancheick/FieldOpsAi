@@ -164,7 +164,7 @@ export default function AlertsPage() {
           <button
             onClick={runScan}
             disabled={scanning}
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-600 disabled:opacity-50"
+            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-600 disabled:bg-stone-100 disabled:text-slate-400"
           >
             {scanning ? "Scanning…" : "Run scan"}
           </button>
@@ -200,13 +200,13 @@ export default function AlertsPage() {
       </div>
 
       {alerts.length === 0 && !error && (
-        <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-slate-500">
+        <div className="rounded-xl border border-stone-200 bg-card p-8 text-center text-slate-500">
           No {status} alerts.
         </div>
       )}
 
       {alerts.length > 0 && (
-        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-card shadow-sm">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-stone-50 text-left text-slate-500">
@@ -250,14 +250,14 @@ export default function AlertsPage() {
                           <button
                             onClick={() => decide(a.id, "resolve")}
                             disabled={busy}
-                            className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-green-700 disabled:opacity-50"
+                            className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-green-700 disabled:bg-stone-100 disabled:text-slate-400"
                           >
                             Resolve
                           </button>
                           <button
                             onClick={() => decide(a.id, "dismiss")}
                             disabled={busy}
-                            className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-stone-50 disabled:opacity-50"
+                            className="rounded-lg border border-stone-300 bg-card px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-stone-50 disabled:bg-stone-100 disabled:text-slate-400"
                           >
                             Dismiss
                           </button>

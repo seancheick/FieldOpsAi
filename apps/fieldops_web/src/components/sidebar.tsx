@@ -310,7 +310,7 @@ export function Sidebar() {
         <div className="border-t border-stone-100 px-3 py-4 dark:border-slate-800">
           {isExpanded ? (
             <>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-500">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-400">
                 {t("shell.language")}
               </label>
               <select
@@ -350,14 +350,14 @@ export function Sidebar() {
                 />
               )}
               {userEmail && (
-                <div className="mb-2 truncate text-xs text-slate-500 dark:text-slate-500">
+                <div className="mb-2 truncate text-xs text-slate-500 dark:text-slate-400">
                   {userEmail}
                 </div>
               )}
               {userEmail && (
                 <button
                   onClick={() => signOut()}
-                  className="w-full rounded-lg py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-slate-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                  className="w-full rounded-lg py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-slate-400 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                 >
                   {t("shell.signOut")}
                 </button>
@@ -377,7 +377,7 @@ export function Sidebar() {
                     ? t("shell.switchToLight")
                     : t("shell.switchToDark")
                 }
-                className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-stone-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-stone-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
               >
                 {resolvedTheme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
               </button>
@@ -386,7 +386,7 @@ export function Sidebar() {
                   onClick={() => signOut()}
                   aria-label={t("shell.signOut")}
                   title={t("shell.signOut")}
-                  className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-slate-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                  className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                 >
                   <X size={18} />
                 </button>

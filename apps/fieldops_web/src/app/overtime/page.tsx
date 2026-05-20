@@ -230,16 +230,16 @@ function OvertimeContent() {
 
         {/* KPI Summary Row */}
         <div className="mt-4 grid grid-cols-3 gap-4 mb-6">
-          <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <div className="text-xs font-medium text-slate-400">{t("overtimePage.pendingRequests")}</div>
+          <div className="rounded-xl border border-stone-200 bg-card p-4 shadow-sm">
+            <div className="text-xs font-medium text-slate-500">{t("overtimePage.pendingRequests")}</div>
             <div className="mt-1 text-2xl font-bold text-slate-900">{kpiStats.pendingCount}</div>
           </div>
-          <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <div className="text-xs font-medium text-slate-400">{t("overtimePage.approvedToday")}</div>
+          <div className="rounded-xl border border-stone-200 bg-card p-4 shadow-sm">
+            <div className="text-xs font-medium text-slate-500">{t("overtimePage.approvedToday")}</div>
             <div className="mt-1 text-2xl font-bold text-slate-900">{kpiStats.approvedTodayCount}</div>
           </div>
-          <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <div className="text-xs font-medium text-slate-400">{t("overtimePage.deniedStat")}</div>
+          <div className="rounded-xl border border-stone-200 bg-card p-4 shadow-sm">
+            <div className="text-xs font-medium text-slate-500">{t("overtimePage.deniedStat")}</div>
             <div className="mt-1 text-2xl font-bold text-slate-900">{kpiStats.deniedCount}</div>
           </div>
         </div>
@@ -283,7 +283,7 @@ function OvertimeContent() {
       )}
 
       {!loading && !error && requests.length === 0 && (
-        <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-slate-500">
+        <div className="rounded-xl border border-stone-200 bg-card p-8 text-center text-slate-500">
           {t("overtimePage.noRequests", { status: t(`overtimePage.${filterStatus}`) })}
         </div>
       )}
@@ -329,8 +329,8 @@ function OvertimeContent() {
           />
 
           {bulkReason !== "" && (
-            <div className="mb-4 rounded-xl border border-stone-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            <div className="mb-4 rounded-xl border border-stone-200 bg-card p-4 dark:border-slate-800 dark:bg-slate-900">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-400">
                 {bulkReason === "approved"
                   ? t("overtimePage.reasonForApproval")
                   : t("overtimePage.reasonForDenial")}
@@ -346,7 +346,7 @@ function OvertimeContent() {
                 <button
                   onClick={() => runBulkDecision(bulkReason, reasonInput)}
                   disabled={!reasonInput.trim() || bulkInFlight}
-                  className={`rounded-lg px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50 ${
+                  className={`rounded-lg px-4 py-1.5 text-sm font-semibold text-white disabled:bg-stone-100 disabled:text-slate-400 ${
                     bulkReason === "approved"
                       ? "bg-green-600 hover:bg-green-700"
                       : "bg-red-600 hover:bg-red-700"
@@ -364,7 +364,7 @@ function OvertimeContent() {
                     setReasonInput("");
                   }}
                   disabled={bulkInFlight}
-                  className="rounded-lg bg-stone-100 px-4 py-1.5 text-sm font-semibold text-slate-600 hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                  className="rounded-lg bg-stone-100 px-4 py-1.5 text-sm font-semibold text-slate-600 hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
                 >
                   {t("common.cancel")}
                 </button>
@@ -412,7 +412,7 @@ function OvertimeContent() {
           <button
             onClick={loadMoreRequests}
             disabled={loadingMore}
-            className="mx-auto flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 shadow-sm hover:bg-stone-50 disabled:opacity-50"
+            className="mx-auto flex items-center gap-2 rounded-xl border border-stone-200 bg-card px-6 py-2.5 text-sm font-semibold text-slate-600 shadow-sm hover:bg-stone-50 disabled:bg-stone-100 disabled:text-slate-400"
           >
             {loadingMore ? t("common.loadingMore") : t("common.loadMore")}
           </button>
@@ -461,7 +461,7 @@ function OTRequestCard({
 
   return (
     <div
-      className={`rounded-2xl border bg-white p-5 shadow-sm transition-colors dark:bg-slate-900 ${
+      className={`rounded-2xl border bg-card p-5 shadow-sm transition-colors dark:bg-slate-900 ${
         isSelected
           ? "border-amber-400 ring-2 ring-amber-200 dark:border-amber-500 dark:ring-amber-900/40"
           : "border-stone-200 dark:border-slate-800"
@@ -535,7 +535,7 @@ function OTRequestCard({
                     }
                   }}
                   disabled={!reason.trim() || isDeciding}
-                  className={`rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-50 ${
+                  className={`rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:bg-stone-100 disabled:text-slate-400 ${
                     showReasonFor === "approved"
                       ? "bg-green-600 hover:bg-green-700"
                       : "bg-red-600 hover:bg-red-700"

@@ -199,7 +199,7 @@ export default function PtoAllocationsPage() {
   if (!authorized) {
     return (
       <div className="p-6">
-        <div className="rounded-2xl border border-stone-200 bg-white p-6">
+        <div className="rounded-2xl border border-stone-200 bg-card p-6">
           <h1 className="text-xl font-semibold text-stone-900">
             Access denied
           </h1>
@@ -228,7 +228,7 @@ export default function PtoAllocationsPage() {
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="mt-1 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+            className="mt-1 rounded-lg border border-stone-300 bg-card px-3 py-2 text-sm text-stone-900"
           >
             {[-1, 0, 1].map((offset) => {
               const y = currentUtcYear() + offset;
@@ -251,11 +251,11 @@ export default function PtoAllocationsPage() {
       {loading ? (
         <SkeletonTable rows={8} cols={5} />
       ) : groups.length === 0 ? (
-        <div className="rounded-2xl border border-stone-200 bg-white p-6 text-sm text-stone-500">
+        <div className="rounded-2xl border border-stone-200 bg-card p-6 text-sm text-stone-500">
           No active workers in this company.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
+        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-card">
           <table className="w-full text-sm">
             <thead className="bg-stone-50 text-xs uppercase text-stone-500">
               <tr>
@@ -301,10 +301,10 @@ export default function PtoAllocationsPage() {
                               void save(group.userId, t, next);
                             }}
                             aria-label={`${TYPE_LABELS[t]} days for ${group.name}`}
-                            className="w-20 rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900"
+                            className="w-20 rounded-lg border border-stone-300 bg-card px-2 py-1.5 text-sm text-stone-900"
                           />
                           {cell.isDefault && (
-                            <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-medium uppercase text-stone-500">
+                            <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium uppercase text-stone-500">
                               Default
                             </span>
                           )}

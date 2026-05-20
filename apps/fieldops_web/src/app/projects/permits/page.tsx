@@ -230,7 +230,7 @@ export default function WorkPermitsPage() {
   if (!authorized) {
     return (
       <div className="p-6">
-        <div className="rounded-2xl border border-stone-200 bg-white p-6">
+        <div className="rounded-2xl border border-stone-200 bg-card p-6">
           <h1 className="text-xl font-semibold text-stone-900">
             Access denied
           </h1>
@@ -259,7 +259,7 @@ export default function WorkPermitsPage() {
             <select
               value={jobFilter}
               onChange={(e) => setJobFilter(e.target.value)}
-              className="mt-1 min-w-[200px] rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+              className="mt-1 min-w-[200px] rounded-lg border border-stone-300 bg-card px-3 py-2 text-sm text-stone-900"
             >
               <option value="">All jobs</option>
               {jobs.map((j) => (
@@ -276,7 +276,7 @@ export default function WorkPermitsPage() {
               onChange={(e) =>
                 setStatusFilter(e.target.value as StatusFilter)
               }
-              className="mt-1 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+              className="mt-1 rounded-lg border border-stone-300 bg-card px-3 py-2 text-sm text-stone-900"
             >
               <option value="all">All</option>
               <option value="draft">Draft</option>
@@ -311,11 +311,11 @@ export default function WorkPermitsPage() {
       {loading ? (
         <SkeletonTable rows={8} cols={7} />
       ) : permits.length === 0 ? (
-        <div className="rounded-2xl border border-stone-200 bg-white p-6 text-sm text-stone-500">
+        <div className="rounded-2xl border border-stone-200 bg-card p-6 text-sm text-stone-500">
           No permits found.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
+        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-card">
           <table className="w-full text-sm">
             <thead className="bg-stone-50 text-xs uppercase text-stone-500">
               <tr>
@@ -346,14 +346,14 @@ export default function WorkPermitsPage() {
                     <td className="p-3 text-stone-700">
                       <div>{p.job_name}</div>
                       {jobBlocking && (
-                        <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">
+                        <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase text-amber-800">
                           Blocking clock-in
                         </span>
                       )}
                     </td>
                     <td className="p-3">
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${STATUS_PILL[p.status]}`}
+                        className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase ${STATUS_PILL[p.status]}`}
                       >
                         {p.status}
                       </span>
@@ -361,7 +361,7 @@ export default function WorkPermitsPage() {
                     <td className="p-3 text-stone-600">
                       <div>{formatDateTime(p.issued_at)}</div>
                       {p.issuer_name && (
-                        <div className="text-[11px] text-stone-400">
+                        <div className="text-xs text-stone-400">
                           {p.issuer_name}
                         </div>
                       )}
@@ -383,7 +383,7 @@ export default function WorkPermitsPage() {
                                   permit_id: p.id,
                                 })
                               }
-                              className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                              className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:bg-stone-100 disabled:text-slate-400"
                             >
                               Issue
                             </button>
@@ -392,7 +392,7 @@ export default function WorkPermitsPage() {
                               disabled={busy}
                               aria-disabled={busy}
                               onClick={() => setRevokingPermit(p)}
-                              className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-50"
+                              className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:bg-stone-100 disabled:text-slate-400"
                             >
                               Revoke
                             </button>
@@ -405,32 +405,32 @@ export default function WorkPermitsPage() {
                               disabled={busy}
                               aria-disabled={busy}
                               onClick={() => setRevokingPermit(p)}
-                              className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                              className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-stone-100 disabled:text-slate-400"
                             >
                               Revoke
                             </button>
                             {expiryFuture && (
-                              <span className="text-[11px] text-stone-400">
+                              <span className="text-xs text-stone-400">
                                 Active
                               </span>
                             )}
                           </>
                         )}
                         {closed && (
-                          <span className="text-[11px] text-stone-400">
+                          <span className="text-xs text-stone-400">
                             {p.status === "revoked" && p.revocation_reason
                               ? p.revocation_reason
                               : "—"}
                           </span>
                         )}
                         {busy && (
-                          <span className="text-[11px] text-stone-400">
+                          <span className="text-xs text-stone-400">
                             Working…
                           </span>
                         )}
                       </div>
                       {errMsg && (
-                        <p className="mt-1 text-[11px] text-red-600">{errMsg}</p>
+                        <p className="mt-1 text-xs text-red-600">{errMsg}</p>
                       )}
                     </td>
                   </tr>
@@ -544,7 +544,7 @@ function NewPermitModal({ jobs, onClose, onCreated }: NewPermitModalProps) {
       aria-modal="true"
       aria-label="New work permit"
     >
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
+      <div className="w-full max-w-lg rounded-2xl bg-card shadow-xl">
         <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
           <h2 className="text-lg font-semibold text-stone-900">New Permit</h2>
           <button
@@ -563,7 +563,7 @@ function NewPermitModal({ jobs, onClose, onCreated }: NewPermitModalProps) {
               value={jobId}
               onChange={(e) => setJobId(e.target.value)}
               required
-              className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+              className="mt-1 w-full rounded-lg border border-stone-300 bg-card px-3 py-2 text-sm text-stone-900"
             >
               <option value="">Select a job…</option>
               {jobs.map((j) => (
@@ -580,7 +580,7 @@ function NewPermitModal({ jobs, onClose, onCreated }: NewPermitModalProps) {
               value={permitNumber}
               onChange={(e) => setPermitNumber(e.target.value)}
               required
-              className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+              className="mt-1 w-full rounded-lg border border-stone-300 bg-card px-3 py-2 text-sm text-stone-900"
             />
           </label>
           <label className="block text-xs font-semibold text-stone-600">
@@ -589,7 +589,7 @@ function NewPermitModal({ jobs, onClose, onCreated }: NewPermitModalProps) {
               value={permitType}
               onChange={(e) => setPermitType(e.target.value as PermitType)}
               required
-              className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+              className="mt-1 w-full rounded-lg border border-stone-300 bg-card px-3 py-2 text-sm text-stone-900"
             >
               <option value="">Select a type…</option>
               {PERMIT_TYPES.map((t) => (
@@ -605,7 +605,7 @@ function NewPermitModal({ jobs, onClose, onCreated }: NewPermitModalProps) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+              className="mt-1 w-full rounded-lg border border-stone-300 bg-card px-3 py-2 text-sm text-stone-900"
             />
           </label>
           <label className="block text-xs font-semibold text-stone-600">
@@ -614,7 +614,7 @@ function NewPermitModal({ jobs, onClose, onCreated }: NewPermitModalProps) {
               type="datetime-local"
               value={expiresAt}
               onChange={(e) => setExpiresAt(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+              className="mt-1 w-full rounded-lg border border-stone-300 bg-card px-3 py-2 text-sm text-stone-900"
             />
           </label>
           <label className="flex items-center gap-2 text-xs font-semibold text-stone-600">
@@ -644,7 +644,7 @@ function NewPermitModal({ jobs, onClose, onCreated }: NewPermitModalProps) {
               type="submit"
               disabled={submitting}
               aria-disabled={submitting}
-              className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+              className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:bg-stone-100 disabled:text-slate-400"
             >
               {submitting ? "Saving…" : "Create"}
             </button>
@@ -703,7 +703,7 @@ function RevokeModal({ permit, onClose, onRevoked }: RevokeModalProps) {
       aria-modal="true"
       aria-label={`Revoke permit ${permit.permit_number}`}
     >
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+      <div className="w-full max-w-md rounded-2xl bg-card shadow-xl">
         <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
           <h2 className="text-lg font-semibold text-stone-900">
             Revoke {permit.permit_number}
@@ -726,7 +726,7 @@ function RevokeModal({ permit, onClose, onRevoked }: RevokeModalProps) {
               rows={3}
               required
               minLength={5}
-              className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+              className="mt-1 w-full rounded-lg border border-stone-300 bg-card px-3 py-2 text-sm text-stone-900"
             />
           </label>
 
@@ -748,7 +748,7 @@ function RevokeModal({ permit, onClose, onRevoked }: RevokeModalProps) {
               type="submit"
               disabled={submitting}
               aria-disabled={submitting}
-              className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:bg-stone-100 disabled:text-slate-400"
             >
               {submitting ? "Revoking…" : "Revoke permit"}
             </button>

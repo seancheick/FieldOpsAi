@@ -120,7 +120,7 @@ export function PhotoReviewActions({
           ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
           : status === "flagged"
             ? "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
-            : "bg-stone-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500"
+            : "bg-stone-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
       }`}
     >
       {status === "approved" ? (
@@ -188,7 +188,7 @@ export function PhotoReviewActions({
               setFlagReason("");
             }}
             disabled={busy}
-            className="rounded-md bg-stone-100 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-700"
+            className="rounded-md bg-stone-100 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
             aria-label={t("common.cancel")}
           >
             <X size={10} />

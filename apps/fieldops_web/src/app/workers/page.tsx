@@ -255,11 +255,11 @@ export default function WorkersPage() {
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t("workers.title")}</h2>
-            <p className="mt-1 text-slate-600 dark:text-slate-300">{t("workers.subtitle")}</p>
+            <p className="mt-1 text-slate-600 dark:text-slate-400">{t("workers.subtitle")}</p>
           </div>
           <button
             onClick={exportCsv}
-            className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 shadow-sm transition-colors hover:bg-stone-50 dark:bg-slate-950"
+            className="rounded-lg border border-stone-300 bg-card px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-400 shadow-sm transition-colors hover:bg-stone-50 dark:bg-slate-950"
           >
             {t("workers.exportCsv")}
           </button>
@@ -269,7 +269,7 @@ export default function WorkersPage() {
       {/* Search and role filter */}
       <div className="mb-4 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -277,13 +277,13 @@ export default function WorkersPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t("workers.searchPlaceholder")}
-            className="w-full rounded-lg border border-stone-300 bg-white py-2 pl-10 pr-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:text-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+            className="w-full rounded-lg border border-stone-300 bg-card py-2 pl-10 pr-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
           />
         </div>
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-slate-700 dark:text-slate-300 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+          className="rounded-lg border border-stone-300 bg-card px-3 py-2 text-sm text-slate-700 dark:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
         >
           <option value="all">{t("workers.allRoles")}</option>
           <option value="worker">Worker</option>
@@ -311,7 +311,7 @@ export default function WorkersPage() {
               className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
                 filter === s
                   ? "bg-amber-500 text-white"
-                  : "bg-stone-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-stone-200"
+                  : "bg-stone-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-stone-200"
               }`}
             >
               {label} ({count})
@@ -325,14 +325,14 @@ export default function WorkersPage() {
       )}
 
       {!loading && filtered.length === 0 && (
-        <div className="rounded-xl border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-8 text-center text-slate-500">
+        <div className="rounded-xl border border-stone-200 bg-card dark:border-slate-800 dark:bg-slate-900 p-8 text-center text-slate-500">
           {t("workers.noWorkers")}
         </div>
       )}
 
       {/* Worker table */}
       {filtered.length > 0 && (
-        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900 shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-card dark:border-slate-800 dark:bg-slate-900 shadow-sm">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-stone-50 dark:bg-slate-950 text-left text-slate-500">
@@ -362,7 +362,7 @@ export default function WorkersPage() {
                     </td>
                     <td className="px-5 py-3">
                       <div className="font-semibold text-slate-900 dark:text-slate-100">{w.full_name}</div>
-                      <div className="text-xs text-slate-400 dark:text-slate-500">{w.role}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">{w.role}</div>
                     </td>
                     <td className="px-5 py-3">
                       <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${cfg.color}`}>
@@ -370,7 +370,7 @@ export default function WorkersPage() {
                         {cfg.label}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
+                    <td className="px-5 py-3 text-slate-600 dark:text-slate-400">
                       {w.current_job ?? "—"}
                     </td>
                     <td className="px-5 py-3 text-slate-500">

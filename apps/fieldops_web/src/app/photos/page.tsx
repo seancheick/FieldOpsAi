@@ -857,7 +857,7 @@ function PhotoFeedContent() {
                       : f === "approved"
                         ? "bg-emerald-600 text-white"
                         : "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-                    : "bg-stone-100 text-slate-600 hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-700"
+                    : "bg-stone-100 text-slate-600 hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
                 }`}
               >
                 {t(`photoReview.tab.${f}`)} ·{" "}

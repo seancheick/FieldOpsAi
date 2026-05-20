@@ -93,7 +93,7 @@ export default function ClientPortalPage() {
   if (error || !job) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-stone-50 px-4 text-center">
-        <div className="rounded-2xl bg-white p-10 shadow-sm">
+        <div className="rounded-2xl bg-card p-10 shadow-sm">
           <div className="mb-4 text-4xl">🔒</div>
           <h1 className="text-xl font-bold text-slate-900">Link unavailable</h1>
           <p className="mt-2 text-slate-500">{error || "This link is no longer active."}</p>
@@ -105,7 +105,7 @@ export default function ClientPortalPage() {
   return (
     <div className="min-h-screen bg-stone-50">
       {/* Header */}
-      <div className="border-b border-stone-200 bg-white px-6 py-4">
+      <div className="border-b border-stone-200 bg-card px-6 py-4">
         <div className="mx-auto flex max-w-4xl items-center justify-between">
           <div className="flex items-center gap-3">
             {company?.logo && (
@@ -126,7 +126,7 @@ export default function ClientPortalPage() {
 
       <div className="mx-auto max-w-4xl space-y-6 px-6 py-8">
         {/* Job summary */}
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="rounded-2xl bg-card p-6 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-2xl font-bold text-slate-900">{job.name}</h1>
@@ -192,7 +192,7 @@ export default function ClientPortalPage() {
                     loading="lazy"
                   />
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                    <p className="text-[10px] text-white/80">
+                    <p className="text-xs text-white/80">
                       {new Date(photo.created_at).toLocaleDateString()}
                     </p>
                   </div>
@@ -206,15 +206,15 @@ export default function ClientPortalPage() {
         {tasks.length > 0 && (
           <div>
             <h2 className="mb-3 text-lg font-bold text-slate-900">Task Checklist</h2>
-            <div className="divide-y divide-stone-100 rounded-2xl bg-white shadow-sm">
+            <div className="divide-y divide-stone-100 rounded-2xl bg-card shadow-sm">
               {tasks.map((task) => (
                 <div key={task.id} className="flex items-center gap-3 px-5 py-3.5">
                   {taskIcon(task.status)}
-                  <span className={`flex-1 text-sm ${task.status === "completed" ? "text-slate-400 line-through" : "text-slate-800"}`}>
+                  <span className={`flex-1 text-sm ${task.status === "completed" ? "text-slate-500 line-through" : "text-slate-800"}`}>
                     {task.name}
                   </span>
                   {task.requires_photo && (
-                    <Camera size={14} className="text-slate-300" />
+                    <Camera size={14} className="text-slate-500" />
                   )}
                 </div>
               ))}
@@ -223,7 +223,7 @@ export default function ClientPortalPage() {
         )}
 
         {/* Footer */}
-        <p className="text-center text-xs text-slate-400">
+        <p className="text-center text-xs text-slate-500">
           Powered by FieldOps AI — tamper-evident field documentation
         </p>
       </div>

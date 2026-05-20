@@ -441,7 +441,7 @@ export default function MapPage() {
           {/* Right sidebar toggle button */}
           <button
             onClick={() => setSidebarOpen((v) => !v)}
-            className="flex w-6 items-center justify-center border-l border-stone-200 bg-stone-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 hover:bg-stone-100 dark:bg-slate-800 hover:text-slate-600 dark:text-slate-500"
+            className="flex w-6 items-center justify-center border-l border-stone-200 bg-stone-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 hover:bg-stone-100 dark:bg-slate-800 hover:text-slate-600 dark:text-slate-400"
             aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           >
             <svg

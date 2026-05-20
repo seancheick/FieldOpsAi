@@ -186,7 +186,7 @@ function GalleriesInner() {
             onClick={() =>
               router.push(`/photos?job_id=${encodeURIComponent(jobId)}&tab=feed`)
             }
-            className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-stone-50"
+            className="rounded-lg border border-stone-200 bg-card px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-stone-50"
           >
             ← Back to photos
           </button>
@@ -198,7 +198,7 @@ function GalleriesInner() {
       )}
 
       {/* ── Galleries section ────────────────────────── */}
-      <section className="rounded-2xl bg-white p-6 shadow-sm">
+      <section className="rounded-2xl bg-card p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-bold text-slate-900">Galleries</h2>
         {loading ? (
           <p className="text-sm text-slate-500">Loading…</p>
@@ -274,7 +274,7 @@ function GalleriesInner() {
                               if (v) void handleDownloadPdf(g, v);
                               e.target.value = "";
                             }}
-                            className="rounded border border-stone-200 bg-white px-2 py-1 text-xs text-slate-700"
+                            className="rounded border border-stone-200 bg-card px-2 py-1 text-xs text-slate-700"
                           >
                             <option value="">
                               {pdfBusy === g.id ? "Generating…" : "Download PDF"}
@@ -311,7 +311,7 @@ function GalleriesInner() {
       </section>
 
       {/* ── Project share links ──────────────────────── */}
-      <section className="rounded-2xl bg-white p-6 shadow-sm">
+      <section className="rounded-2xl bg-card p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-bold text-slate-900">Project share links</h2>
         {loading ? (
           <p className="text-sm text-slate-500">Loading…</p>
@@ -379,7 +379,7 @@ function GalleriesInner() {
         )}
       </section>
 
-      <p className="flex items-center gap-2 text-xs text-slate-400">
+      <p className="flex items-center gap-2 text-xs text-slate-500">
         <FileText size={12} /> PDFs are stamped with verification codes and SHA-256 hashes for tamper-evident delivery.
         <Download size={12} className="ml-2" /> Links stay live until you revoke or the expiry passes.
       </p>

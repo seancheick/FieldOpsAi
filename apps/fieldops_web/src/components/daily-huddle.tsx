@@ -235,7 +235,7 @@ function Metric({
         >
           {value}
         </span>
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-400">
           {label}
         </span>
       </div>

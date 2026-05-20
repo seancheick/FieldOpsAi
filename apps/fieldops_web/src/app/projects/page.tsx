@@ -172,7 +172,7 @@ export default function ProjectsPage() {
             <span>&larr;</span> Back to Dashboard
           </a>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Projects</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             {activeCount} active · {projects.length} total
           </p>
         </div>
@@ -194,17 +194,17 @@ export default function ProjectsPage() {
         {/* Project list */}
         <div className="flex-1">
           {loading && (
-            <div className="flex items-center gap-2 text-sm text-slate-400">
+            <div className="flex items-center gap-2 text-sm text-slate-500">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-stone-200 border-t-slate-900" />
               Loading projects...
             </div>
           )}
 
           {!loading && projects.length === 0 && (
-            <div className="rounded-2xl border-2 border-dashed border-stone-200 bg-white p-12 text-center">
+            <div className="rounded-2xl border-2 border-dashed border-stone-200 bg-card p-12 text-center">
               <div className="text-4xl mb-3">📋</div>
               <p className="text-sm font-medium text-slate-600">No projects yet</p>
-              <p className="mt-1 text-xs text-slate-400">Create your first project to start scheduling shifts and tracking field activity.</p>
+              <p className="mt-1 text-xs text-slate-500">Create your first project to start scheduling shifts and tracking field activity.</p>
               <button
                 onClick={openCreate}
                 className="mt-4 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600"
@@ -224,22 +224,22 @@ export default function ProjectsPage() {
                   className={`w-full rounded-xl border p-4 text-left transition-all ${
                     isEditing
                       ? "border-amber-400 bg-amber-50 shadow-sm"
-                      : "border-stone-200 bg-white hover:border-stone-300 hover:shadow-sm"
+                      : "border-stone-200 bg-card hover:border-stone-300 hover:shadow-sm"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-slate-900">{project.name}</span>
-                        <code className="rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-mono text-slate-500">
+                        <code className="rounded bg-stone-100 px-1.5 py-0.5 text-xs font-mono text-slate-500">
                           {project.code}
                         </code>
                       </div>
                       {project.site_name && (
-                        <div className="mt-0.5 text-xs text-slate-400">📍 {project.site_name}</div>
+                        <div className="mt-0.5 text-xs text-slate-500">📍 {project.site_name}</div>
                       )}
                     </div>
-                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${STATUS_COLORS[project.status] ?? "bg-stone-100 text-slate-500"}`}>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide ${STATUS_COLORS[project.status] ?? "bg-stone-100 text-slate-500"}`}>
                       {project.status.replace("_", " ")}
                     </span>
                   </div>
@@ -252,12 +252,12 @@ export default function ProjectsPage() {
         {/* Edit / Create panel */}
         {form && (
           <div className="w-96 flex-shrink-0">
-            <div className="sticky top-6 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+            <div className="sticky top-6 rounded-2xl border border-stone-200 bg-card p-6 shadow-sm">
               <div className="mb-5 flex items-center justify-between">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">
                   {isNew ? "New Project" : "Edit Project"}
                 </h2>
-                <button onClick={closeForm} className="text-xs text-slate-400 hover:text-slate-600">
+                <button onClick={closeForm} className="text-xs text-slate-500 hover:text-slate-600">
                   Close
                 </button>
               </div>
@@ -272,7 +272,7 @@ export default function ProjectsPage() {
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     placeholder="e.g. Grid Restoration — Phase 1"
-                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-amber-400 focus:bg-white focus:outline-none"
+                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-ring focus:bg-card focus:outline-none"
                   />
                 </div>
 
@@ -285,7 +285,7 @@ export default function ProjectsPage() {
                     value={form.code}
                     onChange={(e) => setForm({ ...form, code: e.target.value })}
                     placeholder="e.g. PROJ-001"
-                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm uppercase focus:border-amber-400 focus:bg-white focus:outline-none"
+                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm uppercase focus:border-ring focus:bg-card focus:outline-none"
                   />
                 </div>
 
@@ -296,7 +296,7 @@ export default function ProjectsPage() {
                     value={form.site_name}
                     onChange={(e) => setForm({ ...form, site_name: e.target.value })}
                     placeholder="123 Main St, Boston, MA"
-                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-amber-400 focus:bg-white focus:outline-none"
+                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-ring focus:bg-card focus:outline-none"
                   />
                 </div>
 
@@ -305,7 +305,7 @@ export default function ProjectsPage() {
                   <select
                     value={form.status}
                     onChange={(e) => setForm({ ...form, status: e.target.value })}
-                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-amber-400 focus:bg-white focus:outline-none"
+                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-ring focus:bg-card focus:outline-none"
                   >
                     {STATUS_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -319,7 +319,7 @@ export default function ProjectsPage() {
                       type="checkbox"
                       checked={form.geofence_enforced}
                       onChange={(e) => setForm({ ...form, geofence_enforced: e.target.checked })}
-                      className="mt-0.5 h-4 w-4 rounded border-stone-300 text-amber-500 focus:ring-amber-400"
+                      className="mt-0.5 h-4 w-4 rounded border-stone-300 text-amber-500 focus:ring-ring"
                     />
                     <span className="flex-1">
                       <span className="block text-sm font-semibold text-slate-700">
@@ -344,10 +344,10 @@ export default function ProjectsPage() {
                     value={form.geofence_radius_m}
                     onChange={(e) => setForm({ ...form, geofence_radius_m: e.target.value })}
                     disabled={!form.geofence_enforced}
-                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-amber-400 focus:bg-white focus:outline-none disabled:opacity-50"
+                    className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-ring focus:bg-card focus:outline-none disabled:bg-stone-100 disabled:text-slate-400"
                   />
                   {!form.geofence_enforced && (
-                    <p className="mt-1 text-xs text-slate-400">
+                    <p className="mt-1 text-xs text-slate-500">
                       Ignored while geofence enforcement is off.
                     </p>
                   )}
@@ -365,7 +365,7 @@ export default function ProjectsPage() {
                   <button
                     onClick={saveProject}
                     disabled={saving || !form.name.trim() || !form.code.trim()}
-                    className="w-full rounded-xl bg-amber-500 py-3 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-40"
+                    className="w-full rounded-xl bg-amber-500 py-3 text-sm font-semibold text-white hover:bg-amber-600 disabled:bg-stone-100 disabled:text-slate-400"
                   >
                     {saving ? "Saving..." : isNew ? "Create Project" : "Save Changes"}
                   </button>

@@ -301,22 +301,22 @@ function ExpensesContent() {
 
         {/* KPI Summary Row */}
         <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <div className="text-xs font-medium text-slate-400">{t("expensesPage.pendingTotal")}</div>
+          <div className="rounded-xl border border-stone-200 bg-card p-4 shadow-sm">
+            <div className="text-xs font-medium text-slate-500">{t("expensesPage.pendingTotal")}</div>
             <div className="mt-1 text-2xl font-bold text-slate-900">
               ${kpiStats.pendingTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
-          <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <div className="text-xs font-medium text-slate-400">{t("expensesPage.pendingCount")}</div>
+          <div className="rounded-xl border border-stone-200 bg-card p-4 shadow-sm">
+            <div className="text-xs font-medium text-slate-500">{t("expensesPage.pendingCount")}</div>
             <div className="mt-1 text-2xl font-bold text-slate-900">{kpiStats.pendingCount}</div>
           </div>
-          <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <div className="text-xs font-medium text-slate-400">{t("expensesPage.approvedThisMonth")}</div>
+          <div className="rounded-xl border border-stone-200 bg-card p-4 shadow-sm">
+            <div className="text-xs font-medium text-slate-500">{t("expensesPage.approvedThisMonth")}</div>
             <div className="mt-1 text-2xl font-bold text-slate-900">{kpiStats.approvedThisMonth}</div>
           </div>
-          <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <div className="text-xs font-medium text-slate-400">{t("expensesPage.totalReimbursed")}</div>
+          <div className="rounded-xl border border-stone-200 bg-card p-4 shadow-sm">
+            <div className="text-xs font-medium text-slate-500">{t("expensesPage.totalReimbursed")}</div>
             <div className="mt-1 text-2xl font-bold text-slate-900">
               ${kpiStats.totalReimbursed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
@@ -364,7 +364,7 @@ function ExpensesContent() {
       )}
 
       {!loading && !error && expenses.length === 0 && (
-        <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-slate-500">
+        <div className="rounded-xl border border-stone-200 bg-card p-8 text-center text-slate-500">
           {t("expensesPage.noExpenses", { status: t(`expensesPage.${filterStatus}`) })}
         </div>
       )}
@@ -420,7 +420,7 @@ function ExpenseCard({
   const isReimbursed = Boolean(expense.reimbursed_at);
 
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-stone-200 bg-card p-5 shadow-sm">
       <div className="flex flex-col gap-4 md:flex-row">
         <div className="md:w-52">
           {receiptUrl ? (
@@ -431,7 +431,7 @@ function ExpenseCard({
               loading="lazy"
             />
           ) : (
-            <div className="flex h-36 items-center justify-center rounded-xl bg-stone-100 text-sm text-slate-400">
+            <div className="flex h-36 items-center justify-center rounded-xl bg-stone-100 text-sm text-slate-500">
               {t("expensesPage.receiptMissing")}
             </div>
           )}
@@ -508,7 +508,7 @@ function ExpenseCard({
                         }
                       }}
                       disabled={!reason.trim() || isDeciding}
-                      className={`rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-50 ${
+                      className={`rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:bg-stone-100 disabled:text-slate-400 ${
                         showReasonFor === "approved"
                           ? "bg-green-600 hover:bg-green-700"
                           : "bg-red-600 hover:bg-red-700"
@@ -582,7 +582,7 @@ function ExpenseCard({
                         }
                       }}
                       disabled={!reimbursementReference.trim() || isReimbursing}
-                      className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                      className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:bg-stone-100 disabled:text-slate-400"
                     >
                       {isReimbursing
                         ? t("expensesPage.submitting")

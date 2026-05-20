@@ -115,7 +115,7 @@ function SignaturePad({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border-2 border-dashed border-stone-300 bg-white p-1">
+      <div className="rounded-xl border-2 border-dashed border-stone-300 bg-card p-1">
         <canvas
           ref={canvasRef}
           width={400}
@@ -130,7 +130,7 @@ function SignaturePad({
           onTouchEnd={stopDraw}
         />
       </div>
-      <p className="text-center text-[11px] text-slate-400">
+      <p className="text-center text-xs text-slate-500">
         {t("timecards.signatureRequired")}
       </p>
       <div className="flex gap-2">
@@ -340,12 +340,12 @@ export default function TimecardsPage() {
       )}
 
       {loading ? (
-        <div className="flex items-center gap-2 pt-20 text-sm text-slate-400">
+        <div className="flex items-center gap-2 pt-20 text-sm text-slate-500">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-stone-200 border-t-slate-900" />
           {t("common.loading")}
         </div>
       ) : timecards.length === 0 ? (
-        <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center text-sm text-slate-400">
+        <div className="rounded-2xl border border-stone-200 bg-card p-8 text-center text-sm text-slate-500">
           {t("common.noData")}
         </div>
       ) : (
@@ -366,7 +366,7 @@ export default function TimecardsPage() {
           {timecards.map((tc) => (
             <div
               key={tc.id}
-              className={`rounded-2xl border bg-white p-6 shadow-sm transition-colors dark:bg-slate-900 ${
+              className={`rounded-2xl border bg-card p-6 shadow-sm transition-colors dark:bg-slate-900 ${
                 selectedIds.has(tc.id)
                   ? "border-amber-400 ring-2 ring-amber-200 dark:border-amber-500 dark:ring-amber-900/40"
                   : "border-stone-200 dark:border-slate-800"
@@ -395,7 +395,7 @@ export default function TimecardsPage() {
 
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <div>
-                  <div className="text-xs font-semibold uppercase text-slate-400">
+                  <div className="text-xs font-semibold uppercase text-slate-500">
                     {t("timecards.regularHours")}
                   </div>
                   <div className="mt-1 text-xl font-bold text-slate-900">
@@ -403,7 +403,7 @@ export default function TimecardsPage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase text-slate-400">
+                  <div className="text-xs font-semibold uppercase text-slate-500">
                     {t("timecards.otHours")}
                   </div>
                   <div className="mt-1 text-xl font-bold text-amber-600">
@@ -411,7 +411,7 @@ export default function TimecardsPage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase text-slate-400">
+                  <div className="text-xs font-semibold uppercase text-slate-500">
                     {t("timecards.workerSigned")}
                   </div>
                   <div className="mt-1 text-sm text-slate-600">
@@ -421,7 +421,7 @@ export default function TimecardsPage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase text-slate-400">
+                  <div className="text-xs font-semibold uppercase text-slate-500">
                     {t("timecards.approved")}
                   </div>
                   <div className="mt-1 text-sm text-slate-600">
@@ -438,7 +438,7 @@ export default function TimecardsPage() {
                   <button
                     onClick={() => setSigningId(tc.id)}
                     disabled={busyAction === tc.id}
-                    className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                    className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:bg-stone-100 disabled:text-slate-400"
                   >
                     {t("timecards.sign")}
                   </button>
@@ -461,7 +461,7 @@ export default function TimecardsPage() {
                   <button
                     onClick={() => setApprovingId(tc.id)}
                     disabled={busyAction === tc.id}
-                    className="rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                    className="rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:bg-stone-100 disabled:text-slate-400"
                   >
                     {t("timecards.approve")}
                   </button>

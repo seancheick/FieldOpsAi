@@ -293,7 +293,7 @@ export default function CompanySettingsPage() {
 
   if (loading || currentUser.loading) {
     return (
-      <div className="flex items-center gap-2 pt-20 text-sm text-slate-400">
+      <div className="flex items-center gap-2 pt-20 text-sm text-slate-500">
         <div className="h-4 w-4 animate-spin rounded-full border-2 border-stone-200 border-t-slate-900" />
         Loading...
       </div>
@@ -314,16 +314,16 @@ export default function CompanySettingsPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="text-2xl font-bold tracking-tight text-slate-900">Company Settings</h1>
-      <p className="mt-1 text-sm text-slate-400">Manage your company configuration and preferences</p>
+      <p className="mt-1 text-sm text-slate-500">Manage your company configuration and preferences</p>
 
       {/* First-run checklist with progress ring */}
       {hasIncompleteOnboarding && (
-        <div className="mt-6 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+        <div className="mt-6 rounded-2xl border border-stone-200 bg-card p-6 shadow-sm">
           <div className="flex items-center gap-5">
             <ProgressRing progress={setupProgress} />
             <div>
               <h3 className="text-sm font-bold text-slate-900">Setup Progress</h3>
-              <p className="text-xs text-slate-400">{completedSteps} of 3 complete</p>
+              <p className="text-xs text-slate-500">{completedSteps} of 3 complete</p>
             </div>
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -360,8 +360,8 @@ export default function CompanySettingsPage() {
             onClick={() => setActiveTab(tab)}
             className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
               activeTab === tab
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-400 hover:text-slate-600"
+                ? "bg-card text-slate-900 shadow-sm"
+                : "text-slate-500 hover:text-slate-600"
             }`}
           >
             {tab}
@@ -466,7 +466,7 @@ export default function CompanySettingsPage() {
                     Company Name Only
                   </label>
                 </div>
-                <p className="mt-2 text-[11px] text-slate-400">
+                <p className="mt-2 text-xs text-slate-500">
                   Preview: {settings.stamp_mode === "logo" && logoUrl
                     ? "Photos will include your logo watermark"
                     : `Photos will show "${companyName || "Company Name"}"`}
@@ -525,7 +525,7 @@ export default function CompanySettingsPage() {
                     onChange={(e) => updateSetting("geofence_radius", Number(e.target.value))}
                     className="w-full accent-amber-500"
                   />
-                  <div className="mt-1 flex justify-between text-[10px] text-slate-400">
+                  <div className="mt-1 flex justify-between text-xs text-slate-500">
                     <span>50m</span>
                     <span>500m</span>
                   </div>
@@ -611,7 +611,7 @@ export default function CompanySettingsPage() {
             dirty
               ? "bg-amber-500 text-white hover:bg-amber-600"
               : "bg-slate-900 text-white hover:bg-slate-800"
-          } disabled:opacity-50`}
+          } disabled:bg-stone-100 disabled:text-slate-400`}
         >
           {saving ? "Saving..." : "Save Changes"}
         </button>
@@ -624,8 +624,8 @@ export default function CompanySettingsPage() {
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-5 text-sm font-bold uppercase tracking-wider text-slate-400">{title}</h2>
+    <div className="rounded-2xl border border-stone-200 bg-card p-6 shadow-sm">
+      <h2 className="mb-5 text-sm font-bold uppercase tracking-wider text-slate-500">{title}</h2>
       {children}
     </div>
   );
@@ -673,7 +673,7 @@ function SetupCard({
         <p className={`text-sm font-semibold ${done ? "text-green-700" : "text-slate-900"}`}>
           {done ? `${title} \u2713` : title}
         </p>
-        <p className="mt-0.5 text-[11px] text-slate-400">{description}</p>
+        <p className="mt-0.5 text-xs text-slate-500">{description}</p>
       </div>
       {!done && (
         <span className="text-xs font-semibold text-amber-600 hover:text-amber-700">
@@ -718,7 +718,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm transition-colors focus:border-slate-900 focus:bg-white focus:outline-none"
+        className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm transition-colors focus:border-slate-900 focus:bg-card focus:outline-none"
       />
     </div>
   );
@@ -741,7 +741,7 @@ function SelectField({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-white focus:outline-none"
+        className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm focus:border-slate-900 focus:bg-card focus:outline-none"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -775,7 +775,7 @@ function NumberField({
         onChange={(e) => onChange(Number(e.target.value))}
         min={min}
         max={max}
-        className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm transition-colors focus:border-slate-900 focus:bg-white focus:outline-none"
+        className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm transition-colors focus:border-slate-900 focus:bg-card focus:outline-none"
       />
     </div>
   );
@@ -796,7 +796,7 @@ function ToggleField({
     <div className="flex items-center justify-between rounded-lg border border-stone-200 p-3">
       <div>
         <span className="text-sm font-medium text-slate-700">{label}</span>
-        <p className="text-[11px] text-slate-400">{description}</p>
+        <p className="text-xs text-slate-500">{description}</p>
       </div>
       <button
         type="button"
@@ -810,7 +810,7 @@ function ToggleField({
       >
         <span
           aria-hidden="true"
-          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform duration-200 ease-in-out ${
+          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-card shadow ring-0 transition-transform duration-200 ease-in-out ${
             checked ? "translate-x-[22px]" : "translate-x-0.5"
           }`}
         />

@@ -86,14 +86,14 @@ export function ActiveWorkersTable({ workers }: { workers: ActiveWorker[] }) {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-stone-200 bg-white p-6 text-center text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500">
+        <div className="rounded-xl border border-dashed border-stone-200 bg-white p-6 text-center text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
           {t("activeWorkers.empty")}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <table className="min-w-full divide-y divide-stone-100 dark:divide-slate-800">
             <thead className="bg-stone-50 dark:bg-slate-950">
-              <tr className="text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              <tr className="text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-400">
                 <th className="px-3 py-2">{t("activeWorkers.col.worker")}</th>
                 <th className="px-3 py-2">{t("activeWorkers.col.status")}</th>
                 <th className="px-3 py-2 text-right tabular-nums">

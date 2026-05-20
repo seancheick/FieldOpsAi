@@ -122,16 +122,16 @@ export default function PTOPage() {
 
       {/* KPI Summary Row */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-medium text-slate-400">{t("ptoPage.pendingRequests")}</div>
+        <div className="rounded-xl border border-stone-200 bg-card p-4 shadow-sm">
+          <div className="text-xs font-medium text-slate-500">{t("ptoPage.pendingRequests")}</div>
           <div className="mt-1 text-2xl font-bold text-slate-900">{kpiStats.pendingCount}</div>
         </div>
-        <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-medium text-slate-400">{t("ptoPage.upcomingApproved")}</div>
+        <div className="rounded-xl border border-stone-200 bg-card p-4 shadow-sm">
+          <div className="text-xs font-medium text-slate-500">{t("ptoPage.upcomingApproved")}</div>
           <div className="mt-1 text-2xl font-bold text-slate-900">{kpiStats.upcomingApproved}</div>
         </div>
-        <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-medium text-slate-400">{t("ptoPage.daysOffThisMonth")}</div>
+        <div className="rounded-xl border border-stone-200 bg-card p-4 shadow-sm">
+          <div className="text-xs font-medium text-slate-500">{t("ptoPage.daysOffThisMonth")}</div>
           <div className="mt-1 text-2xl font-bold text-slate-900">{kpiStats.daysOffThisMonth}</div>
         </div>
       </div>
@@ -166,7 +166,7 @@ export default function PTOPage() {
       )}
 
       {!loading && requests.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-stone-200 p-12 text-center text-sm text-slate-400">
+        <div className="rounded-2xl border border-dashed border-stone-200 p-12 text-center text-sm text-slate-500">
           No {filter} PTO requests.
         </div>
       )}
@@ -175,7 +175,7 @@ export default function PTOPage() {
         {requests.map((req) => {
           const colors = STATUS_COLORS[req.status] ?? STATUS_COLORS.pending;
           return (
-            <div key={req.id} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+            <div key={req.id} className="rounded-2xl border border-stone-200 bg-card p-5 shadow-sm">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="font-semibold text-slate-900">
@@ -188,7 +188,7 @@ export default function PTOPage() {
                     <div className="mt-2 text-sm text-slate-600">{req.notes}</div>
                   )}
                   {req.decision_reason && (
-                    <div className="mt-2 text-xs text-slate-400">
+                    <div className="mt-2 text-xs text-slate-500">
                       Decision: {req.decision_reason}
                     </div>
                   )}
