@@ -77,7 +77,7 @@ serve(async (req) => {
       if (eventsError) throw eventsError
 
       // Pair clock_in/clock_out into history entries
-      const entries: unknown[] = []
+      const entries: Array<Record<string, unknown>> = []
       const opens = new Map<string, Record<string, unknown>>()
 
       for (const e of (events || []).reverse()) {
@@ -110,7 +110,7 @@ serve(async (req) => {
       const result = entries.reverse().slice(0, limit)
 
       logRequestResult(ENDPOINT, requestId, 200, { user_id: user.id, count: result.length })
-      return jsonResponse({ entries: result, request_id: requestId }, 200, requestId)
+      return jsonResponse({ entries: result as any, request_id: requestId }, 200, requestId)
     }
 
     if (action === "summary") {
@@ -152,11 +152,11 @@ serve(async (req) => {
           .gte("created_at", from.toISOString())
           .lte("created_at", to.toISOString()),
         supabaseAdmin
-          .from("task_completions")
+          .from("tasks")
           .select("*", { count: "exact", head: true })
           .eq("completed_by", user.id)
-          .gte("created_at", from.toISOString())
-          .lte("created_at", to.toISOString()),
+          .gte("completed_at", from.toISOString())
+          .lte("completed_at", to.toISOString()),
       ])
 
       // Assume regular = up to 8h/day * work days, OT = beyond

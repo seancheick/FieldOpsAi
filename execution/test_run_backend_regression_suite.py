@@ -30,6 +30,9 @@ class BackendRegressionSuiteRunnerTests(unittest.TestCase):
                 ["supabase", "start"],
                 ["python3", "execution/seed_backend_test_data.py"],
                 ["python3", "execution/test_sprint_1.py"],
+                ["python3", "execution/test_schedule_flow.py"],
+                ["python3", "execution/test_rls_validation.py"],
+                ["python3", "execution/test_endpoint_contracts.py"],
             ],
         )
 
@@ -46,6 +49,9 @@ class BackendRegressionSuiteRunnerTests(unittest.TestCase):
                 ["supabase", "start"],
                 ["python3", "execution/seed_backend_test_data.py"],
                 ["python3", "execution/test_sprint_1.py"],
+                ["python3", "execution/test_schedule_flow.py"],
+                ["python3", "execution/test_rls_validation.py"],
+                ["python3", "execution/test_endpoint_contracts.py"],
             ],
         )
 

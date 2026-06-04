@@ -15,6 +15,24 @@ const ENDPOINT = "media_optimize"
 const WEBP_QUALITY = 0.80
 const MAX_DIMENSION = 2048
 
+declare const OffscreenCanvas: {
+  new (width: number, height: number): {
+    getContext(contextId: "2d"): { drawImage: (...args: unknown[]) => void } | null
+    convertToBlob(options: { type: string; quality: number }): Promise<Blob>
+  }
+}
+
+type MediaAssetRow = {
+  id: string
+  bucket_name: string
+  storage_path: string
+  mime_type: string
+  file_size_bytes: number
+  kind: string
+  company_id: string
+  metadata: Record<string, unknown> | null
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders(req) })
@@ -128,25 +146,31 @@ serve(async (req) => {
   } catch (error) {
     logRequestError(ENDPOINT, requestId, error)
     console.error("media_optimize error:", error)
-    return errorResponse(requestId, 500, "INTERNAL_ERROR", error.message || "Internal server error")
+    return errorResponse(
+      requestId,
+      500,
+      "INTERNAL_ERROR",
+      error instanceof Error ? error.message : "Internal server error",
+    )
   }
 })
 
 async function optimizeAsset(
-  supabaseAdmin: ReturnType<typeof createClient>,
+  supabaseAdmin: any,
   assetId: string,
   requestId: string,
 ) {
   // Fetch the asset record
-  const { data: asset, error: assetError } = await supabaseAdmin
+  const { data: assetRow, error: assetError } = await supabaseAdmin
     .from("media_assets")
-    .select("id, bucket_name, storage_path, mime_type, file_size_bytes, kind, company_id")
+    .select("id, bucket_name, storage_path, mime_type, file_size_bytes, kind, company_id, metadata")
     .eq("id", assetId)
     .single()
 
-  if (assetError || !asset) {
+  if (assetError || !assetRow) {
     throw new Error(`Asset ${assetId} not found`)
   }
+  const asset = assetRow as MediaAssetRow
 
   // Skip if already optimized or not a photo
   if (asset.kind === "optimized_photo") {
@@ -280,12 +304,17 @@ async function optimizeAsset(
   // Insert may still fail for unrelated reasons — fall back to updating the
   // original asset pointer directly so the optimized bytes aren't orphaned.
   if (insertError) {
-    console.warn(`[${requestId}] Could not insert derivative record (${insertError.message}), updating original`)
+    console.warn(`[${requestId}] Could not insert derivative record (${insertError.message}), recording pointer on original`)
+    // media_assets has no optimized_path/optimized_size_bytes columns — record
+    // the pointer in the existing metadata jsonb (merged so we don't clobber it).
     await supabaseAdmin
       .from("media_assets")
       .update({
-        optimized_path: optimizedPath,
-        optimized_size_bytes: optimizedBytes,
+        metadata: {
+          ...(asset.metadata ?? {}),
+          optimized_path: optimizedPath,
+          optimized_size_bytes: optimizedBytes,
+        },
       })
       .eq("id", assetId)
   }

@@ -239,10 +239,19 @@ serve(async (req) => {
       // Build timesheet rows
       const rows = buildTimesheetRows(clockEvents || [], job_id)
 
-      // Generate CSV
+      // Generate CSV. Escape each cell: double embedded quotes, and prefix a
+      // leading =,+,-,@ (or control char) with a single quote to neutralise CSV
+      // formula injection — these reports go to insurers/clients who open them
+      // in Excel/Sheets.
+      const csvCell = (v: unknown): string => {
+        let s = String(v ?? "")
+        if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`
+        return `"${s.replace(/"/g, '""')}"`
+      }
       const csvHeader = "Worker,Date,Job Code,Cost Code,Clock In,Clock Out,Regular Hours,OT Hours,Total Hours"
       const csvRows = rows.map((r: any) =>
-        `"${r.worker}","${r.date}","${r.job_code}","${r.cost_code || ""}","${r.clock_in}","${r.clock_out}","${r.regular_hours}","${r.ot_hours}","${r.total_hours}"`
+        [r.worker, r.date, r.job_code, r.cost_code || "", r.clock_in, r.clock_out, r.regular_hours, r.ot_hours, r.total_hours]
+          .map(csvCell).join(",")
       )
       const csv = [csvHeader, ...csvRows].join("\n")
 

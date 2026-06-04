@@ -336,7 +336,12 @@ class CrewContract(unittest.TestCase):
 
 class PermitsContract(unittest.TestCase):
     def test_get_returns_permits(self) -> None:
-        body = _get("permits", user="supervisor")
+        body = _post(
+            "permits",
+            user="supervisor",
+            idempotent=True,
+            body={"action": "list"},
+        )
         _expect_keys(body, "permits")
         self.assertIsInstance(body["permits"], list)
 
@@ -396,11 +401,9 @@ class BudgetContract(unittest.TestCase):
 
 class TimeCorrectionsContract(unittest.TestCase):
     def test_list_supervisor(self) -> None:
-        body = _post(
+        body = _get(
             "time_corrections",
             user="supervisor",
-            idempotent=True,
-            body={"action": "list"},
         )
         _expect_keys(body, "corrections")
         self.assertIsInstance(body["corrections"], list)
@@ -408,7 +411,11 @@ class TimeCorrectionsContract(unittest.TestCase):
 
 class BreadcrumbsContract(unittest.TestCase):
     def test_get_returns_breadcrumbs(self) -> None:
-        body = _get("breadcrumbs", user="supervisor")
+        body = _get(
+            "breadcrumbs",
+            user="supervisor",
+            query={"shift_date": "2026-04-03"},
+        )
         _expect_keys(body, "breadcrumbs")
         self.assertIsInstance(body["breadcrumbs"], list)
 
@@ -447,10 +454,10 @@ class GalleriesContract(unittest.TestCase):
 
 class WorkerHistoryContract(unittest.TestCase):
     def test_get_returns_history(self) -> None:
-        body = _get(
+        body = _post(
             "worker_history",
             user="worker",
-            query={"user_id": "22222222-2222-2222-2222-222222222222"},
+            body={"action": "list"},
         )
         # At minimum the envelope contains a list of events / entries.
         self.assertTrue(
@@ -477,7 +484,15 @@ class ShiftReportsContract(unittest.TestCase):
 
 class ReportsContract(unittest.TestCase):
     def test_get_returns_envelope(self) -> None:
-        body = _get("reports", user="supervisor")
+        body = _post(
+            "reports",
+            user="supervisor",
+            body={
+                "report_type": "timesheet",
+                "date_from": "2026-04-01",
+                "date_to": "2026-06-30",
+            },
+        )
         # Reports endpoint variously returns `reports` or shape-specific
         # keys; assert the response is at least JSON-shaped.
         self.assertIsInstance(body, dict)
