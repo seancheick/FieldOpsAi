@@ -49,14 +49,35 @@ Deno.serve(async (req) => {
       return r
     }
 
-    const userId = user.id
-    const companyId = user.user_metadata?.company_id
+    // Resolve role + company from the DB (NOT JWT metadata, which can be stale
+    // after a role change / company move). All operations below use the service
+    // role with explicit company scoping rather than leaning on the JWT.
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    )
+    const { data: userRecord, error: userError } = await supabaseAdmin
+      .from("users")
+      .select("id, company_id, role, is_active")
+      .eq("id", user.id)
+      .single()
+    if (userError || !userRecord) {
+      const r = errorResponse(requestId, 401, "UNAUTHORIZED", "User record not found")
+      logRequestResult(ENDPOINT, requestId, 401)
+      return r
+    }
+    if (!userRecord.is_active) {
+      const r = errorResponse(requestId, 403, "FORBIDDEN", "User is inactive")
+      logRequestResult(ENDPOINT, requestId, 403)
+      return r
+    }
+    const userId = userRecord.id
+    const companyId = userRecord.company_id
 
     // Route by method
     if (req.method === "GET") {
-      // List tokens — supervisor/admin only
-      const role = user.user_metadata?.role || user.app_metadata?.role
-      if (!["supervisor", "admin", "platform_admin"].includes(role)) {
+      // List tokens — supervisor/admin only (role from DB, not JWT)
+      if (!["owner", "supervisor", "admin", "platform_admin"].includes(userRecord.role)) {
         const r = errorResponse(requestId, 403, "FORBIDDEN", "Supervisors only")
         logRequestResult(ENDPOINT, requestId, 403)
         return r
@@ -65,17 +86,17 @@ Deno.serve(async (req) => {
       const url = new URL(req.url)
       const targetUserId = url.searchParams.get("user_id")
 
-      let query = supabase
+      // Always scope to the caller's company (service role bypasses RLS, so this
+      // explicit filter is the tenant guard); optionally narrow to one user.
+      let query = supabaseAdmin
         .from("device_tokens")
         .select("id, user_id, platform, created_at, last_seen_at")
+        .eq("company_id", companyId)
         .order("last_seen_at", { ascending: false })
         .limit(50)
 
       if (targetUserId) {
         query = query.eq("user_id", targetUserId)
-      } else if (companyId) {
-        // All tokens for the company's users — requires RLS to scope properly
-        query = query.eq("company_id", companyId)
       }
 
       const { data, error } = await query
@@ -118,7 +139,7 @@ Deno.serve(async (req) => {
       }
 
       // Upsert: same user + token → update last_seen; new token → insert
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from("device_tokens")
         .upsert(
           {
@@ -151,7 +172,7 @@ Deno.serve(async (req) => {
         return r
       }
 
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from("device_tokens")
         .delete()
         .eq("user_id", userId)

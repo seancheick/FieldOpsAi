@@ -418,6 +418,13 @@ verify_jwt = false
 import_map = "./functions/galleries/deno.json"
 entrypoint = "./functions/galleries/index.ts"
 
+[functions.photo-comments]
+enabled = true
+# Bearer token validated in-function via supabase.auth.getUser(); see Lesson 44.
+verify_jwt = false
+import_map = "./functions/photo-comments/deno.json"
+entrypoint = "./functions/photo-comments/index.ts"
+
 # Sprint 8.7 gap-fill: every remaining user-auth + cron function must set
 # verify_jwt = false so Kong's HS256-only gateway verifier stops rejecting
 # ES256-signed user tokens. In-function `supabase.auth.getUser()` still

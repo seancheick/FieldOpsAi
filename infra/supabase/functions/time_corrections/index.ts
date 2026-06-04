@@ -247,9 +247,10 @@ serve(async (req) => {
               event_subtype: correction.corrected_event_subtype,
               occurred_at: correction.corrected_occurred_at,
               notes: `Manual time correction by ${userRecord.full_name}. Reason: ${correction.reason}`,
-              is_correction: true,
-              correction_id: correction_id,
-              created_by: user.id,
+              // clock_events has no is_correction/correction_id/created_by columns —
+              // persist the correction linkage via source_event_uuid + metadata.
+              source_event_uuid: correction_id,
+              metadata: { is_correction: true, correction_id, created_by: user.id },
             })
 
           if (eventError) throw eventError
@@ -289,6 +290,11 @@ serve(async (req) => {
     return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Use GET or POST")
   } catch (error) {
     logRequestError(ENDPOINT, requestId, error)
-    return errorResponse(requestId, 500, "INTERNAL_ERROR", error.message || "Internal server error")
+    return errorResponse(
+      requestId,
+      500,
+      "INTERNAL_ERROR",
+      error instanceof Error ? error.message : "Internal server error",
+    )
   }
 })

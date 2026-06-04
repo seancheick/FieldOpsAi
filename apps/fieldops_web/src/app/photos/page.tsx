@@ -14,6 +14,7 @@ import { BulkTagDialog } from "@/components/photos/BulkTagDialog";
 import { SaveAsGalleryDialog } from "@/components/photos/SaveAsGalleryDialog";
 import { ShareLinkDialog } from "@/components/photos/ShareLinkDialog";
 import { PhotoReviewActions, type ReviewStatus } from "@/components/photos/PhotoReviewActions";
+import { PhotoCommentsPanel } from "@/components/photos/PhotoCommentsPanel";
 import { useCurrentUser } from "@/lib/use-role";
 
 interface PhotoEntry {
@@ -1358,7 +1359,7 @@ function PhotoFeedContent() {
             onClick={closeLightbox}
           >
             <div
-              className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-card shadow-2xl"
+              className="relative max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-card shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -1434,7 +1435,8 @@ function PhotoFeedContent() {
                 )}
               </div>
 
-              {/* Metadata */}
+              {/* Metadata + comments (two-pane on lg) */}
+              <div className="grid lg:grid-cols-2">
               <div className="space-y-3 p-6">
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-semibold text-slate-900">{lbWorker}</span>
@@ -1483,6 +1485,18 @@ function PhotoFeedContent() {
                 <p className="text-xs text-slate-500 text-center pt-2">
                   {selectedPhotoIndex + 1} of {filteredPhotos.length}
                 </p>
+              </div>
+
+              {/* Comments sidebar */}
+              {lightboxPhoto.media_asset_id && (
+                <div className="flex h-[50vh] flex-col border-t border-stone-200 p-4 dark:border-slate-700 lg:h-[60vh] lg:border-l lg:border-t-0">
+                  <PhotoCommentsPanel
+                    mediaAssetId={lightboxPhoto.media_asset_id}
+                    companyId={currentCompanyId ?? ""}
+                    accessToken={accessToken}
+                  />
+                </div>
+              )}
               </div>
             </div>
           </div>

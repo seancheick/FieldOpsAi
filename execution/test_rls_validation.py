@@ -91,7 +91,12 @@ def run_sql_as_user(user_id: str, sql: str) -> str:
          "psql", "-U", "postgres", "-d", "postgres", "-t", "-A", "-c", wrapped],
         capture_output=True, text=True, timeout=15,
     )
-    return result.stdout.strip()
+    lines = [
+        line.strip()
+        for line in result.stdout.splitlines()
+        if line.strip() and line.strip() not in {"BEGIN", "SET", "COMMIT"}
+    ]
+    return lines[-1] if lines else ""
 
 
 # ─── Test Tier 1: Schema Checks ──────────────────────────────

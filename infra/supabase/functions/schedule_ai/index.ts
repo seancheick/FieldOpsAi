@@ -40,6 +40,27 @@ serve(async (req) => {
       });
     }
 
+    // Resolve the caller's company from the DB (never trust the request body for
+    // tenant scope). All shift queries below MUST be scoped to this company —
+    // supabaseAdmin bypasses RLS, so this is the only tenant guard.
+    const { data: userRecord, error: userError } = await supabaseAdmin
+      .from("users")
+      .select("id, company_id, is_active")
+      .eq("id", user.id)
+      .single();
+    if (userError || !userRecord) {
+      return new Response(JSON.stringify({ error: "User record not found" }), {
+        status: 401,
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
+    if (!userRecord.is_active) {
+      return new Response(JSON.stringify({ error: "User is inactive" }), {
+        status: 403,
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
+
     const body: AiRequest = await req.json();
     const { anchorDate, jobs } = body;
 
@@ -60,7 +81,10 @@ serve(async (req) => {
     // Fetch historical published shifts with worker names
     const { data: historicalShifts, error: histError } = await supabaseAdmin
       .from("schedule_shifts")
-      .select("worker_id, job_id, start_time, end_time, users!inner(id, full_name)")
+      // Disambiguate the embed: schedule_shifts has 3 FKs to users
+      // (worker_id, created_by, published_by) — name the worker FK explicitly.
+      .select("worker_id, job_id, start_time, end_time, users!schedule_shifts_worker_id_fkey!inner(id, full_name)")
+      .eq("company_id", userRecord.company_id)
       .in("job_id", jobs)
       .gte("shift_date", lookbackStart.toISOString().slice(0, 10))
       .lte("shift_date", lookbackEnd.toISOString().slice(0, 10))
