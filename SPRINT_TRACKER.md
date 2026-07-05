@@ -1851,8 +1851,32 @@ Migrations applied to prod via CLI; alerts edge function redeployed. Verificatio
 
 - **FUX-013b** — Auto-flag trigger (photo GPS >100m from job site, or within 30s of previous photo by same user). Small backend PR on top of `photo_reviews`.
 - **FUX-014b** — Bulk timecard PDF export. Needs a server-side renderer (jsPDF / puppeteer edge function); deferred because client-side PDF is a rabbit hole.
-- **FUX-015** — Phone heartbeat (backend + mobile + web, spans 3 apps). Dedicated session — biggest remaining scope item.
+- **FUX-015** — Phone heartbeat (backend + mobile + web, spans 3 apps). ✅ Shipped 2026-07-05 (see Sprint 8.12 below).
 - **FUX-016b** — Admin `/settings/certifications` CRUD page. Table + RLS live; needs the UI on top.
+
+---
+
+## Sprint 8.12 — Pre-beta security audit + hardening (2026-07-05)
+
+Full-repo + live-DB audit before first-customer beta. Shipped same day.
+
+### Fixed
+
+- [x] **Foreman privilege escalation across 11 edge functions** — backend `SUPERVISOR_AND_ABOVE_ROLES` wrongly included foreman (web copy of the constant didn't), so crew leads could edit budgets, generate/countersign timecards, approve/reimburse expenses, generate reports, resolve alerts, manage galleries, and issue/revoke permits. Split into two explicit tiers: `isSupervisorOrAbove` (money/payroll/company-wide, now genuinely supervisor+) and new `isForemanOrAbove` (ot decide, pto decide/pending_approvals, time_corrections decide, schedule writes, crew attendance — each backed by a shipped mobile foreman screen). Evidence: `infra/supabase/functions/_shared/roles.ts`, commit `3e21482`.
+- [x] **Event-store partition horizon expired** — partitions ended 2026-07-01; server date 2026-07-05 meant every new event went to `*_default` (no pruning, blocks future partition attachment). Migration `20260421700000`: `ensure_event_partitions()` creates +6 months for all 9 roots, secures each via `secure_event_partition()`, rescues DEFAULT-stranded rows, and a monthly pg_cron job keeps the horizon rolling.
+- [x] **4 remaining realtime channel collisions** (workers, map, photos, timeline) — same crash class as `f3e57bf`; per-mount nonce applied.
+- [x] **FUX-015 worker heartbeat shipped** — `users.last_seen_at` + `touch_last_seen()` RPC (migration `20260421800000`), mobile 4-min foreground ping, `/workers` "phone dark" amber/red badges for clocked-in workers.
+- [x] **Bulk PTO approval on `/pto`** — mirrors the `/overtime` bulk bar; serial decide loop with per-call idempotency keys. i18n EN/ES.
+
+### Deferred (tracked)
+
+- [ ] Offline outbox covers only clock + photo — PTO/safety/expense/task/OT writes throw when offline. Safety submit (blocks clock-in) is the highest-impact gap. Structural: route writes through the Drift outbox. ~1 day.
+- [ ] Photo review queue on mobile foreman (web-only today). ~2 h.
+- [ ] `background_jobs` SQL helpers → SECURITY DEFINER (defense in depth; not exploitable today).
+
+### ⚠️ Production deploy debt (blocking real beta)
+
+Live project is behind git: migrations `20260420900000`..`20260421800000` (incl. the CRITICAL partition-RLS fix `20260421100000` and the partition-horizon fix) are **not applied**, and 20+ edge functions (incl. everything touched by the roles split) are **not redeployed**. Nothing above protects users until this ships.
 
 ---
 
