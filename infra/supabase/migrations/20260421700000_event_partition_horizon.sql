@@ -36,6 +36,7 @@ DECLARE
     'correction_events','shift_report_events'
   ];
   root         text;
+  part_col     text;
   month_start  date;
   month_end    date;
   part_name    text;
@@ -49,6 +50,18 @@ BEGIN
       IF to_regclass('public.' || root) IS NULL THEN
         CONTINUE;  -- defensive: root missing in this environment
       END IF;
+
+      -- Partition column differs per root (ot_requests → requested_at,
+      -- alert_events → triggered_at, rest → occurred_at). Resolve it from
+      -- the catalog instead of assuming.
+      SELECT a.attname INTO part_col
+        FROM pg_partitioned_table pt
+        JOIN pg_attribute a
+          ON a.attrelid = pt.partrelid AND a.attnum = pt.partattrs[0]
+       WHERE pt.partrelid = ('public.' || root)::regclass;
+      IF part_col IS NULL THEN
+        CONTINUE;  -- not actually partitioned; skip
+      END IF;
       part_name := format('%s_%s', root, to_char(month_start, 'YYYY_MM'));
       IF to_regclass('public.' || part_name) IS NOT NULL THEN
         CONTINUE;  -- partition already exists
@@ -60,12 +73,12 @@ BEGIN
       EXECUTE format(
         'CREATE TEMP TABLE _repart AS
            SELECT * FROM %I_default
-           WHERE occurred_at >= %L AND occurred_at < %L',
-        root, month_start, month_end);
+           WHERE %I >= %L AND %I < %L',
+        root, part_col, month_start, part_col, month_end);
       EXECUTE format(
         'DELETE FROM %I_default
-           WHERE occurred_at >= %L AND occurred_at < %L',
-        root, month_start, month_end);
+           WHERE %I >= %L AND %I < %L',
+        root, part_col, month_start, part_col, month_end);
 
       EXECUTE format(
         'CREATE TABLE %I PARTITION OF %I FOR VALUES FROM (%L) TO (%L)',
