@@ -13,6 +13,22 @@ interface WorkerStatus {
   current_job: string | null;
   clock_in_time: string | null;
   hours_today: number;
+  last_seen_at: string | null;
+}
+
+/// FUX-015: mobile pings touch_last_seen() every ~4 min while foregrounded.
+/// For a clocked-in worker a stale ping means their phone has gone dark —
+/// the one state a supervisor genuinely can't see any other way.
+function lastSeenBadge(w: WorkerStatus): { text: string; tone: "ok" | "warn" | "bad" } | null {
+  if (!w.last_seen_at) return null;
+  const mins = Math.floor((Date.now() - new Date(w.last_seen_at).getTime()) / 60000);
+  const onClock = w.status === "clocked_in" || w.status === "on_break";
+  const text =
+    mins < 1 ? "just now" : mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`;
+  if (!onClock) return { text, tone: "ok" };
+  if (mins > 120) return { text, tone: "bad" };
+  if (mins > 30) return { text, tone: "warn" };
+  return { text, tone: "ok" };
 }
 
 const STATUS_ORDER: Record<WorkerStatus["status"], number> = {
@@ -42,7 +58,7 @@ export default function WorkersPage() {
       // Fetch all workers
       const { data: users } = await supabase
         .from("users")
-        .select("id, full_name, role, is_active")
+        .select("id, full_name, role, is_active, last_seen_at")
         .eq("is_active", true)
         .order("full_name");
 
@@ -122,6 +138,7 @@ export default function WorkersPage() {
           current_job: latest?.job ?? null,
           clock_in_time: latest?.time ?? null,
           hours_today: +(hoursMap.get(uid) ?? 0).toFixed(1),
+          last_seen_at: (u.last_seen_at as string | null) ?? null,
         };
       });
 
@@ -369,6 +386,23 @@ export default function WorkersPage() {
                         <span className={`inline-block h-2 w-2 rounded-full ${cfg.dot}`} />
                         {cfg.label}
                       </span>
+                      {(() => {
+                        const seen = lastSeenBadge(w);
+                        if (!seen) return null;
+                        const toneCls =
+                          seen.tone === "bad"
+                            ? "text-red-600 dark:text-red-400 font-semibold"
+                            : seen.tone === "warn"
+                              ? "text-amber-600 dark:text-amber-400 font-semibold"
+                              : "text-slate-400 dark:text-slate-500";
+                        return (
+                          <div className={`mt-1 text-[11px] ${toneCls}`}>
+                            {seen.tone === "bad"
+                              ? `⚠ phone dark ${seen.text}`
+                              : `ping ${seen.text}`}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-5 py-3 text-slate-600 dark:text-slate-400">
                       {w.current_job ?? "—"}

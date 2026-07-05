@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { callFunctionJson } from "@/lib/function-client";
 import { SkeletonCard } from "@/components/ui/skeleton";
+import { BulkActionBar } from "@/components/bulk-action-bar";
 
 interface PTORequest {
   id: string;
@@ -46,6 +47,11 @@ export default function PTOPage() {
   const [filter, setFilter] = useState<string>("pending");
   const [decidingId, setDecidingId] = useState<string | null>(null);
   const [decisionReason, setDecisionReason] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDecision, setBulkDecision] = useState<"" | "approved" | "denied">("");
+  const [bulkReasonInput, setBulkReasonInput] = useState("");
+  const [bulkInFlight, setBulkInFlight] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
 
   const loadRequests = useCallback(async () => {
     setError(null);
@@ -63,6 +69,9 @@ export default function PTOPage() {
 
   useEffect(() => {
     setLoading(true);
+    setSelectedIds(new Set());
+    setBulkDecision("");
+    setBulkReasonInput("");
     loadRequests();
   }, [loadRequests]);
 
@@ -87,6 +96,55 @@ export default function PTOPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Decision failed");
     }
+  }
+
+  const runBulkDecision = useCallback(
+    async (decision: "approved" | "denied", reason: string) => {
+      const ids = Array.from(selectedIds);
+      if (ids.length === 0) return;
+      setBulkInFlight(true);
+      setBulkProgress({ done: 0, total: ids.length });
+      setError(null);
+      try {
+        // Serial loop through the existing single-row endpoint — mirrors the
+        // /overtime bulk flow. Each call gets its own Idempotency-Key.
+        for (let i = 0; i < ids.length; i++) {
+          await callFunctionJson("pto", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Idempotency-Key": crypto.randomUUID(),
+            },
+            body: JSON.stringify({
+              action: "decide",
+              pto_request_id: ids[i],
+              decision,
+              reason: reason.trim() || undefined,
+            }),
+          });
+          setBulkProgress({ done: i + 1, total: ids.length });
+        }
+        setSelectedIds(new Set());
+        setBulkDecision("");
+        setBulkReasonInput("");
+        await loadRequests();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : t("ptoPage.decisionFailed"));
+      } finally {
+        setBulkInFlight(false);
+        setBulkProgress(null);
+      }
+    },
+    [selectedIds, loadRequests, t],
+  );
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   const kpiStats = useMemo(() => {
@@ -171,12 +229,116 @@ export default function PTOPage() {
         </div>
       )}
 
+      {/* Bulk selection — pending tab only */}
+      {filter === "pending" && requests.length > 0 && (
+        <>
+          <BulkActionBar
+            count={selectedIds.size}
+            onClear={() => {
+              setSelectedIds(new Set());
+              setBulkDecision("");
+              setBulkReasonInput("");
+            }}
+            selectedLabel={
+              bulkProgress
+                ? t("ptoPage.bulkProgress", {
+                    done: bulkProgress.done,
+                    total: bulkProgress.total,
+                  })
+                : t("ptoPage.bulkSelected", { count: selectedIds.size })
+            }
+            actions={[
+              {
+                label: t("ptoPage.bulkApprove"),
+                tone: "primary",
+                disabled: bulkInFlight,
+                onClick: () => setBulkDecision("approved"),
+              },
+              {
+                label: t("ptoPage.bulkDeny"),
+                tone: "danger",
+                disabled: bulkInFlight,
+                onClick: () => setBulkDecision("denied"),
+              },
+            ]}
+          />
+
+          {bulkDecision !== "" && selectedIds.size > 0 && (
+            <div className="mb-4 rounded-xl border border-stone-200 bg-card p-4 dark:border-slate-800 dark:bg-slate-900">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-400">
+                {bulkDecision === "approved"
+                  ? t("ptoPage.reasonForApproval")
+                  : t("ptoPage.reasonForDenial")}
+              </label>
+              <textarea
+                value={bulkReasonInput}
+                onChange={(e) => setBulkReasonInput(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                rows={2}
+              />
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => runBulkDecision(bulkDecision, bulkReasonInput)}
+                  disabled={
+                    bulkInFlight ||
+                    (bulkDecision === "denied" && !bulkReasonInput.trim())
+                  }
+                  className={`rounded-lg px-4 py-1.5 text-sm font-semibold text-white disabled:bg-stone-100 disabled:text-slate-400 ${
+                    bulkDecision === "approved"
+                      ? "bg-green-600 hover:bg-green-700"
+                      : "bg-red-600 hover:bg-red-700"
+                  }`}
+                >
+                  {bulkInFlight
+                    ? t("ptoPage.submitting")
+                    : t("ptoPage.confirmBulk", { count: selectedIds.size })}
+                </button>
+                <button
+                  onClick={() => {
+                    setBulkDecision("");
+                    setBulkReasonInput("");
+                  }}
+                  disabled={bulkInFlight}
+                  className="rounded-lg bg-stone-100 px-4 py-1.5 text-sm font-semibold text-slate-600 hover:bg-stone-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+                >
+                  {t("common.cancel")}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <label className="mb-2 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+            <input
+              type="checkbox"
+              checked={selectedIds.size === requests.length && requests.length > 0}
+              onChange={(e) =>
+                setSelectedIds(
+                  e.target.checked ? new Set(requests.map((r) => r.id)) : new Set(),
+                )
+              }
+              className="h-4 w-4 rounded border-stone-300 text-amber-500 focus:ring-amber-500"
+            />
+            {t("ptoPage.selectAll")}
+          </label>
+        </>
+      )}
+
       <div className="space-y-3">
         {requests.map((req) => {
           const colors = STATUS_COLORS[req.status] ?? STATUS_COLORS.pending;
           return (
             <div key={req.id} className="rounded-2xl border border-stone-200 bg-card p-5 shadow-sm">
               <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  {filter === "pending" && req.status === "pending" && (
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(req.id)}
+                      onChange={() => toggleSelected(req.id)}
+                      aria-label={`Select PTO request from ${req.users?.full_name ?? "worker"}`}
+                      className="mt-1 h-4 w-4 rounded border-stone-300 text-amber-500 focus:ring-amber-500"
+                    />
+                  )}
                 <div>
                   <div className="font-semibold text-slate-900">
                     {req.users?.full_name ?? "Unknown"}
@@ -192,6 +354,7 @@ export default function PTOPage() {
                       Decision: {req.decision_reason}
                     </div>
                   )}
+                </div>
                 </div>
                 <span className={`rounded-full px-3 py-1 text-xs font-bold ${colors.bg} ${colors.text}`}>
                   {req.status.toUpperCase()}

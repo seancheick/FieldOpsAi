@@ -1,6 +1,7 @@
 import 'package:fieldops_mobile/app/main_shell.dart';
 import 'package:fieldops_mobile/app/theme/app_theme.dart';
 import 'package:fieldops_mobile/core/config/fieldops_environment.dart';
+import 'package:fieldops_mobile/core/observability/heartbeat_service.dart';
 import 'package:fieldops_mobile/features/auth/presentation/app_lock_controller.dart';
 import 'package:fieldops_mobile/features/auth/presentation/app_lock_screen.dart';
 import 'package:fieldops_mobile/features/auth/presentation/configuration_required_screen.dart';
@@ -35,13 +36,19 @@ class _FieldOpsAppState extends ConsumerState<FieldOpsApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final lockController = ref.read(appLockControllerProvider.notifier);
+    final heartbeat = ref.read(heartbeatServiceProvider);
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
-      // Lock when app goes to background.
+      // Lock when app goes to background; stop pinging so the timestamp
+      // goes honestly stale (that staleness is the whole point of FUX-015).
       lockController.lock();
+      heartbeat.stop();
     } else if (state == AppLifecycleState.resumed) {
       // Reset inactivity timer on resume if not locked.
       lockController.recordActivity();
+      if (ref.read(sessionControllerProvider).isAuthenticated) {
+        heartbeat.start();
+      }
     }
   }
 
@@ -51,13 +58,16 @@ class _FieldOpsAppState extends ConsumerState<FieldOpsApp>
     final session = ref.watch(sessionControllerProvider);
     final lockState = ref.watch(appLockControllerProvider);
 
-    // Enable lock when authenticated, disable when not.
+    // Enable lock + heartbeat when authenticated, disable when not.
     ref.listen(sessionControllerProvider, (prev, next) {
       final lockNotifier = ref.read(appLockControllerProvider.notifier);
+      final heartbeat = ref.read(heartbeatServiceProvider);
       if (next.isAuthenticated && !(prev?.isAuthenticated ?? false)) {
         lockNotifier.enable();
+        heartbeat.start();
       } else if (!next.isAuthenticated) {
         lockNotifier.disable();
+        heartbeat.stop();
       }
     });
 
