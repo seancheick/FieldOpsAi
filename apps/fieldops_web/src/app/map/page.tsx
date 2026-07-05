@@ -251,7 +251,7 @@ export default function MapPage() {
   useEffect(() => {
     const supabase = getSupabase();
     const channel = supabase
-      .channel("map-live")
+      .channel(`map-live-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {

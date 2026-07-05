@@ -11,7 +11,7 @@ import {
   logRequestStart,
   makeRequestId,
 } from "../_shared/api.ts"
-import { FOREMAN_ROLE, isSupervisorOrAbove, WORKER_ROLE } from "../_shared/roles.ts"
+import { FOREMAN_ROLE, isForemanOrAbove, WORKER_ROLE } from "../_shared/roles.ts"
 
 const ENDPOINT = "crew"
 const CREW_RATE_LIMIT = 60
@@ -74,7 +74,7 @@ serve(async (req) => {
     if (!userRecord.is_active) {
       return errorResponse(requestId, 403, "FORBIDDEN", "User is inactive")
     }
-    if (!isSupervisorOrAbove(userRecord.role)) {
+    if (!isForemanOrAbove(userRecord.role)) {
       return errorResponse(requestId, 403, "FORBIDDEN", "Only foreman, supervisor, admin, or owner can view crew attendance")
     }
 

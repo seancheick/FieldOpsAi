@@ -63,7 +63,10 @@ serve(async (req) => {
       return errorResponse(requestId, 403, "FORBIDDEN", "User is inactive")
     }
 
-    // Owners, admins, and supervisors can send invites.
+    // Owners, admins, and supervisors can send invites. Deliberately NOT
+    // isForemanOrAbove — foremen must not mint company invites. The literal
+    // check is equivalent to isSupervisorOrAbove; kept explicit so a future
+    // roles.ts refactor can't silently widen this gate.
     if (!isManagementRole(userRecord.role) && userRecord.role !== "supervisor") {
       return errorResponse(requestId, 403, "FORBIDDEN", "Only owners, admins, or supervisors can send invites")
     }

@@ -14,7 +14,7 @@ import {
   sha256Hex,
   storeIdempotency,
 } from "../_shared/api.ts"
-import { isManagementRole, isSupervisorOrAbove } from "../_shared/roles.ts"
+import { isForemanOrAbove, isManagementRole, isSupervisorOrAbove } from "../_shared/roles.ts"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const PTO_TYPES = ["vacation", "sick", "personal"] as const
@@ -91,8 +91,8 @@ serve(async (req) => {
 
     // ── Inner: decide (shared by decide / approve / deny actions) ─────
     async function decideImpl(pto_request_id: string, decision: "approved" | "denied", reason?: string | null) {
-      if (!isSupervisorOrAbove(userRecord.role)) {
-        return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can decide PTO requests")
+      if (!isForemanOrAbove(userRecord.role)) {
+        return errorResponse(requestId, 403, "FORBIDDEN", "Only foremen, supervisors, admins, or owners can decide PTO requests")
       }
 
       if (!pto_request_id) {
@@ -443,8 +443,8 @@ serve(async (req) => {
 
     // ── Action: pending_approvals (supervisor-gated list) ─
     if (action === "pending_approvals") {
-      if (!isSupervisorOrAbove(userRecord.role)) {
-        return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can view pending approvals")
+      if (!isForemanOrAbove(userRecord.role)) {
+        return errorResponse(requestId, 403, "FORBIDDEN", "Only foremen, supervisors, admins, or owners can view pending approvals")
       }
 
       const { data: requests, error: fetchError } = await supabaseAdmin

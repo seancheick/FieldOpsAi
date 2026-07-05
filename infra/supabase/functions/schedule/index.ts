@@ -15,7 +15,7 @@ import {
   sha256Hex,
   storeIdempotency,
 } from "../_shared/api.ts"
-import { isSupervisorOrAbove } from "../_shared/roles.ts"
+import { isForemanOrAbove } from "../_shared/roles.ts"
 
 const ENDPOINT = "schedule"
 const RATE_LIMIT = 20
@@ -369,9 +369,9 @@ serve(async (req) => {
       return jsonResponse(responseBody, 200, requestId, rateLimit.headers)
     }
 
-    // Every action below requires supervisor-or-above (includes foreman).
-    if (!isSupervisorOrAbove(userRecord.role)) {
-      return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can manage schedules")
+    // Every action below requires foreman-or-above (crew schedule writes).
+    if (!isForemanOrAbove(userRecord.role)) {
+      return errorResponse(requestId, 403, "FORBIDDEN", "Only foremen, supervisors, admins, or owners can manage schedules")
     }
 
     if (action === "create") {

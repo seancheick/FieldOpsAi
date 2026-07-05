@@ -14,7 +14,7 @@ import {
   sha256Hex,
   storeIdempotency,
 } from "../_shared/api.ts"
-import { isSupervisorOrAbove } from "../_shared/roles.ts"
+import { isForemanOrAbove } from "../_shared/roles.ts"
 
 const ENDPOINT = "ot"
 const OT_RATE_LIMIT = 20
@@ -217,9 +217,9 @@ serve(async (req) => {
       // ── ACTION: pending (supervisor list — mirrors GET with status=pending) ──
       // Read-only, no Idempotency-Key, no idempotency replay. Rate-limited.
       if (action === "pending") {
-        if (!isSupervisorOrAbove(userRecord.role)) {
+        if (!isForemanOrAbove(userRecord.role)) {
           return errorResponse(requestId, 403, "FORBIDDEN",
-            "Only supervisors, admins, or owners can list pending OT requests")
+            "Only foremen, supervisors, admins, or owners can list pending OT requests")
         }
 
         const rateLimit = await applyRateLimit(supabaseAdmin, user.id, ENDPOINT, requestId, OT_RATE_LIMIT)
@@ -390,8 +390,8 @@ serve(async (req) => {
         if (!ot_request_id) {
           return errorResponse(requestId, 400, "INVALID_PAYLOAD", "ot_request_id is required")
         }
-        if (!isSupervisorOrAbove(userRecord.role)) {
-          return errorResponse(requestId, 403, "FORBIDDEN", "Only supervisors, admins, or owners can approve OT requests")
+        if (!isForemanOrAbove(userRecord.role)) {
+          return errorResponse(requestId, 403, "FORBIDDEN", "Only foremen, supervisors, admins, or owners can approve OT requests")
         }
         const { data: otRequest, error: otError } = await supabaseAdmin
           .from("ot_requests")

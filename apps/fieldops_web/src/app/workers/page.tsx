@@ -141,7 +141,7 @@ export default function WorkersPage() {
 
     const supabase = getSupabase();
     const channel = supabase
-      .channel("workers-live")
+      .channel(`workers-live-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {

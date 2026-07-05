@@ -416,7 +416,7 @@ function PhotoFeedContent() {
 
     const supabase = getSupabase();
     const channel = supabase
-      .channel(`photos-job-${jobId}`)
+      .channel(`photos-job-${jobId}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {

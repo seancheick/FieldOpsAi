@@ -336,7 +336,9 @@ function TimelineEventsList({ jobId }: TimelineEventsListProps) {
     loadTimeline();
 
     const supabase = getSupabase();
-    let channel = supabase.channel(`timeline-job-${jobId}`);
+    let channel = supabase.channel(
+      `timeline-job-${jobId}-${Math.random().toString(36).slice(2)}`,
+    );
 
     for (const table of TIMELINE_SOURCE_TABLES) {
       channel = channel.on(
