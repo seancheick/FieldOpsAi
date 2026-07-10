@@ -1,6 +1,7 @@
 "use client";
 
 import { getSupabase } from "@/lib/supabase";
+import { reportError } from "@/lib/observability";
 
 type QueryValue = string | number | boolean | null | undefined;
 
@@ -47,13 +48,25 @@ export async function callFunctionJson<T>(
     throw new Error("Missing session");
   }
 
-  const response = await fetch(buildFunctionUrl(path, query), {
-    ...init,
-    headers: {
-      ...headers,
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(buildFunctionUrl(path, query), {
+      ...init,
+      headers: {
+        ...headers,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  } catch (networkErr) {
+    // Central choke point: every edge-function call in the app flows through
+    // here, so one capture covers them all. Callers still get the throw and
+    // render their inline error UI as before.
+    reportError(networkErr, {
+      source: "callFunctionJson.network",
+      extra: { fn: path, method: init.method ?? "GET" },
+    });
+    throw networkErr;
+  }
 
   const payload = await parseJsonSafely(response);
   if (!response.ok) {
@@ -61,6 +74,20 @@ export async function callFunctionJson<T>(
       payload && typeof payload === "object" && "message" in payload && typeof payload.message === "string"
         ? payload.message
         : `Request failed for ${path}`;
+    // 4xx auth/validation noise is worth seeing too, but only 5xx and 404
+    // (missing function = deploy drift) page a human via alert rules.
+    reportError(new Error(`[edge:${path}] ${response.status} ${message}`), {
+      source: "callFunctionJson.response",
+      extra: {
+        fn: path,
+        method: init.method ?? "GET",
+        status: response.status,
+        request_id:
+          payload && typeof payload === "object" && "request_id" in payload
+            ? (payload as { request_id?: string }).request_id
+            : undefined,
+      },
+    });
     throw new Error(message);
   }
 

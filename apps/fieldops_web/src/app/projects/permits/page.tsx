@@ -76,7 +76,7 @@ interface JobOption {
   id: string;
   name: string;
   code: string;
-  permit_required?: boolean | null;
+  requires_permit?: boolean | null;
 }
 
 type StatusFilter = "all" | PermitStatus;
@@ -122,7 +122,7 @@ export default function WorkPermitsPage() {
     const supabase = getSupabase();
     const res = await supabase
       .from("jobs")
-      .select("id, name, code, permit_required")
+      .select("id, name, code, requires_permit")
       .eq("company_id", currentUser.companyId)
       .in("status", ACTIVE_JOB_STATUSES as unknown as string[])
       .order("name", { ascending: true });
@@ -171,7 +171,7 @@ export default function WorkPermitsPage() {
 
   const blockingJobIds = useMemo(() => {
     const requiredIds = new Set(
-      jobs.filter((j) => j.permit_required).map((j) => j.id),
+      jobs.filter((j) => j.requires_permit).map((j) => j.id),
     );
     const jobsWithActive = new Set(
       permits

@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Stripe from "npm:stripe@18.5.0"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4"
-import { corsHeaders, errorResponse, jsonResponse, makeRequestId } from "../_shared/api.ts"
+import { corsHeaders, errorResponse, jsonResponse, logRequestError, makeRequestId } from "../_shared/api.ts"
 
 function planFromSubscription(subscription: Stripe.Subscription | null): string {
   const price = subscription?.items.data[0]?.price
@@ -132,7 +132,7 @@ serve(async (req) => {
       request_id: requestId,
     }, 200, requestId)
   } catch (error) {
-    console.error("stripe_webhook error:", error)
+    logRequestError("stripe_webhook", requestId, error)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", error instanceof Error ? error.message : "Internal server error")
   }
 })

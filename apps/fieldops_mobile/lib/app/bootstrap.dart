@@ -56,7 +56,15 @@ Future<void> bootstrap() async {
     observers: [FieldOpsProviderObserver()],
   );
 
-  const sentryDsn = String.fromEnvironment('SENTRY_DSN', defaultValue: '');
+  // DSNs are publishable identifiers, so the production DSN ships as the
+  // default — Sentry works out of the box on every build instead of being
+  // silently disabled when --dart-define=SENTRY_DSN is forgotten. The
+  // dart-define still wins for staging/self-hosted overrides.
+  const sentryDsn = String.fromEnvironment(
+    'SENTRY_DSN',
+    defaultValue:
+        'https://6cd0a22445196fef72d3c7fa93e4a596@o4511242297540608.ingest.us.sentry.io/4511242378018816',
+  );
 
   final app = UncontrolledProviderScope(
     container: container,
@@ -70,6 +78,9 @@ Future<void> bootstrap() async {
           options.dsn = sentryDsn;
           options.tracesSampleRate = kReleaseMode ? 0.2 : 1.0;
           options.environment = kReleaseMode ? 'production' : 'development';
+          // Distinguish surfaces in the shared Sentry project.
+          // ignore: deprecated_member_use
+          Sentry.configureScope((scope) => scope.setTag('app', 'mobile'));
           options.attachScreenshot = kReleaseMode;
           // ignore: experimental_member_use
           options.attachViewHierarchy = kReleaseMode;

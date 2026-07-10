@@ -8,6 +8,7 @@ import {
   jsonResponse,
   logRequestStart,
   makeRequestId,
+  logRequestError,
 } from "../_shared/api.ts"
 
 const ENDPOINT = "breadcrumbs"
@@ -111,6 +112,7 @@ serve(async (req) => {
 
     return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Use GET or POST")
   } catch (e) {
+    logRequestError(ENDPOINT, requestId, e)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", e instanceof Error ? e.message : "Unknown error")
   }
 })

@@ -8,6 +8,7 @@ import {
   errorResponse,
   jsonResponse,
   makeRequestId,
+  logRequestError,
 } from "../_shared/api.ts"
 
 const ENDPOINT = "client_portal"
@@ -314,7 +315,7 @@ serve(async (req) => {
 
     return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Method not allowed")
   } catch (error) {
-    console.error("[client_portal] error:", error)
+    logRequestError("client_portal", requestId, error)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", (error as Error).message || "Internal error")
   }
 })

@@ -7,6 +7,7 @@ import {
   jsonResponse,
   logRequestStart,
   makeRequestId,
+  logRequestError,
 } from "../_shared/api.ts"
 
 /**
@@ -84,6 +85,7 @@ serve(async (req) => {
       request_id: requestId,
     }, 200, requestId)
   } catch (e) {
+    logRequestError("job_worker", requestId, e)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", e instanceof Error ? e.message : "Unknown error")
   }
 })

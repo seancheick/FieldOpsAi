@@ -1,3 +1,5 @@
+import { captureEdgeError } from "./sentry.ts"
+
 const stripTrailingSlash = (s: string) => s.replace(/\/+$/, "")
 
 const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") || "*")
@@ -77,6 +79,26 @@ export function logRequestResult(
     status,
     ...metadata,
   })
+  if (status >= 500) {
+    captureEdgeError(new Error(`request_finish ${status} on ${endpoint}`), {
+      endpoint,
+      requestId,
+      status,
+      metadata,
+    })
+  }
+}
+
+// requestIds whose failure was already sent to Sentry with a full stack
+// via logRequestError — errorResponse() checks this to avoid a second,
+// stackless event for the same request. Isolates are short-lived; the set
+// stays tiny, but cap it defensively anyway.
+const capturedRequestIds = new Set<string>()
+const CAPTURED_IDS_MAX = 1000
+
+export function markRequestCaptured(requestId: string) {
+  if (capturedRequestIds.size >= CAPTURED_IDS_MAX) capturedRequestIds.clear()
+  capturedRequestIds.add(requestId)
 }
 
 export function logRequestError(endpoint: string, requestId: string, error: unknown, metadata: JsonObject = {}) {
@@ -87,6 +109,10 @@ export function logRequestError(endpoint: string, requestId: string, error: unkn
     error: error instanceof Error ? error.message : String(error),
     ...metadata,
   })
+  // Every function's catch path funnels through here — one hook, full
+  // fleet coverage. Fire-and-forget; never blocks the response.
+  markRequestCaptured(requestId)
+  captureEdgeError(error, { endpoint, requestId, metadata })
 }
 
 export function responseHeaders(requestId: string, extra: Record<string, string> = {}) {
@@ -122,6 +148,17 @@ export function errorResponse(
   details: JsonValue[] = [],
   extraHeaders: Record<string, string> = {},
 ) {
+  // Safety net: every 5xx response reaches Sentry even when the calling
+  // code returned errorResponse() directly without logRequestError().
+  // Exception paths are deduped via markRequestCaptured().
+  if (status >= 500 && !capturedRequestIds.has(requestId)) {
+    markRequestCaptured(requestId)
+    captureEdgeError(new Error(`${errorCode}: ${message}`), {
+      endpoint: "errorResponse",
+      requestId,
+      status,
+    })
+  }
   return jsonResponse(
     {
       status: "error",

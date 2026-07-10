@@ -7,6 +7,7 @@ import {
   errorResponse,
   jsonResponse,
   makeRequestId,
+  logRequestError,
 } from "../_shared/api.ts"
 import { OWNER_ROLE, isManagementRole } from "../_shared/roles.ts"
 
@@ -247,7 +248,7 @@ serve(async (req) => {
 
     return errorResponse(requestId, 405, "METHOD_NOT_ALLOWED", "Use GET or POST")
   } catch (error) {
-    console.error("invites error:", error)
+    logRequestError("invites", requestId, error)
     return errorResponse(requestId, 500, "INTERNAL_ERROR", error.message || "Internal server error")
   }
 })

@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:fieldops_mobile/core/data/local_database.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 const _maxRetries = 5;
@@ -71,6 +72,7 @@ class SyncEngine {
           event.id,
           'Malformed JSON payload (permanent): $e',
         );
+        _reportDeadEvent(event, 'malformed_json', e);
         return;
       }
 
@@ -86,6 +88,7 @@ class SyncEngine {
             event.id,
             'Unknown event type: ${event.eventType}',
           );
+          _reportDeadEvent(event, 'unknown_event_type', null);
       }
     } on Exception catch (e) {
       final newRetryCount = event.retryCount + 1;
@@ -94,10 +97,32 @@ class SyncEngine {
           event.id,
           'Max retries exceeded: $e',
         );
+        _reportDeadEvent(event, 'max_retries_exceeded', e);
       } else {
         await database.markFailed(event.id, '$e', newRetryCount);
       }
     }
+  }
+
+  /// A permanently-failed outbox event is DATA LOSS — a clock-in or photo
+  /// the worker believes was recorded but that will never reach the server
+  /// (payroll disputes start exactly here). It must never die silently.
+  /// Payload is NOT attached: it can contain GPS coordinates.
+  void _reportDeadEvent(PendingEvent event, String reason, Object? cause) {
+    unawaited(
+      Sentry.captureException(
+        StateError(
+          'Outbox event permanently failed ($reason): '
+          '${event.eventType} local-id=${event.id}'
+          '${cause != null ? ' cause=$cause' : ''}',
+        ),
+        withScope: (scope) {
+          scope.setTag('source', 'sync_engine');
+          scope.setTag('dead_letter_reason', reason);
+          scope.setTag('event_type', event.eventType);
+        },
+      ),
+    );
   }
 
   Future<void> _syncClockEvent(
