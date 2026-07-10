@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { ADMIN_ROLE, isManagementRole, isOwnerRole, OWNER_ROLE } from "@/lib/roles";
 import { getSupabase } from "@/lib/supabase";
+import { useToast } from "@/components/ui/toast";
 
 interface StaffMember {
   id: string;
@@ -98,6 +99,8 @@ export default function StaffPage() {
     }
     return roles.filter((role) => role.value !== OWNER_ROLE);
   }, [roles, viewerRole]);
+
+  const { toast, showToast } = useToast();
 
   const loadStaff = useCallback(async () => {
     setLoading(true);
@@ -316,14 +319,37 @@ export default function StaffPage() {
   }
 
   async function suspendSelected() {
+    // Deactivation locks workers out of the app immediately — never on a
+    // bare mis-click, and never silently-partially on a mid-loop failure.
+    const confirmed = window.confirm(
+      `Deactivate ${selectedStaff.size} team member${selectedStaff.size === 1 ? "" : "s"}? ` +
+        "They will lose access to the app until reactivated.",
+    );
+    if (!confirmed) return;
+
     const supabase = getSupabase();
-    for (const id of selectedStaff) {
-      const member = staff.find((entry) => entry.id === id);
-      if (!member || (!isOwnerRole(viewerRole) && member.role === OWNER_ROLE)) continue;
-      await supabase.from("users").update({ is_active: false }).eq("id", id);
+    let done = 0;
+    try {
+      for (const id of selectedStaff) {
+        const member = staff.find((entry) => entry.id === id);
+        if (!member || (!isOwnerRole(viewerRole) && member.role === OWNER_ROLE)) continue;
+        const { error: updateError } = await supabase
+          .from("users")
+          .update({ is_active: false })
+          .eq("id", id);
+        if (updateError) throw new Error(updateError.message);
+        done += 1;
+      }
+      showToast(`Deactivated ${done} team member${done === 1 ? "" : "s"}`);
+    } catch (err) {
+      showToast(
+        `Deactivated ${done} of ${selectedStaff.size} — ${err instanceof Error ? err.message : "then failed"}`,
+        "error",
+      );
+    } finally {
+      setSelectedStaff(new Set());
+      loadStaff();
     }
-    setSelectedStaff(new Set());
-    loadStaff();
   }
 
   function exportStaffCsv() {
@@ -357,6 +383,7 @@ export default function StaffPage() {
 
   return (
     <div>
+      {toast}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("staffPage.title")}</h1>

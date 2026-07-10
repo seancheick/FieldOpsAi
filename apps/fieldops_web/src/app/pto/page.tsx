@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { callFunctionJson } from "@/lib/function-client";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { BulkActionBar } from "@/components/bulk-action-bar";
+import { useToast } from "@/components/ui/toast";
 
 interface PTORequest {
   id: string;
@@ -41,10 +42,11 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default function PTOPage() {
   const { t } = useI18n();
-  const [requests, setRequests] = useState<PTORequest[]>([]);
+  const [allRequests, setAllRequests] = useState<PTORequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("pending");
+  const { toast, showToast } = useToast();
   const [decidingId, setDecidingId] = useState<string | null>(null);
   const [decisionReason, setDecisionReason] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -56,26 +58,38 @@ export default function PTOPage() {
   const loadRequests = useCallback(async () => {
     setError(null);
     try {
-      const payload = await callFunctionJson<PTOListResponse>("pto", {
-        query: { status: filter },
-      });
-      setRequests(payload.requests ?? []);
+      // No status param → server returns all (limit 100). Tabs filter
+      // client-side so KPI cards always see the full picture and tab
+      // switches are instant with no request race.
+      const payload = await callFunctionJson<PTOListResponse>("pto", {});
+      setAllRequests(payload.requests ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load PTO requests");
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
-    setSelectedIds(new Set());
-    setBulkDecision("");
-    setBulkReasonInput("");
     loadRequests();
   }, [loadRequests]);
 
+  // Clear bulk selection when switching tabs so the select-all checkbox and
+  // count always describe the visible rows.
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setBulkDecision("");
+    setBulkReasonInput("");
+  }, [filter]);
+
   async function handleDecision(requestId: string, decision: "approved" | "denied") {
+    // Denials must carry an explanation — the worker sees it. (The bulk
+    // path already enforces this; single-row now matches.)
+    if (decision === "denied" && !decisionReason.trim()) {
+      setError("Please give a reason for the denial — the worker will see it.");
+      return;
+    }
     try {
       await callFunctionJson("pto", {
         method: "POST",
@@ -92,6 +106,7 @@ export default function PTOPage() {
 
       setDecidingId(null);
       setDecisionReason("");
+      showToast(decision === "approved" ? "PTO approved" : "PTO denied");
       loadRequests();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Decision failed");
@@ -127,6 +142,7 @@ export default function PTOPage() {
         setSelectedIds(new Set());
         setBulkDecision("");
         setBulkReasonInput("");
+        showToast(`${ids.length} request${ids.length === 1 ? "" : "s"} ${decision}`);
         await loadRequests();
       } catch (e) {
         setError(e instanceof Error ? e.message : t("ptoPage.decisionFailed"));
@@ -135,7 +151,7 @@ export default function PTOPage() {
         setBulkProgress(null);
       }
     },
-    [selectedIds, loadRequests, t],
+    [selectedIds, loadRequests, showToast, t],
   );
 
   function toggleSelected(id: string) {
@@ -147,17 +163,22 @@ export default function PTOPage() {
     });
   }
 
+  const requests = useMemo(
+    () => allRequests.filter((r) => r.status === filter),
+    [allRequests, filter],
+  );
+
   const kpiStats = useMemo(() => {
     const now = new Date();
     const todayStr = now.toISOString().slice(0, 10);
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    const pendingCount = requests.filter((r) => r.status === "pending").length;
-    const upcomingApproved = requests.filter(
+    const pendingCount = allRequests.filter((r) => r.status === "pending").length;
+    const upcomingApproved = allRequests.filter(
       (r) => r.status === "approved" && r.start_date >= todayStr,
     ).length;
-    const daysOffThisMonth = requests
+    const daysOffThisMonth = allRequests
       .filter((r) => {
         if (r.status !== "approved") return false;
         const start = new Date(r.start_date);
@@ -166,10 +187,11 @@ export default function PTOPage() {
       .reduce((sum, r) => sum + r.day_count, 0);
 
     return { pendingCount, upcomingApproved, daysOffThisMonth };
-  }, [requests]);
+  }, [allRequests]);
 
   return (
     <div>
+      {toast}
       <div className="mb-6">
         <a href="/" className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900">
           <span>&larr;</span> {t("common.backToDashboard")}

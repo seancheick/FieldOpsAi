@@ -105,6 +105,9 @@ function TimelineContent() {
 
   // Accept both `?job=<id>` (new) and `?job_id=<id>` (legacy) for backwards compat.
   const jobId = searchParams.get("job") ?? searchParams.get("job_id");
+  // `?worker=<id>` narrows events to one worker (used by map popups and the
+  // command palette). Works with or without a job selected.
+  const workerId = searchParams.get("worker");
 
   const [jobs, setJobs] = useState<JobOption[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
@@ -276,8 +279,18 @@ function TimelineContent() {
         </div>
       )}
 
+      {/* Worker deep-link banner */}
+      {workerId && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
+          Showing events for one worker only.
+          <a href={jobId ? `/timeline?job=${jobId}` : "/timeline"} className="font-semibold underline">
+            Clear
+          </a>
+        </div>
+      )}
+
       {/* Jobs exist but none selected */}
-      {currentUser.companyId && jobs.length > 0 && !jobId && (
+      {currentUser.companyId && jobs.length > 0 && !jobId && !workerId && (
         <div className="rounded-xl border border-stone-200 bg-card dark:border-slate-800 dark:bg-slate-900 p-8 text-center">
           <p className="text-slate-500 dark:text-slate-400">
             Select a job above to view its timeline.
@@ -291,9 +304,9 @@ function TimelineContent() {
         </div>
       )}
 
-      {/* Events list for selected job */}
-      {currentUser.companyId && jobId && (
-        <TimelineEventsList jobId={jobId} />
+      {/* Events list — job, worker, or both */}
+      {currentUser.companyId && (jobId || workerId) && (
+        <TimelineEventsList jobId={jobId} workerId={workerId} />
       )}
     </div>
   );
@@ -304,10 +317,11 @@ function TimelineContent() {
 // ---------------------------------------------------------------------------
 
 interface TimelineEventsListProps {
-  jobId: string;
+  jobId: string | null;
+  workerId?: string | null;
 }
 
-function TimelineEventsList({ jobId }: TimelineEventsListProps) {
+function TimelineEventsList({ jobId, workerId }: TimelineEventsListProps) {
   const { t } = useI18n();
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -317,12 +331,14 @@ function TimelineEventsList({ jobId }: TimelineEventsListProps) {
     setLoading(true);
     setError(null);
 
-    const { data, error: err } = await getSupabase()
+    let query = getSupabase()
       .from("job_timeline")
       .select("*")
-      .eq("job_id", jobId)
       .order("occurred_at", { ascending: false })
       .limit(100);
+    if (jobId) query = query.eq("job_id", jobId);
+    if (workerId) query = query.eq("user_id", workerId);
+    const { data, error: err } = await query;
 
     if (err) {
       setError(err.message);
@@ -330,10 +346,14 @@ function TimelineEventsList({ jobId }: TimelineEventsListProps) {
       setEvents(data ?? []);
     }
     setLoading(false);
-  }, [jobId]);
+  }, [jobId, workerId]);
 
   useEffect(() => {
     loadTimeline();
+
+    // Live updates are keyed on job_id; a worker-only view (no job selected)
+    // has no server-side filter to subscribe on, so it stays request/response.
+    if (!jobId) return;
 
     const supabase = getSupabase();
     let channel = supabase.channel(

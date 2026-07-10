@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 import { SkeletonTable } from "@/components/ui/skeleton";
@@ -40,12 +41,33 @@ const STATUS_ORDER: Record<WorkerStatus["status"], number> = {
 };
 
 export default function WorkersPage() {
+  return (
+    <Suspense fallback={<div className="p-6"><SkeletonTable rows={8} cols={5} /></div>}>
+      <WorkersContent />
+    </Suspense>
+  );
+}
+
+function WorkersContent() {
   const { t } = useI18n();
+  const searchParams = useSearchParams();
   const [workers, setWorkers] = useState<WorkerStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<string>("all");
+  const filterParam = searchParams.get("filter");
+  const userParam = searchParams.get("user");
+  const [filter, setFilter] = useState<string>(() => {
+    if (!filterParam) return "all";
+    if (filterParam === "active") return "clocked_in"; // legacy dashboard link
+    return ["clocked_in", "on_break", "clocked_out", "no_show", "not_scheduled"].includes(filterParam)
+      ? filterParam
+      : "all";
+  });
   const [searchQuery, setSearchQuery] = useState("");
+
+  // ?user=<id> deep link (command palette): once the roster loads, focus
+  // that worker by putting their name in the search box.
+  const [userParamApplied, setUserParamApplied] = useState(false);
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("status");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -152,6 +174,16 @@ export default function WorkersPage() {
       setLoading(false);
     }
   }, [t]);
+
+  useEffect(() => {
+    if (userParamApplied || !userParam || workers.length === 0) return;
+    const target = workers.find((w) => w.user_id === userParam);
+    if (target) {
+      setFilter("all");
+      setSearchQuery(target.full_name);
+    }
+    setUserParamApplied(true);
+  }, [userParam, userParamApplied, workers]);
 
   useEffect(() => {
     loadWorkers();

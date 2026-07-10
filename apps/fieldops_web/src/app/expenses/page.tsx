@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { callFunctionJson } from "@/lib/function-client";
 import { getSupabase } from "@/lib/supabase";
 import { SkeletonCard } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
 
 interface ExpenseEntry {
   id: string;
@@ -65,6 +66,7 @@ function ExpensesContent() {
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toast, showToast } = useToast();
   const [decidingId, setDecidingId] = useState<string | null>(null);
   const [reimbursingId, setReimbursingId] = useState<string | null>(null);
   const urlCacheRef = useRef<Record<string, string>>({});
@@ -75,9 +77,11 @@ function ExpensesContent() {
 
     try {
       const supabase = getSupabase();
-      const payload = await callFunctionJson<ExpensesResponse>("expenses", {
-        query: { status: filterStatus },
-      });
+      // No status param → all statuses. Tabs filter client-side so the KPI
+      // cards (pending total, reimbursed, …) always see the full dataset —
+      // previously they computed over the visible tab and showed $0.00
+      // pending while on the Approved tab.
+      const payload = await callFunctionJson<ExpensesResponse>("expenses", {});
       const expenseRows = payload.expenses ?? [];
       const workerIds = Array.from(new Set(expenseRows.map((entry) => entry.submitted_by)));
       const jobIds = Array.from(new Set(expenseRows.map((entry) => entry.job_id)));
@@ -143,7 +147,7 @@ function ExpensesContent() {
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, t]);
+  }, [t]);
 
   useEffect(() => {
     loadExpenses();
@@ -170,6 +174,7 @@ function ExpensesContent() {
         }),
       });
 
+      showToast(decision === "approved" ? "Expense approved" : "Expense denied");
       await loadExpenses();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("expensesPage.failedToLoad"));
@@ -199,6 +204,7 @@ function ExpensesContent() {
         }),
       });
 
+      showToast("Marked reimbursed");
       await loadExpenses();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("expensesPage.failedToLoad"));
@@ -223,7 +229,7 @@ function ExpensesContent() {
       "reimbursement_reference",
       "reimbursement_notes",
     ];
-    const rows = expenses.map((expense) => [
+    const rows = visibleExpenses.map((expense) => [
       expense.id,
       expense.status,
       expense.workerName,
@@ -259,6 +265,11 @@ function ExpensesContent() {
     });
   }
 
+  const visibleExpenses = useMemo(
+    () => expenses.filter((e) => e.status === filterStatus),
+    [expenses, filterStatus],
+  );
+
   const kpiStats = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -289,6 +300,7 @@ function ExpensesContent() {
 
   return (
     <div>
+      {toast}
       <div className="mb-8">
         <a
           href="/"
@@ -363,14 +375,14 @@ function ExpensesContent() {
         </div>
       )}
 
-      {!loading && !error && expenses.length === 0 && (
+      {!loading && !error && visibleExpenses.length === 0 && (
         <div className="rounded-xl border border-stone-200 bg-card p-8 text-center text-slate-500">
           {t("expensesPage.noExpenses", { status: t(`expensesPage.${filterStatus}`) })}
         </div>
       )}
 
       <div className="space-y-4">
-        {expenses.map((expense) => (
+        {visibleExpenses.map((expense) => (
           <ExpenseCard
             key={expense.id}
             expense={expense}

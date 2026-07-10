@@ -55,7 +55,7 @@ const QUICK_ACTIONS: Record<string, { label: string; href: string; icon: React.E
     { label: "dashboard.manageStaff", href: "/settings/staff", icon: Users },
     { label: "dashboard.companySettings", href: "/settings", icon: Settings },
     { label: "dashboard.viewReports", href: "/reports", icon: BarChart3 },
-    { label: "dashboard.auditLog", href: "/admin", icon: ShieldCheck },
+    { label: "dashboard.alerts", href: "/alerts", icon: ShieldCheck },
   ],
   supervisor: [
     { label: "dashboard.approveOt", href: "/overtime", icon: Clock },

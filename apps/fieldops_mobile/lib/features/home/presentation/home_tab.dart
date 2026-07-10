@@ -431,6 +431,8 @@ class _ActiveJobCard extends StatelessWidget {
               children: [
                 Text(
                   'Active: $jobName',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: textTheme.titleMedium?.copyWith(
                     color: palette.success,
                     fontWeight: FontWeight.w600,

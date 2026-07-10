@@ -148,6 +148,7 @@ class ClockStatusPanel extends StatelessWidget {
                         onPressed: state.activeJobId == null
                             ? null
                             : () {
+                                HapticFeedback.mediumImpact();
                                 Navigator.of(context).push(
                                   MaterialPageRoute<bool>(
                                     builder: (_) => OTRequestScreen(

@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { callFunctionJson } from "@/lib/function-client";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { BulkActionBar } from "@/components/bulk-action-bar";
+import { useToast } from "@/components/ui/toast";
 
 interface OTRequest {
   id: string;
@@ -52,11 +53,43 @@ function OvertimeContent() {
   const [decidingId, setDecidingId] = useState<string | null>(null);
   const [hasMoreRequests, setHasMoreRequests] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const { toast, showToast } = useToast();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkInFlight, setBulkInFlight] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
   const [bulkReason, setBulkReason] = useState<"" | "approved" | "denied">("");
   const [reasonInput, setReasonInput] = useState("");
+
+  const [kpiCounts, setKpiCounts] = useState<{
+    pending: number;
+    approvedToday: number;
+    denied: number;
+  }>({ pending: 0, approvedToday: 0, denied: 0 });
+
+  const loadKpis = useCallback(async () => {
+    // The ot endpoint filters server-side per status, so the KPI row needs
+    // its own per-status counts — computing them from the visible tab
+    // rendered "0 pending" whenever you looked at Approved/Denied.
+    try {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const [pending, approved, denied] = await Promise.all(
+        (["pending", "approved", "denied"] as const).map((s) =>
+          callFunctionJson<OTListResponse>("ot", {
+            query: { status: s, offset: 0, limit: 100 },
+          }),
+        ),
+      );
+      setKpiCounts({
+        pending: (pending.ot_requests ?? []).length,
+        approvedToday: (approved.ot_requests ?? []).filter(
+          (r) => r.requested_at.slice(0, 10) === todayStr,
+        ).length,
+        denied: (denied.ot_requests ?? []).length,
+      });
+    } catch {
+      // KPI row is best-effort; the list itself surfaces real errors.
+    }
+  }, []);
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -108,6 +141,10 @@ function OvertimeContent() {
     setReasonInput("");
   }, [loadRequests]);
 
+  useEffect(() => {
+    loadKpis();
+  }, [loadKpis]);
+
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -153,7 +190,9 @@ function OvertimeContent() {
         setSelectedIds(new Set());
         setBulkReason("");
         setReasonInput("");
+        showToast(`${ids.length} OT request${ids.length === 1 ? "" : "s"} ${decision}`);
         await loadRequests();
+        loadKpis();
       } catch (e) {
         setError(e instanceof Error ? e.message : t("overtimePage.decisionFailed"));
       } finally {
@@ -161,7 +200,7 @@ function OvertimeContent() {
         setBulkProgress(null);
       }
     },
-    [selectedIds, loadRequests, t],
+    [selectedIds, loadRequests, loadKpis, showToast, t],
   );
 
   async function handleDecision(
@@ -185,7 +224,9 @@ function OvertimeContent() {
         }),
       });
 
+      showToast(decision === "approved" ? "OT approved" : "OT denied");
       await loadRequests();
+      loadKpis();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("overtimePage.decisionFailed"));
     } finally {
@@ -202,20 +243,18 @@ function OvertimeContent() {
     });
   }
 
-  const kpiStats = useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-
-    const pendingCount = requests.filter((r) => r.status === "pending").length;
-    const approvedTodayCount = requests.filter(
-      (r) => r.status === "approved" && r.requested_at.slice(0, 10) === todayStr,
-    ).length;
-    const deniedCount = requests.filter((r) => r.status === "denied").length;
-
-    return { pendingCount, approvedTodayCount, deniedCount };
-  }, [requests]);
+  const kpiStats = useMemo(
+    () => ({
+      pendingCount: kpiCounts.pending,
+      approvedTodayCount: kpiCounts.approvedToday,
+      deniedCount: kpiCounts.denied,
+    }),
+    [kpiCounts],
+  );
 
   return (
     <div>
+      {toast}
       <div className="mb-8">
         <a
           href="/"
