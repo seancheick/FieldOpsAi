@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Building2, Plus, Search, Users, ShieldAlert, ArrowRight, ExternalLink } from "lucide-react";
+import { Building2, Plus, Search, Users, ShieldAlert, ArrowRight } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import type { CompanySummary } from "@/lib/types";
 

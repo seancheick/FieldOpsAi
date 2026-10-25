@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Building2, ShieldCheck, Copy, Check } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Copy, Check } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 
 function slugify(name: string): string {
@@ -14,7 +13,6 @@ function slugify(name: string): string {
 }
 
 export default function NewCompanyPage() {
-  const router = useRouter();
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");

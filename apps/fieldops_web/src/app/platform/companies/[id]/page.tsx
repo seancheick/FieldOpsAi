@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Users, ShieldAlert, AlertTriangle, CheckCircle2, History } from "lucide-react";
+import { ArrowLeft, Users, AlertTriangle, CheckCircle2, History } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import type { CompanyDetail, CompanyUser, AuditLogEntry } from "@/lib/types";
 
@@ -27,7 +27,6 @@ function StatusBadge({ status }: { status: string }) {
 export default function PlatformCompanyDetailPage() {
   const params = useParams();
   const companyId = params.id as string;
-  const router = useRouter();
 
   const [company, setCompany] = useState<CompanyDetail | null>(null);
   const [users, setUsers] = useState<CompanyUser[]>([]);
@@ -36,7 +35,7 @@ export default function PlatformCompanyDetailPage() {
   const [error, setError] = useState("");
   const [toggling, setToggling] = useState(false);
 
-  const apiCall = async (query: string, method = "GET", body?: any) => {
+  const apiCall = useCallback(async (query: string, method = "GET", body?: Record<string, unknown>) => {
     const sb = getSupabase();
     const {
       data: { session },
@@ -55,9 +54,9 @@ export default function PlatformCompanyDetailPage() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error ?? data.message ?? `API error (${res.status})`);
     return data;
-  };
+  }, []);
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     setError("");
 
@@ -76,11 +75,11 @@ export default function PlatformCompanyDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiCall, companyId]);
 
   useEffect(() => {
     if (companyId) fetchAll();
-  }, [companyId]);
+  }, [companyId, fetchAll]);
 
   const toggleStatus = async () => {
     if (!company) return;

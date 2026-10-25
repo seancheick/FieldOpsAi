@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Shield, UserPlus, Check, Copy, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Shield, UserPlus, Check, Copy } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import type { PlatformAdmin } from "@/lib/types";
 
