@@ -223,13 +223,12 @@ serve(async (req) => {
     // Trigger photo stamping asynchronously — non-blocking, does not affect response latency.
     // media_stamp computes SHA-256, creates SVG proof overlay, and writes a stamped_photo record.
     const stampUrl = `${supabaseUrl}/functions/v1/media_stamp`
-    EdgeRuntime.waitUntil(
-      fetch(stampUrl, {
-        method: "POST",
-        headers: {
-          "Authorization": authHeader,
-          "Content-Type": "application/json",
-        },
+    const stampPromise = fetch(stampUrl, {
+      method: "POST",
+      headers: {
+        "Authorization": authHeader,
+        "Content-Type": "application/json",
+      },
         body: JSON.stringify({ media_asset_id }),
       }).then(async (res) => {
         if (!res.ok) {
@@ -239,7 +238,9 @@ serve(async (req) => {
       }).catch((e) => {
         console.error("media_stamp trigger error:", e)
       })
-    )
+    if (typeof (globalThis as any).EdgeRuntime?.waitUntil === "function") {
+      (globalThis as any).EdgeRuntime.waitUntil(stampPromise)
+    }
 
     logRequestResult(ENDPOINT, requestId, 200, {
       user_id: user.id,

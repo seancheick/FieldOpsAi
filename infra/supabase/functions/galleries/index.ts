@@ -39,7 +39,7 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
   return await bcrypt.compare(password, hash)
 }
 
-async function signPhotoUrls(supabaseAdmin: SupabaseAdmin, assets: Array<{ id: string; bucket_name: string; storage_path: string } & Record<string, unknown>>) {
+async function signPhotoUrls(supabaseAdmin: any, assets: Array<{ id: string; bucket_name: string; storage_path: string } & Record<string, unknown>>) {
   const grouped = new Map<string, Array<{ id: string; path: string }>>()
   for (const a of assets) {
     const list = grouped.get(a.bucket_name) || []

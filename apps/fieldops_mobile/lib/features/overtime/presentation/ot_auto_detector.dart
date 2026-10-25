@@ -27,11 +27,15 @@ class OTAutoDetector extends Notifier<OTDetectionState> {
     // Start tracking from clock-in time
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(minutes: 1), (_) => _check());
-    _check(); // Check immediately
+
+    final elapsed = DateTime.now().difference(clockState.clockedInAt!);
+    final elapsedHours = elapsed.inMinutes / 60.0;
 
     return OTDetectionState(
       clockInTime: clockState.clockedInAt,
       thresholdHours: otThresholdHours,
+      currentHours: elapsedHours,
+      isOverThreshold: elapsedHours >= otThresholdHours,
     );
   }
 

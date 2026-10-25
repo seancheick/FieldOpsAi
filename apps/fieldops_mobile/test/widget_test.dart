@@ -17,6 +17,11 @@ import 'package:fieldops_mobile/features/schedule/data/schedule_repository_provi
 import 'package:fieldops_mobile/features/schedule/domain/crew_schedule_shift.dart';
 import 'package:fieldops_mobile/features/schedule/domain/schedule_repository.dart';
 import 'package:fieldops_mobile/features/schedule/domain/worker_schedule_shift.dart';
+import 'package:fieldops_mobile/features/permits/data/permits_repository_provider.dart';
+import 'package:fieldops_mobile/features/permits/domain/permits_repository.dart';
+import 'package:fieldops_mobile/features/safety/data/safety_repository_provider.dart';
+import 'package:fieldops_mobile/features/safety/domain/safety_checklist.dart';
+import 'package:fieldops_mobile/features/safety/domain/safety_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -168,6 +173,10 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
+
+    // Expand the "More" section (hours summary is collapsed by default when clocked out)
+    await tester.tap(find.byType(ExpansionTile));
     await tester.pumpAndSettle();
 
     expect(find.text('3.0h'), findsOneWidget);
@@ -409,6 +418,8 @@ Widget _buildTestApp({
       authRepositoryProvider.overrideWithValue(repository),
       // Stub Supabase-dependent providers so tests never call Supabase.instance.
       userRoleProvider.overrideWithValue(UserRole.worker),
+      permitsRepositoryProvider.overrideWithValue(FakePermitsRepository()),
+      safetyRepositoryProvider.overrideWithValue(FakeSafetyRepository()),
       // Use an in-memory Drift database — avoids FlutterSecureStorage + SQLCipher
       // which are unavailable in the test environment.
       localDatabaseProvider.overrideWith(
@@ -612,4 +623,22 @@ class FakeScheduleRepository implements ScheduleRepository {
   }) async {
     return 0;
   }
+}
+
+class FakePermitsRepository implements PermitsRepository {
+  @override
+  Future<PermitCheckResult> checkActive({required String jobId}) async {
+    return const PermitCheckResult(required: false);
+  }
+}
+
+class FakeSafetyRepository implements SafetyRepository {
+  @override
+  Future<String> submitChecklist({
+    required String jobId,
+    required List<SafetyChecklistResponse> responses,
+  }) async => 'checklist-1';
+
+  @override
+  Future<bool> hasCompletedToday(String jobId) async => true;
 }

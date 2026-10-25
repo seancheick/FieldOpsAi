@@ -13,6 +13,7 @@ class SyncRuntimeEnvTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "apps" / "fieldops_web").mkdir(parents=True)
+            (root / "apps" / "fieldops_admin").mkdir(parents=True)
             (root / "apps" / "fieldops_mobile").mkdir(parents=True)
             (root / ".env").write_text(
                 "\n".join(
@@ -36,6 +37,10 @@ class SyncRuntimeEnvTests(unittest.TestCase):
             self.assertIn("NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co", web_contents)
             self.assertIn("NEXT_PUBLIC_SUPABASE_ANON_KEY=anon-key", web_contents)
             self.assertIn("NEXT_PUBLIC_POSTHOG_KEY=phc_123", web_contents)
+
+            admin_contents = (root / "apps" / "fieldops_admin" / ".env.local").read_text()
+            self.assertIn("NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co", admin_contents)
+            self.assertIn("NEXT_PUBLIC_SUPABASE_ANON_KEY=anon-key", admin_contents)
 
             mobile_payload = json.loads(
                 (root / "apps" / "fieldops_mobile" / "env" / "staging.json").read_text()

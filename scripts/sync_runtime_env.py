@@ -10,6 +10,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ROOT_ENV = REPO_ROOT / ".env"
 WEB_ENV = REPO_ROOT / "apps" / "fieldops_web" / ".env.local"
+ADMIN_ENV = REPO_ROOT / "apps" / "fieldops_admin" / ".env.local"
 MOBILE_ENV_DIR = REPO_ROOT / "apps" / "fieldops_mobile" / "env"
 MOBILE_ENV = MOBILE_ENV_DIR / "staging.json"
 
@@ -20,6 +21,7 @@ class SyncResult:
     mobile_env_path: Path
     hosted: bool
     supabase_url: str
+    admin_env_path: Path | None = None
 
 
 def parse_env_file(path: Path) -> dict[str, str]:
@@ -116,11 +118,22 @@ def sync_repo_env(repo_root: Path = REPO_ROOT) -> SyncResult:
     write_web_env(web_env_path, web_env)
     write_mobile_env(mobile_env_path, mobile_env)
 
+    admin_env_path: Path | None = None
+    admin_dir = repo_root / "apps" / "fieldops_admin"
+    if admin_dir.exists():
+        admin_env_path = admin_dir / ".env.local"
+        admin_env = {
+            "NEXT_PUBLIC_SUPABASE_URL": values["SUPABASE_URL"],
+            "NEXT_PUBLIC_SUPABASE_ANON_KEY": values["SUPABASE_ANON_KEY"],
+        }
+        write_web_env(admin_env_path, admin_env)
+
     return SyncResult(
         web_env_path=web_env_path,
         mobile_env_path=mobile_env_path,
         hosted=is_hosted_supabase_url(values["SUPABASE_URL"]),
         supabase_url=values["SUPABASE_URL"],
+        admin_env_path=admin_env_path,
     )
 
 
@@ -133,7 +146,9 @@ def main() -> int:
 
     env_kind = "hosted" if result.hosted else "local"
     print(f"[sync-runtime-env] synced {env_kind} Supabase config")
-    print(f"[sync-runtime-env] web  -> {result.web_env_path}")
+    print(f"[sync-runtime-env] web   -> {result.web_env_path}")
+    if result.admin_env_path:
+        print(f"[sync-runtime-env] admin -> {result.admin_env_path}")
     print(f"[sync-runtime-env] mobile -> {result.mobile_env_path}")
     if not result.hosted:
         print(

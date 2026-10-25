@@ -155,7 +155,7 @@ serve(async (req) => {
       // Fetch the task
       const { data: task, error: taskError } = await supabaseAdmin
         .from("tasks")
-        .select("id, job_id, company_id, status, requires_photo, assigned_to")
+        .select("id, job_id, company_id, status, requires_photo, assigned_to, updated_at")
         .eq("id", task_id)
         .eq("company_id", userRecord.company_id)
         .maybeSingle()

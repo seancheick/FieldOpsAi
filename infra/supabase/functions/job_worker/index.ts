@@ -98,7 +98,7 @@ interface BackgroundJob {
 }
 
 async function processJob(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   job: BackgroundJob,
 ): Promise<void> {
   switch (job.job_type) {

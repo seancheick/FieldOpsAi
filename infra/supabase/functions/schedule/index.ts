@@ -218,7 +218,7 @@ serve(async (req) => {
         shifts,
         pto_requests: ptoData || [],
         request_id: requestId,
-      }, 200, requestId)
+      } as any, 200, requestId)
     }
 
     if (req.method !== "POST") {
@@ -449,10 +449,10 @@ serve(async (req) => {
         shift: {
           id: inserted.id,
           worker_id: inserted.worker_id,
-          worker_name: inserted.users?.full_name ?? "Unknown worker",
+          worker_name: (inserted as any).users?.full_name ?? "Unknown worker",
           job_id: inserted.job_id,
-          job_name: inserted.jobs?.name ?? "Unknown job",
-          job_code: inserted.jobs?.code ?? null,
+          job_name: (inserted as any).jobs?.name ?? "Unknown job",
+          job_code: (inserted as any).jobs?.code ?? null,
           date: inserted.shift_date,
           start_time: typeof inserted.start_time === "string" ? inserted.start_time.slice(0, 5) : inserted.start_time,
           end_time: typeof inserted.end_time === "string" ? inserted.end_time.slice(0, 5) : inserted.end_time,
@@ -552,10 +552,10 @@ serve(async (req) => {
         shift: {
           id: updated.id,
           worker_id: updated.worker_id,
-          worker_name: updated.users?.full_name ?? "Unknown worker",
+          worker_name: (updated as any).users?.full_name ?? "Unknown worker",
           job_id: updated.job_id,
-          job_name: updated.jobs?.name ?? "Unknown job",
-          job_code: updated.jobs?.code ?? null,
+          job_name: (updated as any).jobs?.name ?? "Unknown job",
+          job_code: (updated as any).jobs?.code ?? null,
           date: updated.shift_date,
           start_time: typeof updated.start_time === "string" ? updated.start_time.slice(0, 5) : updated.start_time,
           end_time: typeof updated.end_time === "string" ? updated.end_time.slice(0, 5) : updated.end_time,
@@ -896,6 +896,6 @@ serve(async (req) => {
     return errorResponse(requestId, 400, "INVALID_PAYLOAD", "Unsupported action")
   } catch (error) {
     logRequestError(ENDPOINT, requestId, error)
-    return errorResponse(requestId, 500, "INTERNAL_ERROR", error.message || "Internal server error")
+    return errorResponse(requestId, 500, "INTERNAL_ERROR", error instanceof Error ? error.message : "Internal server error")
   }
 })

@@ -37,7 +37,7 @@ function paymentStatusFromSubscription(status?: string | null): string {
 }
 
 async function syncCompanyBilling(
-  supabaseAdmin: ReturnType<typeof createClient>,
+  supabaseAdmin: any,
   stripe: Stripe,
   customerId: string,
   subscriptionId?: string | null,

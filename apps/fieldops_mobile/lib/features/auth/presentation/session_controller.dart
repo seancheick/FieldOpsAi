@@ -21,12 +21,15 @@ class SessionController extends Notifier<SessionState> {
     // and automatically returns the user to the login screen.
     //
     // Only subscribe when Supabase is actually initialized — accessing
-    // `Supabase.instance.client` without `Supabase.initialize()` throws.
     _authSub?.cancel();
     if (environment.isConfigured) {
-      _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
-        refresh();
-      });
+      try {
+        _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+          refresh();
+        });
+      } on Object {
+        // Supabase may not be initialized in test environments.
+      }
     }
     ref.onDispose(() => _authSub?.cancel());
 
