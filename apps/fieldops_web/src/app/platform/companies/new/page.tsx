@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ShieldCheck, Copy, Check } from "lucide-react";
-import { getSupabase } from "@/lib/supabase";
 
 function slugify(name: string): string {
   return name
@@ -43,22 +42,12 @@ export default function NewCompanyPage() {
     setError("");
 
     try {
-      const sb = getSupabase();
-      const {
-        data: { session },
-      } = await sb.auth.getSession();
-      if (!session) throw new Error("No active session");
-
-      const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://cpqrazrszhcxjvursuci.supabase.co";
-      const res = await fetch(`${baseUrl}/functions/v1/platform_admin`, {
+      const res = await fetch("/api/platform/companies", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
-          "Idempotency-Key": crypto.randomUUID(),
         },
         body: JSON.stringify({
-          action: "create_company",
           name,
           slug,
           industry: industry || null,
@@ -70,14 +59,14 @@ export default function NewCompanyPage() {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.error ?? data.message ?? `Failed to create company (${res.status})`);
+        throw new Error(data.error ?? `Failed to create company (${res.status})`);
       }
 
       setCreatedResult({
-        companyId: data.company?.id ?? data.company_id,
+        companyId: data.company?.id,
         companyName: name,
         ownerEmail: ownerEmail,
-        tempPassword: data.admin?.temp_password ?? data.temp_password,
+        tempPassword: data.owner_credentials?.temp_password,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");

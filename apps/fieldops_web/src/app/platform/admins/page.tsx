@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Shield, UserPlus, Check, Copy } from "lucide-react";
-import { getSupabase } from "@/lib/supabase";
 import type { PlatformAdmin } from "@/lib/types";
 
 export default function PlatformAdminsPage() {
@@ -20,22 +19,11 @@ export default function PlatformAdminsPage() {
     setError("");
 
     try {
-      const sb = getSupabase();
-      const {
-        data: { session },
-      } = await sb.auth.getSession();
-      if (!session) throw new Error("No active session");
-
-      const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://cpqrazrszhcxjvursuci.supabase.co";
-      const res = await fetch(
-        `${baseUrl}/functions/v1/platform_admin?action=list_admins`,
-        { headers: { Authorization: `Bearer ${session.access_token}` } }
-      );
-
+      const res = await fetch("/api/platform/admins");
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? data.message ?? `Failed to fetch admins (${res.status})`);
+      if (!res.ok) throw new Error(data.error ?? `Failed to fetch admins (${res.status})`);
 
-      setAdmins(data.admins ?? data);
+      setAdmins(data.admins ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -54,32 +42,26 @@ export default function PlatformAdminsPage() {
     setInviteLink(null);
 
     try {
-      const sb = getSupabase();
-      const {
-        data: { session },
-      } = await sb.auth.getSession();
-      if (!session) throw new Error("No active session");
-
-      const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://cpqrazrszhcxjvursuci.supabase.co";
-      const res = await fetch(`${baseUrl}/functions/v1/platform_admin`, {
+      const res = await fetch("/api/platform/admins", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          action: "create_invite",
           email: inviteEmail.trim(),
         }),
       });
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? data.message ?? `Invite failed (${res.status})`);
+      if (!res.ok) {
+        throw new Error(data.error ?? `Invite failed (${res.status})`);
+      }
 
       const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const claimUrl = `${origin}/claim?token=${data.invite_token}`;
+      const claimUrl = `${origin}/claim?token=${data.claim_token}`;
       setInviteLink(claimUrl);
       setInviteEmail("");
+      await fetchAdmins();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to invite admin");
     } finally {

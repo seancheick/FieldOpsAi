@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Users, AlertTriangle, CheckCircle2, History } from "lucide-react";
-import { getSupabase } from "@/lib/supabase";
 import type { CompanyDetail, CompanyUser, AuditLogEntry } from "@/lib/types";
 
 function StatusBadge({ status }: { status: string }) {
@@ -35,47 +34,26 @@ export default function PlatformCompanyDetailPage() {
   const [error, setError] = useState("");
   const [toggling, setToggling] = useState(false);
 
-  const apiCall = useCallback(async (query: string, method = "GET", body?: Record<string, unknown>) => {
-    const sb = getSupabase();
-    const {
-      data: { session },
-    } = await sb.auth.getSession();
-    if (!session) throw new Error("No active session");
-
-    const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://cpqrazrszhcxjvursuci.supabase.co";
-    const res = await fetch(`${baseUrl}/functions/v1/platform_admin?${query}`, {
-      method,
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-        "Content-Type": "application/json",
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error ?? data.message ?? `API error (${res.status})`);
-    return data;
-  }, []);
-
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError("");
 
     try {
-      const [companyData, usersData, auditData] = await Promise.all([
-        apiCall(`action=company_detail&company_id=${companyId}`),
-        apiCall(`action=company_users&company_id=${companyId}`),
-        apiCall(`action=audit&company_id=${companyId}&limit=20`),
-      ]);
-
-      setCompany(companyData.company ?? companyData);
-      setUsers(usersData.users ?? usersData);
-      setAudit(auditData.audit_logs ?? auditData.audit ?? auditData);
+      const res = await fetch(`/api/platform/companies/${companyId}`);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error ?? `API error (${res.status})`);
+      }
+      const data = await res.json();
+      setCompany(data.company);
+      setUsers(data.users ?? []);
+      setAudit(data.audit ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load company details");
     } finally {
       setLoading(false);
     }
-  }, [apiCall, companyId]);
+  }, [companyId]);
 
   useEffect(() => {
     if (companyId) fetchAll();
@@ -93,11 +71,15 @@ export default function PlatformCompanyDetailPage() {
 
     setToggling(true);
     try {
-      await apiCall("", "POST", {
-        action: "toggle_company",
-        company_id: companyId,
-        status: newStatus,
+      const res = await fetch(`/api/platform/companies/${companyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
       });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error ?? "Failed to update company status");
+      }
       await fetchAll();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to update company status");
