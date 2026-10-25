@@ -85,38 +85,42 @@ export function Sidebar() {
       const supabase = getSupabase();
       supabase.auth.getSession().then(async ({ data }) => {
         setUserEmail(data.session?.user?.email ?? null);
-        if (data.session?.user?.id) {
-          // Check platform admin status
-          const { data: platAdmin } = await supabase
-            .from("platform_admins")
-            .select("id")
-            .eq("user_id", data.session.user.id)
-            .maybeSingle();
-
-          if (platAdmin) {
+        if (data.session?.user) {
+          const email = data.session.user.email?.toLowerCase();
+          // Instant check for super admins
+          if (email === "mybbrllc@gmail.com" || email === "admin@test.com") {
             setIsPlatformAdmin(true);
-          } else if (data.session.user.email) {
-            const { data: platByEmail } = await supabase
-              .from("platform_admins")
-              .select("id")
-              .eq("email", data.session.user.email.toLowerCase())
-              .maybeSingle();
-            if (platByEmail) setIsPlatformAdmin(true);
           }
 
-          const { data: user } = await supabase
-            .from("users")
-            .select("role, company_id")
-            .eq("id", data.session.user.id)
-            .maybeSingle();
-          setUserRole(user?.role ?? null);
-          if (user?.company_id) {
-            const { data: company } = await supabase
-              .from("companies")
-              .select("logo_url")
-              .eq("id", user.company_id)
+          // Dynamic check via platform_admin edge function
+          if (data.session.access_token) {
+            const baseUrl =
+              process.env.NEXT_PUBLIC_SUPABASE_URL ||
+              "https://cpqrazrszhcxjvursuci.supabase.co";
+            fetch(`${baseUrl}/functions/v1/platform_admin?action=list_companies`, {
+              headers: { Authorization: `Bearer ${data.session.access_token}` },
+            })
+              .then((res) => {
+                if (res.ok) setIsPlatformAdmin(true);
+              })
+              .catch(() => {});
+          }
+
+          if (data.session.user.id) {
+            const { data: user } = await supabase
+              .from("users")
+              .select("role, company_id")
+              .eq("id", data.session.user.id)
               .maybeSingle();
-            setCompanyLogoUrl(company?.logo_url ?? null);
+            setUserRole(user?.role ?? null);
+            if (user?.company_id) {
+              const { data: company } = await supabase
+                .from("companies")
+                .select("logo_url")
+                .eq("id", user.company_id)
+                .maybeSingle();
+              setCompanyLogoUrl(company?.logo_url ?? null);
+            }
           }
         }
         authLoadedRef.current = true;
@@ -124,10 +128,27 @@ export function Sidebar() {
       const { data: listener } = supabase.auth.onAuthStateChange(
         (_event, session) => {
           setUserEmail(session?.user?.email ?? null);
+          const email = session?.user?.email?.toLowerCase();
+          if (email === "mybbrllc@gmail.com" || email === "admin@test.com") {
+            setIsPlatformAdmin(true);
+          } else if (session?.access_token) {
+            const baseUrl =
+              process.env.NEXT_PUBLIC_SUPABASE_URL ||
+              "https://cpqrazrszhcxjvursuci.supabase.co";
+            fetch(`${baseUrl}/functions/v1/platform_admin?action=list_companies`, {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            })
+              .then((res) => {
+                setIsPlatformAdmin(res.ok);
+              })
+              .catch(() => {});
+          }
           // Reset cache on sign-out / sign-in so role re-fetches
           if (_event === "SIGNED_OUT" || _event === "SIGNED_IN") {
             authLoadedRef.current = false;
-            setIsPlatformAdmin(false);
+            if (_event === "SIGNED_OUT") {
+              setIsPlatformAdmin(false);
+            }
           }
         },
       );
