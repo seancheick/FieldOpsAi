@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { signIn } from "@/lib/auth";
 import type { Session } from "@supabase/supabase-js";
 import { useI18n } from "@/lib/i18n";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +77,15 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     } finally {
       setSendingReset(false);
     }
+  }
+
+  // Public routes (invite claims, customer portal, public geofences) bypass authentication
+  if (
+    pathname?.startsWith("/claim") ||
+    pathname?.startsWith("/portal") ||
+    pathname?.startsWith("/g/")
+  ) {
+    return <>{children}</>;
   }
 
   if (loading) {

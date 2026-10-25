@@ -13,6 +13,8 @@ import {
   X,
   Moon,
   Sun,
+  Building2,
+  ShieldAlert,
 } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { NAV_ITEMS, NAV_SECTIONS } from "@/lib/nav-items";
@@ -29,6 +31,7 @@ export function Sidebar() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const { locale, setLocale, t } = useI18n();
   const { resolved: resolvedTheme, toggle: toggleTheme } = useTheme();
 
@@ -65,7 +68,7 @@ export function Sidebar() {
   // Close search dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+      if (searchRef.current && searchRef.current.contains(e.target as Node)) {
         setSearchFocused(false);
       }
     }
@@ -83,6 +86,24 @@ export function Sidebar() {
       supabase.auth.getSession().then(async ({ data }) => {
         setUserEmail(data.session?.user?.email ?? null);
         if (data.session?.user?.id) {
+          // Check platform admin status
+          const { data: platAdmin } = await supabase
+            .from("platform_admins")
+            .select("id")
+            .eq("user_id", data.session.user.id)
+            .maybeSingle();
+
+          if (platAdmin) {
+            setIsPlatformAdmin(true);
+          } else if (data.session.user.email) {
+            const { data: platByEmail } = await supabase
+              .from("platform_admins")
+              .select("id")
+              .eq("email", data.session.user.email.toLowerCase())
+              .maybeSingle();
+            if (platByEmail) setIsPlatformAdmin(true);
+          }
+
           const { data: user } = await supabase
             .from("users")
             .select("role, company_id")
@@ -106,6 +127,7 @@ export function Sidebar() {
           // Reset cache on sign-out / sign-in so role re-fetches
           if (_event === "SIGNED_OUT" || _event === "SIGNED_IN") {
             authLoadedRef.current = false;
+            setIsPlatformAdmin(false);
           }
         },
       );
@@ -259,6 +281,45 @@ export function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-2">
+          {/* Platform Super Admin Section */}
+          {isPlatformAdmin && (
+            <div className="mb-4 rounded-xl border border-amber-300/40 bg-amber-500/10 p-2 dark:border-amber-500/30 dark:bg-amber-950/20">
+              {isExpanded && (
+                <div className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-400">
+                  Platform Admin
+                </div>
+              )}
+              <a
+                href="/platform/companies"
+                title={!isExpanded ? "Client Companies" : undefined}
+                className={`group relative mb-1 flex items-center rounded-lg transition-all ${
+                  isExpanded ? "gap-2.5 px-2.5 py-1.5" : "justify-center p-2"
+                } text-xs font-semibold ${
+                  pathname?.startsWith("/platform/companies")
+                    ? "bg-amber-600 text-white shadow-sm"
+                    : "text-amber-900 hover:bg-amber-200/50 dark:text-amber-200 dark:hover:bg-amber-900/40"
+                }`}
+              >
+                <Building2 size={15} className="shrink-0" />
+                {isExpanded && <span className="truncate">Client Companies</span>}
+              </a>
+              <a
+                href="/platform/admins"
+                title={!isExpanded ? "Super Admins" : undefined}
+                className={`group relative flex items-center rounded-lg transition-all ${
+                  isExpanded ? "gap-2.5 px-2.5 py-1.5" : "justify-center p-2"
+                } text-xs font-semibold ${
+                  pathname === "/platform/admins"
+                    ? "bg-amber-600 text-white shadow-sm"
+                    : "text-amber-900 hover:bg-amber-200/50 dark:text-amber-200 dark:hover:bg-amber-900/40"
+                }`}
+              >
+                <ShieldAlert size={15} className="shrink-0" />
+                {isExpanded && <span className="truncate">Super Admins</span>}
+              </a>
+            </div>
+          )}
+
           {grouped.map((group) => (
             <div key={group.sectionKey} className="mb-4">
               {isExpanded && (
