@@ -15,6 +15,7 @@ import {
   Sun,
   Building2,
   ShieldAlert,
+  Plus,
 } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { NAV_ITEMS, NAV_SECTIONS } from "@/lib/nav-items";
@@ -196,16 +197,18 @@ export function Sidebar() {
         {/* Brand + Toggle */}
         <div className="flex items-center justify-between px-3 py-4">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold tracking-tight text-white shadow-sm dark:bg-slate-100 dark:text-slate-900">
-              F
+            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold tracking-tight text-white shadow-sm ${
+              isPlatformAdmin ? "bg-amber-600" : "bg-slate-900 dark:bg-slate-100 dark:text-slate-900"
+            }`}>
+              {isPlatformAdmin ? "P" : "F"}
             </div>
             {isExpanded && (
               <div className="min-w-0">
-                <div className="truncate text-sm font-bold tracking-tight text-slate-900">
-                  {t("shell.appName")}
+                <div className="truncate text-sm font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  {isPlatformAdmin ? "Platform Console" : t("shell.appName")}
                 </div>
-                <div className="text-xs font-medium text-slate-500">
-                  {t("shell.commandCenter")}
+                <div className={`text-xs font-semibold ${isPlatformAdmin ? "text-amber-600 dark:text-amber-400" : "text-slate-500"}`}>
+                  {isPlatformAdmin ? "Super Admin" : t("shell.commandCenter")}
                 </div>
               </div>
             )}
@@ -302,90 +305,119 @@ export function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-2">
-          {/* Platform Super Admin Section */}
-          {isPlatformAdmin && (
-            <div className="mb-4 rounded-xl border border-amber-300/40 bg-amber-500/10 p-2 dark:border-amber-500/30 dark:bg-amber-950/20">
+          {isPlatformAdmin ? (
+            <div className="space-y-1">
               {isExpanded && (
-                <div className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-400">
-                  Platform Admin
+                <div className="mb-2 px-2 text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                  Platform Operations
                 </div>
               )}
               <a
                 href="/platform/companies"
                 title={!isExpanded ? "Client Companies" : undefined}
-                className={`group relative mb-1 flex items-center rounded-lg transition-all ${
-                  isExpanded ? "gap-2.5 px-2.5 py-1.5" : "justify-center p-2"
-                } text-xs font-semibold ${
-                  pathname?.startsWith("/platform/companies")
+                className={`group relative flex items-center rounded-lg transition-all duration-150 ${
+                  isExpanded ? "gap-3 px-3 py-2.5" : "justify-center px-0 py-2.5"
+                } text-[13px] font-medium ${
+                  pathname === "/platform/companies" ||
+                  (pathname?.startsWith("/platform/companies/") && pathname !== "/platform/companies/new")
                     ? "bg-amber-600 text-white shadow-sm"
-                    : "text-amber-900 hover:bg-amber-200/50 dark:text-amber-200 dark:hover:bg-amber-900/40"
+                    : "text-slate-600 hover:bg-stone-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
                 }`}
               >
-                <Building2 size={15} className="shrink-0" />
+                <Building2 size={16} className="shrink-0" />
                 {isExpanded && <span className="truncate">Client Companies</span>}
+                {!isExpanded && (
+                  <span className="pointer-events-none absolute left-full ml-2 hidden whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white shadow-lg group-hover:block">
+                    Client Companies
+                  </span>
+                )}
+              </a>
+              <a
+                href="/platform/companies/new"
+                title={!isExpanded ? "Onboard Company" : undefined}
+                className={`group relative flex items-center rounded-lg transition-all duration-150 ${
+                  isExpanded ? "gap-3 px-3 py-2.5" : "justify-center px-0 py-2.5"
+                } text-[13px] font-medium ${
+                  pathname === "/platform/companies/new"
+                    ? "bg-amber-600 text-white shadow-sm"
+                    : "text-slate-600 hover:bg-stone-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
+                }`}
+              >
+                <Plus size={16} className="shrink-0" />
+                {isExpanded && <span className="truncate">Onboard Company</span>}
+                {!isExpanded && (
+                  <span className="pointer-events-none absolute left-full ml-2 hidden whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white shadow-lg group-hover:block">
+                    Onboard Company
+                  </span>
+                )}
               </a>
               <a
                 href="/platform/admins"
                 title={!isExpanded ? "Super Admins" : undefined}
-                className={`group relative flex items-center rounded-lg transition-all ${
-                  isExpanded ? "gap-2.5 px-2.5 py-1.5" : "justify-center p-2"
-                } text-xs font-semibold ${
+                className={`group relative flex items-center rounded-lg transition-all duration-150 ${
+                  isExpanded ? "gap-3 px-3 py-2.5" : "justify-center px-0 py-2.5"
+                } text-[13px] font-medium ${
                   pathname === "/platform/admins"
                     ? "bg-amber-600 text-white shadow-sm"
-                    : "text-amber-900 hover:bg-amber-200/50 dark:text-amber-200 dark:hover:bg-amber-900/40"
+                    : "text-slate-600 hover:bg-stone-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
                 }`}
               >
-                <ShieldAlert size={15} className="shrink-0" />
+                <ShieldAlert size={16} className="shrink-0" />
                 {isExpanded && <span className="truncate">Super Admins</span>}
+                {!isExpanded && (
+                  <span className="pointer-events-none absolute left-full ml-2 hidden whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white shadow-lg group-hover:block">
+                    Super Admins
+                  </span>
+                )}
               </a>
             </div>
+          ) : (
+            grouped.map((group) => (
+              <div key={group.sectionKey} className="mb-4">
+                {isExpanded && (
+                  <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-slate-600">
+                    {group.section}
+                  </div>
+                )}
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href;
+                  const label = t(item.labelKey);
+
+                  return (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      title={!isExpanded ? label : undefined}
+                      className={`group relative mb-px flex items-center rounded-lg transition-all duration-150 ${
+                        isExpanded ? "gap-3 px-3 py-2" : "justify-center px-0 py-2"
+                      } text-[13px] font-medium ${
+                        isActive
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "text-slate-500 hover:bg-stone-50 hover:text-slate-900"
+                      }`}
+                    >
+                      <Icon size={16} className="shrink-0" />
+                      {isExpanded && (
+                        <>
+                          <span className="truncate">{label}</span>
+                          {isActive && (
+                            <div className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+                          )}
+                        </>
+                      )}
+                      {/* Tooltip when collapsed */}
+                      {!isExpanded && (
+                        <span className="pointer-events-none absolute left-full ml-2 hidden whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white shadow-lg group-hover:block">
+                          {label}
+                        </span>
+                      )}
+                    </a>
+                  );
+                })}
+              </div>
+            ))
           )}
-
-          {grouped.map((group) => (
-            <div key={group.sectionKey} className="mb-4">
-              {isExpanded && (
-                <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-slate-600">
-                  {group.section}
-                </div>
-              )}
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href;
-                const label = t(item.labelKey);
-
-                return (
-                  <a
-                    key={item.href}
-                    href={item.href}
-                    title={!isExpanded ? label : undefined}
-                    className={`group relative mb-px flex items-center rounded-lg transition-all duration-150 ${
-                      isExpanded ? "gap-3 px-3 py-2" : "justify-center px-0 py-2"
-                    } text-[13px] font-medium ${
-                      isActive
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-500 hover:bg-stone-50 hover:text-slate-900"
-                    }`}
-                  >
-                    <Icon size={16} className="shrink-0" />
-                    {isExpanded && (
-                      <>
-                        <span className="truncate">{label}</span>
-                        {isActive && (
-                          <div className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
-                        )}
-                      </>
-                    )}
-                    {/* Tooltip when collapsed */}
-                    {!isExpanded && (
-                      <span className="pointer-events-none absolute left-full ml-2 hidden whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white shadow-lg group-hover:block">
-                        {label}
-                      </span>
-                    )}
-                  </a>
-                );
-              })}
-            </div>
-          ))}
         </nav>
 
         {/* Footer: language, theme, logo, user, sign-out */}

@@ -92,6 +92,17 @@ export default function DashboardPage() {
   const [loadingMoreJobs, setLoadingMoreJobs] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
 
+  // Super Admins do not manage an individual company; redirect immediately to Platform Console
+  useEffect(() => {
+    const supabase = getSupabase();
+    supabase.auth.getSession().then(({ data }) => {
+      const email = data.session?.user?.email?.toLowerCase();
+      if (email === "mybbrllc@gmail.com") {
+        window.location.replace("/platform/companies");
+      }
+    });
+  }, []);
+
   // Auto-open the first-run briefing once per device.
   useEffect(() => {
     if (!dashboardWelcomeSeen()) setWelcomeOpen(true);
