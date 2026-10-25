@@ -245,6 +245,85 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                           'Sign in to worker app'),
                                 ),
                               ),
+                              const SizedBox(height: 20),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: palette.canvas,
+                                  borderRadius:
+                                      BorderRadius.circular(FieldOpsRadius.md),
+                                  border: Border.all(color: palette.border),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.bolt_rounded,
+                                          size: 16,
+                                          color: palette.signal,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Quick Test Accounts',
+                                          style: textTheme.labelSmall?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                            color: palette.slate,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        _TestAccountChip(
+                                          label: 'Worker',
+                                          email: 'worker@test.com',
+                                          onTap: () {
+                                            HapticFeedback.lightImpact();
+                                            setState(() {
+                                              _emailController.text =
+                                                  'worker@test.com';
+                                              _passwordController.text =
+                                                  'password123';
+                                            });
+                                          },
+                                        ),
+                                        _TestAccountChip(
+                                          label: 'Supervisor',
+                                          email: 'supervisor@test.com',
+                                          onTap: () {
+                                            HapticFeedback.lightImpact();
+                                            setState(() {
+                                              _emailController.text =
+                                                  'supervisor@test.com';
+                                              _passwordController.text =
+                                                  'password123';
+                                            });
+                                          },
+                                        ),
+                                        _TestAccountChip(
+                                          label: 'Admin',
+                                          email: 'admin@test.com',
+                                          onTap: () {
+                                            HapticFeedback.lightImpact();
+                                            setState(() {
+                                              _emailController.text =
+                                                  'admin@test.com';
+                                              _passwordController.text =
+                                                  'password123';
+                                            });
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -267,3 +346,58 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return 'Sign-in failed. Check your credentials and connection, then try again.';
   }
 }
+
+class _TestAccountChip extends StatelessWidget {
+  const _TestAccountChip({
+    required this.label,
+    required this.email,
+    required this.onTap,
+  });
+
+  final String label;
+  final String email;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Material(
+      color: palette.surfaceWhite,
+      borderRadius: BorderRadius.circular(FieldOpsRadius.sm),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(FieldOpsRadius.sm),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(FieldOpsRadius.sm),
+            border: Border.all(color: palette.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: palette.slate,
+                ),
+              ),
+              Text(
+                email,
+                style: textTheme.bodySmall?.copyWith(
+                  fontSize: 10,
+                  color: palette.steel,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
