@@ -321,6 +321,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         ),
                                       ],
                                     ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'Platform Super Admins manage multi-company billing and onboarding on the Web Command Center.',
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color: palette.steel,
+                                        fontSize: 11,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),

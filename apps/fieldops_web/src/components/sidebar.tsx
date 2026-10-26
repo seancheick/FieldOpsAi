@@ -93,19 +93,20 @@ export function Sidebar() {
             setIsPlatformAdmin(true);
           }
 
-          // Dynamic check via platform_admin edge function
-          if (data.session.access_token) {
-            const baseUrl =
-              process.env.NEXT_PUBLIC_SUPABASE_URL ||
-              "https://cpqrazrszhcxjvursuci.supabase.co";
-            fetch(`${baseUrl}/functions/v1/platform_admin?action=list_companies`, {
-              headers: { Authorization: `Bearer ${data.session.access_token}` },
+          // Dynamic check via local platform admins API route (zero-CORS)
+          fetch("/api/platform/admins")
+            .then((res) => (res.ok ? res.json() : null))
+            .then((adminData) => {
+              if (adminData?.admins) {
+                const isAdmin = adminData.admins.some(
+                  (a: { email?: string; auth_user_id?: string }) =>
+                    a.email?.toLowerCase() === email ||
+                    a.auth_user_id === data.session?.user?.id
+                );
+                if (isAdmin) setIsPlatformAdmin(true);
+              }
             })
-              .then((res) => {
-                if (res.ok) setIsPlatformAdmin(true);
-              })
-              .catch(() => {});
-          }
+            .catch(() => {});
 
           if (data.session.user.id) {
             const { data: user } = await supabase
@@ -132,15 +133,18 @@ export function Sidebar() {
           const email = session?.user?.email?.toLowerCase();
           if (email === "mybbrllc@gmail.com" || email === "admin@test.com") {
             setIsPlatformAdmin(true);
-          } else if (session?.access_token) {
-            const baseUrl =
-              process.env.NEXT_PUBLIC_SUPABASE_URL ||
-              "https://cpqrazrszhcxjvursuci.supabase.co";
-            fetch(`${baseUrl}/functions/v1/platform_admin?action=list_companies`, {
-              headers: { Authorization: `Bearer ${session.access_token}` },
-            })
-              .then((res) => {
-                setIsPlatformAdmin(res.ok);
+          } else if (session?.user) {
+            fetch("/api/platform/admins")
+              .then((res) => (res.ok ? res.json() : null))
+              .then((adminData) => {
+                if (adminData?.admins) {
+                  const isAdmin = adminData.admins.some(
+                    (a: { email?: string; auth_user_id?: string }) =>
+                      a.email?.toLowerCase() === email ||
+                      a.auth_user_id === session.user.id
+                  );
+                  setIsPlatformAdmin(isAdmin);
+                }
               })
               .catch(() => {});
           }

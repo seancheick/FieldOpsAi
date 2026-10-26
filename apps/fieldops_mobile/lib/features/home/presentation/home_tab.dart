@@ -303,19 +303,28 @@ class _GreetingHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final palette = context.palette;
-    final name = email?.split('@').first ?? 'worker';
+    final rawName = email?.split('@').first ?? 'worker';
+    final name = rawName.isNotEmpty
+        ? '${rawName[0].toUpperCase()}${rawName.substring(1)}'
+        : 'Worker';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           '$_greeting, $name',
-          style: textTheme.headlineMedium,
+          style: textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           _dateLabel,
-          style: textTheme.bodyMedium?.copyWith(color: palette.steel),
+          style: textTheme.bodyMedium?.copyWith(
+            color: palette.steel,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
